@@ -1,0 +1,85 @@
+// Frag Exchange — Prisma schema (MySQL / Hostinger)
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+/// Baseline user row for upcoming auth/profile (Chunk 2). Extend as needed.
+model User {
+  id                        String               @id @default(cuid())
+  email                     String               @unique @db.VarChar(255)
+  alias                     String?              @db.VarChar(80)
+  avatarEmoji              String?              @db.VarChar(12)
+  tosAcceptedAt             DateTime?
+  tosVersion                String?              @db.VarChar(40)
+  contactPreference         ContactPreference    @default(EMAIL)
+  onboardingPath            OnboardingPath?
+  onboardingCompletedAt     DateTime?
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  address                   UserAddress?
+  sessions                  Session[]
+  magicLinkRequests         MagicLinkToken[]
+
+  @@map("users")
+}
+
+model UserAddress {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  line1       String   @db.VarChar(255)
+  line2       String?  @db.VarChar(255)
+  town        String   @db.VarChar(120)
+  region      String?  @db.VarChar(120)
+  postalCode  String   @db.VarChar(40)
+  countryCode String   @db.VarChar(2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_addresses")
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique @db.VarChar(64)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  revokedAt  DateTime?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}
+
+model MagicLinkToken {
+  id          String   @id @default(cuid())
+  userId      String
+  email       String   @db.VarChar(255)
+  tokenHash   String   @unique @db.VarChar(64)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+  requestedIp String?  @db.VarChar(80)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("magic_link_tokens")
+}
+
+enum ContactPreference {
+  EMAIL
+  SMS
+}
+
+enum OnboardingPath {
+  EVENT_ONLY
+  GROUP_AND_EVENT
+}

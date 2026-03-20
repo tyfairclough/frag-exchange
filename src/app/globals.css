@@ -1,26 +1,97 @@
 @import "tailwindcss";
+@plugin "daisyui" {
+  themes: fraglight --default, fragdark --prefersdark;
+}
+
+@plugin "daisyui/theme" {
+  name: "fraglight";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: #f4faf8;
+  --color-base-200: #edf5f2;
+  --color-base-300: #deebe6;
+  --color-base-content: #0f1c1a;
+  --color-primary: #0d9488;
+  --color-primary-content: #f0fffc;
+  --color-secondary: #65b6af;
+  --color-secondary-content: #072a26;
+  --color-accent: #0f766e;
+  --color-accent-content: #eafdfa;
+  --color-neutral: #2f4540;
+  --color-neutral-content: #f4faf8;
+  --color-info: #0b86c7;
+  --color-info-content: #f0f9ff;
+  --color-success: #1e8f5c;
+  --color-success-content: #f0fdf4;
+  --color-warning: #ca8a04;
+  --color-warning-content: #272006;
+  --color-error: #b42318;
+  --color-error-content: #fff5f5;
+
+  --radius-selector: 0.75rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "fragdark";
+  default: false;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: #0c1210;
+  --color-base-200: #111a18;
+  --color-base-300: #17211e;
+  --color-base-content: #e8f4f0;
+  --color-primary: #2dd4bf;
+  --color-primary-content: #063028;
+  --color-secondary: #3f8f86;
+  --color-secondary-content: #e6faf5;
+  --color-accent: #2ec4b6;
+  --color-accent-content: #062a25;
+  --color-neutral: #24322e;
+  --color-neutral-content: #e8f4f0;
+  --color-info: #3aa4db;
+  --color-info-content: #e6f6ff;
+  --color-success: #34b374;
+  --color-success-content: #062b1a;
+  --color-warning: #d6a32f;
+  --color-warning-content: #251a02;
+  --color-error: #d75248;
+  --color-error-content: #fff5f5;
+
+  --radius-selector: 0.75rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --shell-border: color-mix(in oklab, var(--color-base-content) 12%, transparent);
+  --shell-hover: color-mix(in oklab, var(--color-base-content) 7%, transparent);
+  --shell-active: color-mix(in oklab, var(--color-base-content) 12%, transparent);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--color-base-100);
+  --color-foreground: var(--color-base-content);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-base-100);
+  color: var(--color-base-content);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }

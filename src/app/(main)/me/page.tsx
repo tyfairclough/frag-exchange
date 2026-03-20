@@ -1,0 +1,38 @@
+import { signOutAction } from "@/app/auth/actions";
+import { requireUser } from "@/lib/auth";
+
+export default async function MePage() {
+  const user = await requireUser();
+
+  return (
+    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
+      <h1 className="text-xl font-semibold text-base-content">Me</h1>
+      <section className="card border border-base-content/10 bg-base-100 shadow-sm">
+        <div className="card-body p-5 text-sm">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-2xl">
+              {user.avatarEmoji ?? "🐠"}
+            </span>
+            <div>
+              <p className="text-base font-semibold">{user.alias ?? "No alias yet"}</p>
+              <p className="text-base-content/70">{user.email}</p>
+            </div>
+          </div>
+
+          <div className="mt-3 space-y-1 text-base-content/75">
+            <p>ToS accepted: {user.tosAcceptedAt ? "Yes" : "No"}</p>
+            <p>Onboarding path: {user.onboardingPath ?? "Not set"}</p>
+            <p>Contact preference: {user.contactPreference}</p>
+            <p>Address saved: {user.address ? "Yes" : "No"}</p>
+          </div>
+
+          <form action={signOutAction} className="mt-4">
+            <button type="submit" className="btn btn-outline btn-sm">
+              Sign out
+            </button>
+          </form>
+        </div>
+      </section>
+    </div>
+  );
+}

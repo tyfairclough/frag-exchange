@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frag Exchange (web)
 
-## Getting Started
+Next.js app for **Frag Exchange**: mobile-first shell, **MySQL** via **Prisma 7**, aligned with a **Hostinger Node.js** deployment (Next.js preset).
 
-First, run the development server:
+Runtime DB access uses Prisma’s **`@prisma/adapter-mariadb`** driver with the [`mariadb`](https://www.npmjs.com/package/mariadb) client (MySQL-compatible; same `mysql://…` `DATABASE_URL` as in Prisma’s docs).
+UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) using custom themes: `fraglight` and `fragdark`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Requirements
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Node.js** 20–24 (see `engines` in `package.json`)
+- **MySQL** 8.x (local Docker, Hostinger managed MySQL, or any reachable instance)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Local setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Environment**
 
-## Learn More
+   ```bash
+   cp .env.example .env
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+   Set `DATABASE_URL` to a MySQL URL Prisma accepts, for example:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   `mysql://USER:PASSWORD@127.0.0.1:3306/frag_exchange`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. **Install and database**
 
-## Deploy on Vercel
+   ```bash
+   npm install
+   npx prisma migrate dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   `postinstall` runs `prisma generate` so the client matches the schema after installs.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. **Run**
+
+   ```bash
+   npm run dev
+   ```
+
+   - App: [http://localhost:3000](http://localhost:3000)
+   - Health (includes DB ping): [http://localhost:3000/api/health](http://localhost:3000/api/health)
+
+## Scripts
+
+| Script               | Purpose                                      |
+| -------------------- | -------------------------------------------- |
+| `npm run dev`        | Next dev server                              |
+| `npm run build`      | `prisma generate` + production Next build   |
+| `npm run start`      | Production server (`next start`)             |
+| `npm run db:migrate` | `prisma migrate deploy` (CI / production)   |
+| `npm run db:migrate:dev` | Create/apply migrations in development |
+
+## UI conventions (Tailwind + daisyUI)
+
+- Use **daisyUI component classes** first for standard UI patterns (`btn`, `card`, `skeleton`, `alert`, form controls).
+- Use **Tailwind utilities** for layout and one-off spacing/sizing (`flex`, `grid`, `gap-*`, `px-*`, responsive tweaks).
+- Keep app colors on semantic tokens (`primary`, `base-*`, `neutral`) instead of hard-coded hex values in components.
+- Theme definitions live in `src/app/globals.css` under `@plugin "daisyui/theme"` blocks (`fraglight`, `fragdark`).
+
+## Deploy (Hostinger)
+
+See **[docs/deploy-hostinger.md](./docs/deploy-hostinger.md)** for panel settings, `DATABASE_URL`, build/start commands, and running migrations on deploy.
+
+## Project layout (Chunk 1)
+
+- `src/app/(main)/` — routed UI inside the app shell (home, explore, me placeholders)
+- `src/app/api/health` — JSON health check with MySQL connectivity
+- `prisma/` — schema and migrations (`users` baseline table)
