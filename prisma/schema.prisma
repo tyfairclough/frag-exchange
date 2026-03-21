@@ -18,6 +18,8 @@ model User {
   avatarEmoji              String?              @db.VarChar(12)
   tosAcceptedAt             DateTime?
   tosVersion                String?              @db.VarChar(40)
+  privacyAcceptedAt         DateTime?
+  privacyVersion            String?              @db.VarChar(40)
   contactPreference         ContactPreference    @default(EMAIL)
   onboardingPath            OnboardingPath?
   onboardingCompletedAt     DateTime?

@@ -12,9 +12,12 @@ function str(value: FormDataEntryValue | null) {
 export async function completeOnboardingAction(formData: FormData) {
   const user = await requireUser();
 
+  const LEGAL_VERSION = "2026-03-20";
+
   const alias = str(formData.get("alias"));
   const avatarEmoji = str(formData.get("avatarEmoji"));
   const tos = formData.get("tosAccepted") === "on";
+  const privacy = formData.get("privacyAccepted") === "on";
   const contactPreference = str(formData.get("contactPreference")) === "SMS" ? ContactPreference.SMS : ContactPreference.EMAIL;
   const onboardingPath =
     str(formData.get("onboardingPath")) === OnboardingPath.GROUP_AND_EVENT
@@ -24,6 +27,9 @@ export async function completeOnboardingAction(formData: FormData) {
   if (!tos) {
     redirect("/onboarding?error=tos");
   }
+  if (!privacy) {
+    redirect("/onboarding?error=privacy");
+  }
 
   const line1 = str(formData.get("line1"));
   const line2 = str(formData.get("line2"));
@@ -32,10 +38,18 @@ export async function completeOnboardingAction(formData: FormData) {
   const postalCode = str(formData.get("postalCode"));
   const countryCode = str(formData.get("countryCode")).toUpperCase();
 
+  const anyAddressField = Boolean(line1 || line2 || town || region || postalCode || countryCode);
+  const addressComplete = Boolean(line1 && town && postalCode && countryCode.length === 2);
+
   const needsAddress = onboardingPath === OnboardingPath.GROUP_AND_EVENT;
-  if (needsAddress && (!line1 || !town || !postalCode || countryCode.length !== 2)) {
+  if (needsAddress && !addressComplete) {
     redirect("/onboarding?error=address");
   }
+  if (!needsAddress && anyAddressField && !addressComplete) {
+    redirect("/onboarding?error=address-partial");
+  }
+
+  const now = new Date();
 
   await getPrisma().$transaction(async (tx) => {
     await tx.user.update({
@@ -43,15 +57,17 @@ export async function completeOnboardingAction(formData: FormData) {
       data: {
         alias: alias || null,
         avatarEmoji: avatarEmoji || null,
-        tosAcceptedAt: new Date(),
-        tosVersion: "2026-03-20",
+        tosAcceptedAt: now,
+        tosVersion: LEGAL_VERSION,
+        privacyAcceptedAt: now,
+        privacyVersion: LEGAL_VERSION,
         contactPreference,
         onboardingPath,
-        onboardingCompletedAt: new Date(),
+        onboardingCompletedAt: now,
       },
     });
 
-    if (needsAddress) {
+    if (needsAddress || (!needsAddress && addressComplete)) {
       await tx.userAddress.upsert({
         where: { userId: user.id },
         update: {

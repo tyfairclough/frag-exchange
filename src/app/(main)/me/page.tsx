@@ -20,7 +20,12 @@ export default async function MePage() {
           </div>
 
           <div className="mt-3 space-y-1 text-base-content/75">
-            <p>ToS accepted: {user.tosAcceptedAt ? "Yes" : "No"}</p>
+            <p>
+              ToS: {user.tosAcceptedAt ? `Yes (v${user.tosVersion ?? "?"})` : "No"}
+            </p>
+            <p>
+              Privacy notice: {user.privacyAcceptedAt ? `Yes (v${user.privacyVersion ?? "?"})` : "No"}
+            </p>
             <p>Onboarding path: {user.onboardingPath ?? "Not set"}</p>
             <p>Contact preference: {user.contactPreference}</p>
             <p>Address saved: {user.address ? "Yes" : "No"}</p>

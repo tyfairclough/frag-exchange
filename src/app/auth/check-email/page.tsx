@@ -17,7 +17,9 @@ export default async function CheckEmailPage({
             We sent a sign-in link to <span className="font-medium">{params.email ?? "your email"}</span>.
           </p>
           <p className="text-xs text-base-content/60">
-            In production this opens from your mailbox. In local development, use the debug link below.
+            With <code className="rounded bg-base-200 px-1">MAILTRAP_API_KEY</code> and{" "}
+            <code className="rounded bg-base-200 px-1">EMAIL_FROM</code> set, we email this link automatically. In local
+            development, use the debug link below when those are unset (or when sandbox mode is misconfigured).
           </p>
 
           {debugHref ? (
