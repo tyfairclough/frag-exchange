@@ -11,7 +11,12 @@ function createPrismaClient(): PrismaClient {
     );
   }
 
-  const adapter = new PrismaMariaDb(url);
+  let adapter: PrismaMariaDb;
+  try {
+    adapter = new PrismaMariaDb(url);
+  } catch (err) {
+    throw err;
+  }
 
   return new PrismaClient({
     adapter,

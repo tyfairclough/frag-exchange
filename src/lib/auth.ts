@@ -41,10 +41,15 @@ export async function createMagicLink(email: string, requestedIp?: string | null
 
 export async function consumeMagicLink(token: string) {
   const tokenHash = hashToken(token);
-  const link = await prisma.magicLinkToken.findUnique({
-    where: { tokenHash },
-    include: { user: true },
-  });
+  let link;
+  try {
+    link = await prisma.magicLinkToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+  } catch (err) {
+    throw err;
+  }
 
   if (!link || link.usedAt || link.expiresAt <= new Date()) {
     return null;
@@ -67,13 +72,17 @@ export async function createSession(userId: string) {
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * SESSION_TTL_DAYS);
 
-  await prisma.session.create({
-    data: {
-      userId,
-      tokenHash,
-      expiresAt,
-    },
-  });
+  try {
+    await prisma.session.create({
+      data: {
+        userId,
+        tokenHash,
+        expiresAt,
+      },
+    });
+  } catch (err) {
+    throw err;
+  }
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {

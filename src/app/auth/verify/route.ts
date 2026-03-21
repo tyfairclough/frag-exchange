@@ -10,6 +10,7 @@ export async function GET(request: Request) {
   }
 
   const user = await consumeMagicLink(token);
+
   if (!user) {
     return NextResponse.redirect(new URL("/auth/login?error=invalid-token", request.url));
   }
