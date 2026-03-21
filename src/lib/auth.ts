@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createHash, randomBytes } from "node:crypto";
-import { prisma } from "@/lib/db";
+import { getPrisma } from "@/lib/db";
 
 const SESSION_COOKIE = "fe_session";
 const SESSION_TTL_DAYS = 30;
@@ -16,7 +16,7 @@ function makeToken() {
 
 export async function createMagicLink(email: string, requestedIp?: string | null) {
   const normalizedEmail = email.trim().toLowerCase();
-  const user = await prisma.user.upsert({
+  const user = await getPrisma().user.upsert({
     where: { email: normalizedEmail },
     update: {},
     create: { email: normalizedEmail },
@@ -26,7 +26,7 @@ export async function createMagicLink(email: string, requestedIp?: string | null
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 1000 * 60 * 20);
 
-  await prisma.magicLinkToken.create({
+  await getPrisma().magicLinkToken.create({
     data: {
       userId: user.id,
       email: normalizedEmail,
@@ -41,21 +41,16 @@ export async function createMagicLink(email: string, requestedIp?: string | null
 
 export async function consumeMagicLink(token: string) {
   const tokenHash = hashToken(token);
-  let link;
-  try {
-    link = await prisma.magicLinkToken.findUnique({
-      where: { tokenHash },
-      include: { user: true },
-    });
-  } catch (err) {
-    throw err;
-  }
+  const link = await getPrisma().magicLinkToken.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  });
 
   if (!link || link.usedAt || link.expiresAt <= new Date()) {
     return null;
   }
 
-  const markUsed = await prisma.magicLinkToken.updateMany({
+  const markUsed = await getPrisma().magicLinkToken.updateMany({
     where: { id: link.id, usedAt: null },
     data: { usedAt: new Date() },
   });
@@ -72,17 +67,13 @@ export async function createSession(userId: string) {
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * SESSION_TTL_DAYS);
 
-  try {
-    await prisma.session.create({
-      data: {
-        userId,
-        tokenHash,
-        expiresAt,
-      },
-    });
-  } catch (err) {
-    throw err;
-  }
+  await getPrisma().session.create({
+    data: {
+      userId,
+      tokenHash,
+      expiresAt,
+    },
+  });
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
@@ -99,7 +90,7 @@ export async function clearSession() {
   const token = cookieStore.get(SESSION_COOKIE)?.value;
 
   if (token) {
-    await prisma.session.updateMany({
+    await getPrisma().session.updateMany({
       where: { tokenHash: hashToken(token), revokedAt: null },
       data: { revokedAt: new Date() },
     });
@@ -115,7 +106,7 @@ export async function getCurrentUser() {
     return null;
   }
 
-  const session = await prisma.session.findUnique({
+  const session = await getPrisma().session.findUnique({
     where: { tokenHash: hashToken(token) },
     include: { user: { include: { address: true } } },
   });

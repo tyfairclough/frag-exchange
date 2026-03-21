@@ -1,7 +1,7 @@
 "use server";
 
 import { ContactPreference, OnboardingPath } from "@/generated/prisma/enums";
-import { prisma } from "@/lib/db";
+import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -37,7 +37,7 @@ export async function completeOnboardingAction(formData: FormData) {
     redirect("/onboarding?error=address");
   }
 
-  await prisma.$transaction(async (tx) => {
+  await getPrisma().$transaction(async (tx) => {
     await tx.user.update({
       where: { id: user.id },
       data: {

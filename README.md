@@ -3,6 +3,8 @@
 Next.js app for **Frag Exchange**: mobile-first shell, **MySQL** via **Prisma 7**, aligned with a **Hostinger Node.js** deployment (Next.js preset).
 
 Runtime DB access uses Prisma’s **`@prisma/adapter-mariadb`** driver with the [`mariadb`](https://www.npmjs.com/package/mariadb) client (MySQL-compatible; same `mysql://…` `DATABASE_URL` as in Prisma’s docs).
+
+**MySQL only:** the Prisma schema uses `provider = "mysql"`. Do not use PostgreSQL or `prisma+postgres://` URLs. The `postgres` package may appear under `node_modules` as a **transitive dependency of the Prisma CLI**; the app runtime does not connect to Postgres.
 UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) using custom themes: `fraglight` and `fragdark`.
 
 ## Requirements

@@ -13,7 +13,7 @@ Add **at least**:
 
 | Variable         | Description                                                                 |
 | ---------------- | --------------------------------------------------------------------------- |
-| `DATABASE_URL`   | MySQL URL, e.g. `mysql://USER:PASSWORD@HOST:3306/DATABASE` — never commit. |
+| `DATABASE_URL`   | **MySQL only** — `mysql://USER:PASSWORD@HOST:3306/DATABASE`. Do not use PostgreSQL or `prisma+postgres://`. Never commit. |
 | `NODE_ENV`       | Usually `production` (often set automatically).                            |
 
 Optional Next defaults apply; add others only when you introduce features that need them.
