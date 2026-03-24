@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { consumeAuthNextCookie } from "@/lib/auth-next-cookie";
 import { consumeMagicLink, createSession } from "@/lib/auth";
+import { setOnboardingNextCookie } from "@/lib/onboarding-next-cookie";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -17,6 +19,15 @@ export async function GET(request: Request) {
 
   await createSession(user.id);
 
-  const destination = user.onboardingCompletedAt ? "/" : "/onboarding";
+  const nextPath = await consumeAuthNextCookie();
+  if (nextPath && !user.onboardingCompletedAt) {
+    await setOnboardingNextCookie(nextPath);
+  }
+  const destination =
+    nextPath && user.onboardingCompletedAt
+      ? nextPath
+      : user.onboardingCompletedAt
+        ? "/"
+        : "/onboarding";
   return NextResponse.redirect(new URL(destination, request.url));
 }

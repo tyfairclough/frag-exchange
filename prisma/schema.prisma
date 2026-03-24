@@ -23,13 +23,224 @@ model User {
   contactPreference         ContactPreference    @default(EMAIL)
   onboardingPath            OnboardingPath?
   onboardingCompletedAt     DateTime?
+  /// Platform operators who can create exchanges and assign event managers.
+  globalRole                UserGlobalRole       @default(MEMBER)
+  /// Bcrypt hash for optional password sign-in (magic link remains supported when null).
+  passwordHash              String?              @db.VarChar(255)
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
   address                   UserAddress?
   sessions                  Session[]
   magicLinkRequests         MagicLinkToken[]
+  corals                    Coral[]
+  exchangesCreated          Exchange[]           @relation("ExchangeCreatedBy")
+  exchangeMemberships       ExchangeMembership[]
+  exchangeInvitesSent       ExchangeInvite[]     @relation("ExchangeInviteInvitedBy")
+  tradesInitiated           Trade[]              @relation("TradeInitiator")
+  tradesAsPeer              Trade[]              @relation("TradePeer")
+  adminAuditLogs            AdminAuditLog[]
 
   @@map("users")
+}
+
+/// Chunk 10 — super-admin platform actions (exchange CRUD, demotions, etc.).
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String
+  action      String   @db.VarChar(120)
+  targetType  String?  @db.VarChar(80)
+  targetId    String?  @db.VarChar(40)
+  metadata    Json?
+  ip          String?  @db.VarChar(80)
+  createdAt   DateTime @default(now())
+  actor       User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  @@index([actorUserId, createdAt])
+  @@map("admin_audit_logs")
+}
+
+/// Chunk 4 — exchange hub: event vs group, public vs private, membership + invites.
+model Exchange {
+  id          String             @id @default(cuid())
+  name        String             @db.VarChar(160)
+  description String?            @db.Text
+  kind        ExchangeKind
+  visibility  ExchangeVisibility
+  /// For event exchanges; used later for trade expiry (Chunk 6).
+  eventDate   DateTime?
+  createdById String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  createdBy   User               @relation("ExchangeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  memberships ExchangeMembership[]
+  invites     ExchangeInvite[]
+  listings    ExchangeListing[]
+  trades      Trade[]
+
+  @@index([visibility, kind])
+  @@map("exchanges")
+}
+
+model ExchangeMembership {
+  id          String                   @id @default(cuid())
+  exchangeId  String
+  userId      String
+  role        ExchangeMembershipRole     @default(MEMBER)
+  joinedAt    DateTime                 @default(now())
+  exchange    Exchange                 @relation(fields: [exchangeId], references: [id], onDelete: Cascade)
+  user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([exchangeId, userId])
+  @@index([userId])
+  @@map("exchange_memberships")
+}
+
+model ExchangeInvite {
+  id          String    @id @default(cuid())
+  exchangeId  String
+  email       String    @db.VarChar(255)
+  tokenHash   String    @unique @db.VarChar(64)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  invitedById String
+  createdAt   DateTime  @default(now())
+  exchange    Exchange  @relation(fields: [exchangeId], references: [id], onDelete: Cascade)
+  invitedBy   User      @relation("ExchangeInviteInvitedBy", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([exchangeId, email])
+  @@map("exchange_invites")
+}
+
+/// A profile coral listed on a specific exchange (Chunk 5). Same coral may appear on multiple exchanges until traded.
+/// `expiresAt` enforces the 90-day listing window (also filterable in queries; Chunk 10 may mark rows explicitly).
+model ExchangeListing {
+  id         String   @id @default(cuid())
+  exchangeId String
+  coralId    String
+  listedAt   DateTime @default(now())
+  expiresAt  DateTime
+  exchange   Exchange @relation(fields: [exchangeId], references: [id], onDelete: Cascade)
+  coral      Coral    @relation(fields: [coralId], references: [id], onDelete: Cascade)
+
+  @@unique([exchangeId, coralId])
+  @@index([exchangeId, expiresAt])
+  @@map("exchange_listings")
+}
+
+enum UserGlobalRole {
+  MEMBER
+  SUPER_ADMIN
+}
+
+enum ExchangeKind {
+  EVENT
+  GROUP
+}
+
+enum ExchangeVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum ExchangeMembershipRole {
+  MEMBER
+  EVENT_MANAGER
+}
+
+/// Profile-level coral inventory (Chunk 3). Attach to exchanges in Chunk 5; `TRADED` set when a trade completes (Chunk 6).
+model Coral {
+  id             String             @id @default(cuid())
+  userId         String
+  name           String             @db.VarChar(120)
+  description    String             @db.Text
+  imageUrl       String?            @db.VarChar(2048)
+  listingMode    CoralListingMode   @default(BOTH)
+  freeToGoodHome Boolean            @default(false)
+  profileStatus  CoralProfileStatus @default(UNLISTED)
+  /// User-editable traits; may be pre-filled by the coral AI enrichment service.
+  coralType      String?            @db.VarChar(120)
+  colour         String?            @db.VarChar(120)
+  sizeLabel      String?            @db.VarChar(80)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exchangeListings ExchangeListing[]
+  tradeLines     TradeCoral[]
+
+  @@index([userId])
+  @@map("corals")
+}
+
+enum CoralListingMode {
+  POST
+  MEET
+  BOTH
+}
+
+enum CoralProfileStatus {
+  UNLISTED
+  TRADED
+}
+
+/// Chunk 6 — multi-coral trade between two members on one exchange.
+model Trade {
+  id              String      @id @default(cuid())
+  exchangeId      String
+  initiatorUserId String
+  peerUserId      String
+  status          TradeStatus @default(OFFER)
+  /// Incremented on counter and accept so concurrent accepts fail cleanly.
+  version         Int         @default(0)
+  expiresAt       DateTime
+  /// Set when expiry notifications were sent (avoids duplicate emails on repeated page loads).
+  expiredNotifiedAt DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  exchange        Exchange    @relation(fields: [exchangeId], references: [id], onDelete: Cascade)
+  initiator       User        @relation("TradeInitiator", fields: [initiatorUserId], references: [id], onDelete: Restrict)
+  peer            User        @relation("TradePeer", fields: [peerUserId], references: [id], onDelete: Restrict)
+  corals          TradeCoral[]
+
+  @@index([exchangeId, status])
+  @@index([initiatorUserId])
+  @@index([peerUserId])
+  @@map("trades")
+}
+
+model TradeCoral {
+  id                  String                       @id @default(cuid())
+  tradeId             String
+  coralId             String
+  side                TradeCoralSide
+  /// Event-day desk flow (Chunk 7): set when an approved trade is on an EVENT exchange; null for group swaps.
+  eventHandoffStatus  TradeCoralEventHandoffStatus?
+  trade               Trade                        @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  coral               Coral                        @relation(fields: [coralId], references: [id], onDelete: Restrict)
+
+  @@unique([tradeId, coralId])
+  @@index([coralId])
+  @@index([eventHandoffStatus])
+  @@map("trade_corals")
+}
+
+enum TradeStatus {
+  OFFER
+  REJECTED
+  COUNTERED
+  APPROVED
+  EXPIRED
+}
+
+enum TradeCoralSide {
+  INITIATOR
+  PEER
+}
+
+/// Physical handoff at an event exchange after trade approval (Available → checked-in → checked-out).
+enum TradeCoralEventHandoffStatus {
+  AWAITING_CHECKIN
+  CHECKED_IN
+  CHECKED_OUT
 }
 
 model UserAddress {
@@ -41,6 +252,9 @@ model UserAddress {
   region      String?  @db.VarChar(120)
   postalCode  String   @db.VarChar(40)
   countryCode String   @db.VarChar(2)
+  /// Approximate town-centre coordinates for coarse distance (never exact home); geocoded once from town + country.
+  townLatitude  Float?
+  townLongitude Float?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -8,5 +8,9 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     redirect("/onboarding");
   }
 
-  return <AppShell>{children}</AppShell>;
+  const aliasLabel = user.alias?.trim() || "Me";
+
+  return (
+    <AppShell profile={{ aliasLabel, avatarEmoji: user.avatarEmoji ?? "🐠" }}>{children}</AppShell>
+  );
 }

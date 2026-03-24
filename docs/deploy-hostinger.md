@@ -13,7 +13,7 @@ Add **at least**:
 
 | Variable         | Description                                                                 |
 | ---------------- | --------------------------------------------------------------------------- |
-| `DATABASE_URL`   | **MySQL only** — `mysql://USER:PASSWORD@HOST:3306/DATABASE`. Do not use PostgreSQL or `prisma+postgres://`. Never commit. |
+| `DATABASE_URL`   | **MySQL only** — `mysql://USER:PASSWORD@HOST:3306/DATABASE`. Do not use PostgreSQL or `prisma+postgres://`. Never commit. The repo’s **`.env.development`** (Docker URL for local dev) is **ignored in production**; production must get `DATABASE_URL` from this panel. |
 | `NODE_ENV`       | Usually `production` (often set automatically).                            |
 
 Optional Next defaults apply; add others only when you introduce features that need them.
@@ -47,12 +47,27 @@ Do **not** commit `.env`; store secrets only in the panel or your secret manager
 
 Use **Hostinger managed MySQL** or any MySQL instance reachable from the Node process. The Prisma schema provider is **`mysql`**; Prisma 7 connects at runtime through **`@prisma/adapter-mariadb`** and the **`mariadb`** npm package (works with standard MySQL servers using your existing `mysql://…` URL).
 
-## 6. Checklist
+## 6. Scheduled housekeeping (Chunk 10)
+
+Background expiry work (90-day listing cleanup, trade expiry + notifications) is exposed at **`/api/cron/housekeeping`**.
+
+1. Set **`CRON_SECRET`** in the panel (long random string).
+2. Set **`NEXT_PUBLIC_APP_URL`** (or **`APP_BASE_URL`**) so trade expiry emails contain correct links.
+3. In Hostinger **cron**, call periodically (e.g. hourly), for example:
+
+   `curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" "https://yourdomain.com/api/cron/housekeeping"`
+
+   Alternatively, `GET` with `?secret=YOUR_CRON_SECRET` works if your cron job cannot send headers.
+
+The endpoint returns JSON counts (`listingsRemoved`, `tradesExpired`). Without `CRON_SECRET`, it responds **401**.
+
+## 7. Checklist
 
 - [ ] `DATABASE_URL` set in the Node.js app environment  
 - [ ] `npm run build` succeeds on the server  
 - [ ] `npx prisma migrate deploy` applied against production MySQL  
 - [ ] `npm run start` matches panel port / proxy settings  
 - [ ] `/api/health` returns `{ "ok": true, "database": "up" }` when DB is reachable  
+- [ ] Optional: `CRON_SECRET` + cron hitting `/api/cron/housekeeping` for listing/trade expiry  
 
 For preset-specific screenshots and port numbers, use Hostinger’s current **Node.js + Next.js** documentation in your control panel.

@@ -18,6 +18,9 @@ export default function RootError({
       <h1 className="text-xl font-semibold text-base-content">Something went wrong</h1>
       <p className="max-w-sm text-sm leading-relaxed text-base-content/70">
         {error.message || "An unexpected error occurred. You can try again."}
+        <span className="mt-2 block text-base-content/60">
+          On a slow or offline connection, check your network and try again.
+        </span>
       </p>
       <button
         type="button"

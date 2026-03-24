@@ -3,6 +3,26 @@ import { PrismaClient } from "@/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
+function withMysqlAllowPublicKeyRetrieval(url: string) {
+  try {
+    const u = new URL(url);
+    const hasAllow = u.searchParams.has("allowPublicKeyRetrieval");
+    const hasCacheKey = u.searchParams.has("cachingRsaPublicKey");
+
+    // Prisma adapter passes DATABASE_URL through to the underlying MySQL driver.
+    // The driver error suggests enabling public key retrieval.
+    if (!hasAllow && !hasCacheKey) {
+      u.searchParams.set("allowPublicKeyRetrieval", "true");
+      return { url: u.toString(), changed: true, hasAllow: true, hasCacheKey: false };
+    }
+
+    return { url: u.toString(), changed: false, hasAllow, hasCacheKey };
+  } catch {
+    // If DATABASE_URL is not parseable as a URL, fall back to original.
+    return { url, changed: false, hasAllow: false, hasCacheKey: false };
+  }
+}
+
 /** Reject Postgres / Prisma Postgres URLs — this app targets MySQL only. */
 function assertMysqlOnlyDatabaseUrl(url: string) {
   const lower = url.trim().toLowerCase();
@@ -27,7 +47,9 @@ function createPrismaClient(): PrismaClient {
 
   assertMysqlOnlyDatabaseUrl(url);
 
-  const adapter = new PrismaMariaDb(url);
+  const rsaFix = withMysqlAllowPublicKeyRetrieval(url);
+
+  const adapter = new PrismaMariaDb(rsaFix.url);
 
   return new PrismaClient({
     adapter,
@@ -46,4 +68,20 @@ export function getPrisma(): PrismaClient {
 
   globalForPrisma.prisma = createPrismaClient();
   return globalForPrisma.prisma;
+}
+
+/**
+ * MariaDB pool could not open any connection (wrong host/port, server stopped, firewall).
+ * Surfaces a short actionable message instead of only "pool timeout … active=0 idle=0".
+ */
+export function throwIfMysqlPoolUnreachable(err: unknown): never {
+  const msg = err instanceof Error ? err.message : String(err);
+  const emptyPool =
+    msg.includes("pool timeout") && msg.includes("active=0") && msg.includes("idle=0");
+  if (emptyPool) {
+    throw new Error(
+      "MySQL is not reachable with your DATABASE_URL (no connection could be opened). Start MariaDB/MySQL or Docker on that host and port, set a real user/password/database in .env, then run migrations from the web folder: npm run db:migrate:dev",
+    );
+  }
+  throw err instanceof Error ? err : new Error(msg);
 }

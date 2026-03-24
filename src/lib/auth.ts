@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createHash, randomBytes } from "node:crypto";
-import { getPrisma } from "@/lib/db";
+import { getPrisma, throwIfMysqlPoolUnreachable } from "@/lib/db";
 
 const SESSION_COOKIE = "fe_session";
 const SESSION_TTL_DAYS = 30;
@@ -16,11 +16,16 @@ function makeToken() {
 
 export async function createMagicLink(email: string, requestedIp?: string | null) {
   const normalizedEmail = email.trim().toLowerCase();
-  const user = await getPrisma().user.upsert({
-    where: { email: normalizedEmail },
-    update: {},
-    create: { email: normalizedEmail },
-  });
+  let user;
+  try {
+    user = await getPrisma().user.upsert({
+      where: { email: normalizedEmail },
+      update: {},
+      create: { email: normalizedEmail },
+    });
+  } catch (e) {
+    throwIfMysqlPoolUnreachable(e);
+  }
 
   const token = makeToken();
   const tokenHash = hashToken(token);

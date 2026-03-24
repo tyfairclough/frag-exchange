@@ -17,5 +17,6 @@ export async function getRequestOrigin(): Promise<string> {
     return `${proto}://${host}`;
   }
 
-  return "http://localhost:3000";
+  const port = process.env.PORT || "3111";
+  return `http://localhost:${port}`;
 }

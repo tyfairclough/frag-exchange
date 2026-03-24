@@ -1,10 +1,14 @@
-import { requestMagicLinkAction } from "@/app/auth/actions";
+import Image from "next/image";
+import { requestMagicLinkAction, signInWithPasswordAction } from "@/app/auth/actions";
+import { MARKETING_CTA_GREEN, MARKETING_MUTED_BOX, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { AUTH_PROVIDERS } from "@/lib/auth/providers";
 
 const loginErrors: Record<string, string> = {
   "invalid-email": "Enter a valid email address.",
   "invalid-token": "That sign-in link is invalid or has expired. Request a new one.",
   "sso-not-ready": "That sign-in method is not available yet.",
+  "invalid-credentials": "Email or password is incorrect.",
+  "rate-limit": "Too many attempts from this network. Please wait a little while and try again.",
 };
 
 export default async function LoginPage({
@@ -16,55 +20,119 @@ export default async function LoginPage({
   const errorMessage = params.error ? loginErrors[params.error] ?? "Something went wrong. Try again." : null;
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-5 px-4 py-8">
-      <section className="card border border-base-content/10 bg-base-100 shadow-sm">
-        <div className="card-body gap-4 p-5">
-          <p className="text-sm font-medium text-primary">Chunk 2 — Identity</p>
-          <h1 className="text-2xl font-semibold tracking-tight">Sign in to Frag Exchange</h1>
-          <p className="text-sm text-base-content/70">
+    <main className="min-h-dvh bg-white text-slate-600">
+      <section className="mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:px-6 sm:py-12 lg:grid-cols-2 lg:items-center lg:gap-10">
+        <section className="order-1 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-black/5 sm:p-7">
+          <p className="text-sm font-medium" style={{ color: MARKETING_CTA_GREEN }}>
+            Chunk 2 - Identity
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl" style={{ color: MARKETING_NAVY }}>
+            Sign in to Frag Exchange
+          </h1>
+          <p className="mt-3 text-sm text-slate-600">
             Magic link is active today. Additional providers are listed for a single SSO integration point later.
           </p>
 
           {errorMessage ? (
-            <div role="alert" className="alert alert-error text-sm">
+            <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
               {errorMessage}
             </div>
           ) : null}
 
-          <form action={requestMagicLinkAction} className="space-y-3">
-            <label className="form-control w-full gap-1">
-              <span className="label-text text-sm font-medium">Email</span>
+          <form action={requestMagicLinkAction} className="mt-5 space-y-3">
+            <label className="block w-full">
+              <span className="mb-1 block text-sm font-medium text-slate-700">Email</span>
               <input
                 name="email"
                 type="email"
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
-                className="input input-bordered w-full"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
               />
             </label>
-            <button className="btn btn-primary w-full" type="submit">
+            <button
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full px-6 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.99]"
+              style={{ backgroundColor: MARKETING_CTA_GREEN }}
+              type="submit"
+            >
               Continue with magic link
             </button>
           </form>
 
-          <div className="divider my-1 text-xs">More sign-in options (planned)</div>
+          <div className="my-5 flex items-center gap-3 text-xs text-slate-500">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>Or sign in with password</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          <form action={signInWithPasswordAction} className="space-y-3">
+            <label className="block w-full">
+              <span className="mb-1 block text-sm font-medium text-slate-700">Email</span>
+              <input
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              />
+            </label>
+            <label className="block w-full">
+              <span className="mb-1 block text-sm font-medium text-slate-700">Password</span>
+              <input
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              />
+            </label>
+            <button
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-medium text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+              type="submit"
+            >
+              Sign in with password
+            </button>
+          </form>
+
+          <div className="my-5 flex items-center gap-3 text-xs text-slate-500">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>More sign-in options (planned)</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
           <ul className="space-y-2">
             {AUTH_PROVIDERS.filter((p) => !p.enabled).map((provider) => (
               <li key={provider.id}>
                 <button
-                  className="btn btn-outline w-full justify-between"
+                  className="inline-flex min-h-11 w-full items-center justify-between rounded-full border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 opacity-80"
                   disabled
                   type="button"
                   title={provider.description}
                 >
                   <span>{provider.label}</span>
-                  <span className="text-xs opacity-70">Planned</span>
+                  <span className="text-xs">Planned</span>
                 </button>
               </li>
             ))}
           </ul>
-        </div>
+        </section>
+
+        <section className="order-2 lg:justify-self-end">
+          <div
+            className="relative mx-auto w-full max-w-md overflow-hidden rounded-2xl p-6 sm:max-w-lg lg:max-w-xl"
+            style={{ backgroundColor: MARKETING_MUTED_BOX }}
+          >
+            <Image
+              src="/marketing/hero-corals.png"
+              alt=""
+              width={640}
+              height={520}
+              className="h-auto w-full object-contain"
+              priority
+            />
+          </div>
+        </section>
       </section>
     </main>
   );

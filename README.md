@@ -10,7 +10,8 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
 ## Requirements
 
 - **Node.js** 20–24 (see `engines` in `package.json`)
-- **MySQL** 8.x (local Docker, Hostinger managed MySQL, or any reachable instance)
+- **Docker Desktop** (Windows/Mac) or **Docker Engine + Compose** (Linux), for the bundled local MySQL
+- **MySQL** 8.x — or use the Docker setup below; production can use Hostinger or any reachable instance
 
 ## Local setup
 
@@ -20,27 +21,41 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
    cp .env.example .env
    ```
 
-   Set `DATABASE_URL` to a MySQL URL Prisma accepts, for example:
+   **Database URL:** committed **`.env.development`** points Prisma/Next at the local Docker MySQL (`frag` / `fraglocaldev` / `frag_exchange` on `127.0.0.1:3306`). It is loaded only when you run **`npm run dev`** (`NODE_ENV=development`). Add optional keys (Mailtrap, etc.) to `.env` or `.env.local`.
 
-   `mysql://USER:PASSWORD@127.0.0.1:3306/frag_exchange`
+   **Production** on Hostinger: set **`DATABASE_URL`** in the Node.js app environment — `.env.development` is not used when `NODE_ENV=production`.
 
-2. **Install and database**
+2. **Local MySQL (Docker)**
+
+   From the `web/` directory:
+
+   ```bash
+   npm run db:up
+   ```
+
+   Wait until the container is healthy (first start can take ~30s). Stop the database with `npm run db:down` (data persists in the `frag_exchange_mysql_data` volume until you remove it with `docker compose down -v`).
+
+   If port **3306** is already in use, edit `docker-compose.yml` to map e.g. `3307:3306` and set `DATABASE_URL` to use port `3307`.
+
+3. **Install and database**
 
    ```bash
    npm install
-   npx prisma migrate dev
+   npm run db:migrate:dev
    ```
 
    `postinstall` runs `prisma generate` so the client matches the schema after installs.
 
-3. **Run**
+   **Prisma P3014 (shadow database):** Local dev uses **`PRISMA_SHADOW_DATABASE_URL`** in `.env.development` (MySQL `root` + empty database **`prisma_shadow`**), so Migrate does not rely on `frag` creating random shadow DBs. Ensure that DB exists: new containers run `docker/mysql/99-prisma-migrate-grants.sql` on **first** init; for an older volume run **`npm run db:grant`** once while MySQL is up. Then **`npm run db:migrate:dev`**. To reset everything: `docker compose down -v` and `npm run db:up` (wipes local data).
+
+4. **Run**
 
    ```bash
    npm run dev
    ```
 
-   - App: [http://localhost:3000](http://localhost:3000)
-   - Health (includes DB ping): [http://localhost:3000/api/health](http://localhost:3000/api/health)
+   - App: [http://localhost:3111](http://localhost:3111) (port **3111** to avoid clashing with 3000 and 3001–3010)
+   - Health (includes DB ping): [http://localhost:3111/api/health](http://localhost:3111/api/health)
 
 ## Scripts
 
@@ -51,6 +66,10 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
 | `npm run start`      | Production server (`next start`)             |
 | `npm run db:migrate` | `prisma migrate deploy` (CI / production)   |
 | `npm run db:migrate:dev` | Create/apply migrations in development |
+| `npm run db:up`          | Start local MySQL (Docker Compose)        |
+| `npm run db:down`        | Stop local MySQL containers               |
+| `npm run db:grant` | Grant `frag` shadow-DB rights (existing volumes only; see P3014 note above) |
+| `npm run db:grant-migrate` | Same as `db:grant` |
 
 ## UI conventions (Tailwind + daisyUI)
 

@@ -33,8 +33,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-dvh bg-base-100 text-base-content font-sans">{children}</body>
+    <html lang="en" data-theme="fraglight" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="min-h-dvh bg-white text-slate-600 font-sans">{children}</body>
     </html>
   );
 }

@@ -95,3 +95,67 @@ body {
   color: var(--color-base-content);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+:root {
+  --marketing-navy: #0b1e3b;
+  --marketing-green: #22b41c;
+  --marketing-link: #1d4ed8;
+  --marketing-surface: #f8fafc;
+  --marketing-card: #ffffff;
+}
+
+/* Keep input text readable across all pages and themes. */
+input,
+textarea,
+select {
+  color: #0f172a;
+  background-color: #ffffff;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+body {
+  background: linear-gradient(180deg, #ffffff 0%, var(--marketing-surface) 100%);
+  color: #475569;
+}
+
+.btn {
+  border-radius: 9999px;
+  min-height: 2.75rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.btn-primary {
+  background-color: var(--marketing-green);
+  color: #ffffff;
+  border-color: transparent;
+}
+
+.btn-outline {
+  background-color: #ffffff;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.btn-ghost {
+  color: #334155;
+}
+
+.card {
+  border-radius: 1rem;
+  border-color: rgb(226 232 240 / 0.9);
+  background-color: var(--marketing-card);
+}
+
+.badge {
+  border-radius: 9999px;
+}
+
+.link {
+  color: var(--marketing-link);
+}
