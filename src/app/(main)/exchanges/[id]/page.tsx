@@ -29,6 +29,10 @@ import { PrivateInviteForm } from "@/app/(main)/exchanges/components/private-inv
 import { DeleteExchangeButton } from "@/app/(main)/exchanges/components/delete-exchange-button";
 import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 
+function reefersLabel(count: number): string {
+  return count === 1 ? "1 reefer" : `${count} reefers`;
+}
+
 const detailErrors: Record<string, string> = {
   forbidden: "You do not have permission for that action.",
   "promote-invalid": "That member cannot be promoted right now.",
@@ -107,12 +111,6 @@ export default async function ExchangeDetailPage({
   if (!canView) {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
-        <Link
-          href="/exchanges"
-          className="inline-flex min-h-10 w-fit items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-        >
-          All exchanges
-        </Link>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h1 className="text-xl font-bold" style={{ color: MARKETING_NAVY }}>
             Private exchange
@@ -127,28 +125,21 @@ export default async function ExchangeDetailPage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
-      <Link
-        href="/exchanges"
-        className="inline-flex min-h-10 w-fit items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-      >
-        All exchanges
-      </Link>
-
       {sp.joined === "1" || sp.joined === "invite" ? (
         <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {sp.joined === "invite" ? "You joined using an invite." : "You are now a member of this exchange."}
+          {sp.joined === "invite" ? "You joined using an invite." : "You are now a reefer on this exchange."}
         </div>
       ) : null}
 
       {sp.promoted === "1" ? (
         <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Member promoted to event manager.
+          Reefer promoted to event manager.
         </div>
       ) : null}
 
       {sp.demoted === "1" ? (
         <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Event manager demoted to member.
+          Event manager demoted to reefer.
         </div>
       ) : null}
 
@@ -194,15 +185,16 @@ export default async function ExchangeDetailPage({
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          <span className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
-            {exchange.kind === ExchangeKind.EVENT ? "Event" : "Group"}
-          </span>
-          <span className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
-            {exchange.visibility === ExchangeVisibility.PUBLIC ? "Public" : "Private"}
-          </span>
-          {membership ? (
-            <span className="rounded-full px-2.5 py-1 text-xs font-semibold text-white" style={{ backgroundColor: MARKETING_LINK_BLUE }}>
-              {membership.role === ExchangeMembershipRole.EVENT_MANAGER ? "Event manager" : "Member"}
+          <Link
+            href={`/exchanges/${encodeURIComponent(exchange.id)}/reefers`}
+            className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold text-white transition hover:opacity-95"
+            style={{ backgroundColor: MARKETING_LINK_BLUE }}
+          >
+            {reefersLabel(exchange.memberships.length)}
+          </Link>
+          {membership?.role === ExchangeMembershipRole.EVENT_MANAGER ? (
+            <span className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
+              Event manager
             </span>
           ) : null}
         </div>
@@ -241,7 +233,7 @@ export default async function ExchangeDetailPage({
       {!membership && exchange.visibility === ExchangeVisibility.PUBLIC ? (
         <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
           <div className="flex flex-row flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-slate-700">Join this public exchange to list corals and browse other members.</p>
+            <p className="text-sm text-slate-700">Join this public exchange to list corals and browse other reefers.</p>
             <form action={joinPublicExchangeFormAction}>
               <input type="hidden" name="exchangeId" value={exchange.id} />
               <button
@@ -382,7 +374,7 @@ export default async function ExchangeDetailPage({
 
       {roster ? (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Member roster</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Reefer roster</h2>
           <p className="text-xs text-slate-500">Shown to super admins and event managers on event exchanges.</p>
           <ul className="space-y-2">
             {exchange.memberships.map((m) => (
@@ -396,7 +388,7 @@ export default async function ExchangeDetailPage({
                   </p>
                   <p className="text-xs text-slate-600">{m.user.email}</p>
                   <p className="text-xs text-slate-500">
-                    {m.role === ExchangeMembershipRole.EVENT_MANAGER ? "Event manager" : "Member"}
+                    {m.role === ExchangeMembershipRole.EVENT_MANAGER ? "Event manager" : "Reefer"}
                   </p>
                 </div>
                 {promotePower && m.role === ExchangeMembershipRole.MEMBER ? (
@@ -421,7 +413,7 @@ export default async function ExchangeDetailPage({
                       type="submit"
                       className="inline-flex min-h-8 items-center rounded-full border border-slate-300 px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
                     >
-                      Demote to member
+                      Demote to reefer
                     </button>
                   </form>
                 ) : null}

@@ -4,6 +4,7 @@ import { ExchangeKind } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canViewExchangeDirectory } from "@/lib/super-admin";
+import { CoralListingCard } from "@/components/coral-listing-card";
 import { discoverExchangeListings } from "@/lib/discover-listings";
 
 export default async function ExchangeMemberListingsPage({
@@ -87,48 +88,16 @@ export default async function ExchangeMemberListingsPage({
       {rows.length === 0 ? (
         <p className="text-sm text-base-content/70">No active listings from this member on this exchange.</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid grid-cols-1 gap-5">
           {rows.map((row) => (
             <li key={row.listingId}>
-              <article className="card border border-base-content/10 bg-base-100 shadow-sm">
-                <div className="card-body gap-3 p-4">
-                  <div className="flex gap-3">
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-base-200 text-2xl text-base-content/40">
-                      {row.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={row.imageUrl} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <span aria-hidden>🪸</span>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-base-content">{row.name}</p>
-                      <p className="mt-1 line-clamp-3 text-sm text-base-content/70">{row.description}</p>
-                      <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-base-content/60">
-                        {row.coralType ? <span className="badge badge-outline badge-sm">{row.coralType}</span> : null}
-                        {row.colour ? <span className="badge badge-outline badge-sm">{row.colour}</span> : null}
-                        {row.sizeLabel ? <span className="badge badge-outline badge-sm">{row.sizeLabel}</span> : null}
-                        {row.freeToGoodHome ? (
-                          <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
-                        ) : null}
-                        {row.distanceKm != null ? (
-                          <span className="badge badge-outline badge-sm">~{row.distanceKm.toFixed(0)} km (town)</span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                  {!isSelf ? (
-                    <div className="border-t border-base-content/10 pt-3">
-                      <Link
-                        href={`/exchanges/${encodeURIComponent(exchangeId)}/trade?with=${encodeURIComponent(ownerUserId)}&focus=${encodeURIComponent(row.coralId)}`}
-                        className="btn btn-primary btn-sm min-h-10 rounded-xl"
-                      >
-                        Include in trade
-                      </Link>
-                    </div>
-                  ) : null}
-                </div>
-              </article>
+              <CoralListingCard
+                row={row}
+                exchangeId={exchangeId}
+                idPrefix="member"
+                tradeEnabled={!isSelf}
+                sellerLinkEnabled={!isSelf}
+              />
             </li>
           ))}
         </ul>

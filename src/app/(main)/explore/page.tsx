@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ExchangeKind } from "@/generated/prisma/enums";
+import type { ExploreShellModel } from "@/components/explore-shell-context";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import {
@@ -7,9 +8,34 @@ import {
   DISCOVER_CORAL_TYPES,
   discoverExchangeListings,
 } from "@/lib/discover-listings";
+import { ExploreOwnerScopeNote, ExploreResultsGrid } from "./_components/explore-results-grid";
+import { ExploreShellSync } from "./_components/explore-shell-sync";
 
 function str(v: string | string[] | undefined) {
   return typeof v === "string" ? v.trim() : "";
+}
+
+function paramStringList(
+  key: string,
+  sp: Record<string, string | string[] | undefined>,
+): string[] {
+  const v = sp[key];
+  if (v == null) {
+    return [];
+  }
+  const parts = Array.isArray(v) ? v : [v];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const p of parts) {
+    for (const piece of p.split(",")) {
+      const t = piece.trim();
+      if (t && !seen.has(t)) {
+        seen.add(t);
+        out.push(t);
+      }
+    }
+  }
+  return out;
 }
 
 export default async function ExplorePage({
@@ -27,22 +53,45 @@ export default async function ExplorePage({
   });
 
   const exchangeIdParam = str(sp.exchangeId);
-  const exchangeId =
+  const exchangeIdFromTrustedParam =
     exchangeIdParam && memberships.some((m) => m.exchangeId === exchangeIdParam)
       ? exchangeIdParam
-      : (memberships[0]?.exchangeId ?? "");
+      : null;
+  const scopedByQuery = exchangeIdFromTrustedParam != null;
+  const exchangeId = exchangeIdFromTrustedParam ?? (memberships[0]?.exchangeId ?? "");
 
   const selected = memberships.find((m) => m.exchangeId === exchangeId);
   const q = str(sp.q);
-  const coralType = str(sp.coralType);
-  const colour = str(sp.colour);
-  const size = str(sp.size);
+  const coralTypes = paramStringList("coralType", sp);
+  const colours = paramStringList("colour", sp);
   const freeOnly = str(sp.free) === "1";
   const fulfilment = str(sp.fulfilment);
   const fulfilmentParsed =
     fulfilment === "POST" || fulfilment === "MEET" ? fulfilment : undefined;
   const maxKmRaw = str(sp.maxKm);
   const maxKm = maxKmRaw ? Number(maxKmRaw) : undefined;
+  const ownerParam = str(sp.owner);
+
+  let validatedOwnerUserId: string | null = null;
+  if (ownerParam && exchangeId) {
+    const ownerMembership = await getPrisma().exchangeMembership.findFirst({
+      where: { exchangeId, userId: ownerParam },
+      select: { id: true },
+    });
+    if (ownerMembership) {
+      validatedOwnerUserId = ownerParam;
+    }
+  }
+
+  const ownerAlias =
+    validatedOwnerUserId != null
+      ? (
+          await getPrisma().user.findUnique({
+            where: { id: validatedOwnerUserId },
+            select: { alias: true },
+          })
+        )?.alias ?? null
+      : null;
 
   const viewerLat = user.address?.townLatitude ?? null;
   const viewerLon = user.address?.townLongitude ?? null;
@@ -56,243 +105,117 @@ export default async function ExplorePage({
           viewerLat,
           viewerLon,
           q: q || undefined,
-          coralType: coralType || undefined,
-          colour: colour || undefined,
-          size: size || undefined,
+          coralTypes: coralTypes.length ? coralTypes : undefined,
+          colours: colours.length ? colours : undefined,
           freeOnly: freeOnly || undefined,
           fulfilment: fulfilmentParsed,
           maxKm: maxKm != null && Number.isFinite(maxKm) ? maxKm : undefined,
+          ownerUserId: validatedOwnerUserId ?? undefined,
         })
       : [];
 
-  const buildHref = (overrides: Record<string, string | undefined>) => {
+  const buildHref = (overrides: {
+    exchangeId?: string;
+    q?: string;
+    coralTypes?: string[];
+    colours?: string[];
+    free?: string;
+    fulfilment?: string;
+    maxKm?: string;
+    owner?: string;
+  }) => {
     const p = new URLSearchParams();
     const next = {
       exchangeId: exchangeId || undefined,
       q: q || undefined,
-      coralType: coralType || undefined,
-      colour: colour || undefined,
-      size: size || undefined,
+      coralTypes: coralTypes.length ? coralTypes : undefined,
+      colours: colours.length ? colours : undefined,
       free: freeOnly ? "1" : undefined,
       fulfilment: fulfilmentParsed,
       maxKm: maxKmRaw || undefined,
+      owner: validatedOwnerUserId ?? undefined,
       ...overrides,
     };
-    Object.entries(next).forEach(([k, v]) => {
-      if (v) {
-        p.set(k, v);
-      }
-    });
+    if (next.exchangeId) {
+      p.set("exchangeId", next.exchangeId);
+    }
+    if (next.owner) {
+      p.set("owner", next.owner);
+    }
+    if (next.q) {
+      p.set("q", next.q);
+    }
+    for (const t of next.coralTypes ?? []) {
+      p.append("coralType", t);
+    }
+    for (const c of next.colours ?? []) {
+      p.append("colour", c);
+    }
+    if (next.free) {
+      p.set("free", next.free);
+    }
+    if (next.fulfilment) {
+      p.set("fulfilment", next.fulfilment);
+    }
+    if (next.maxKm) {
+      p.set("maxKm", next.maxKm);
+    }
     const qs = p.toString();
     return qs ? `/explore?${qs}` : "/explore";
   };
 
+  const shellModel: ExploreShellModel | null =
+    memberships.length > 0 && selected && exchangeId
+      ? {
+          resultCount: rows.length,
+          memberships: memberships.map((m) => ({
+            id: m.id,
+            exchangeId: m.exchangeId,
+            name: m.exchange.name,
+            kind: m.exchange.kind === ExchangeKind.GROUP ? "GROUP" : "EVENT",
+          })),
+          exchangeId,
+          scopedByQuery,
+          exchangeKind: selected.exchange.kind === ExchangeKind.GROUP ? "GROUP" : "EVENT",
+          viewerHasCoords: viewerLat != null && viewerLon != null,
+          coralTypes: DISCOVER_CORAL_TYPES,
+          coralColours: DISCOVER_CORAL_COLOURS,
+          filters: {
+            q,
+            coralTypes,
+            colours,
+            freeOnly,
+            fulfilment: fulfilmentParsed ?? "",
+            maxKm: maxKmRaw,
+          },
+          ownerUserId: validatedOwnerUserId,
+        }
+      : null;
+
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold text-base-content">Explore</h1>
-        <p className="text-sm text-base-content/70">
-          Search listings only on exchanges you have joined. Sellers are shown by alias; addresses stay private here.
-        </p>
-      </header>
+    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 px-4 py-6">
+      {shellModel ? <ExploreShellSync model={shellModel} /> : null}
 
       {memberships.length === 0 ? (
-        <section className="card border border-base-content/10 bg-base-200/40 shadow-sm">
-          <div className="card-body gap-2 p-5 text-sm text-base-content/80">
+        <section className="card border border-slate-200/90 bg-white shadow-sm">
+          <div className="card-body gap-2 p-5 text-sm text-slate-700">
             <p>Join an exchange to see listings.</p>
-            <Link href="/exchanges" className="btn btn-primary btn-sm min-h-10 w-fit rounded-xl">
+            <Link href="/exchanges" className="btn btn-primary btn-sm min-h-10 w-fit rounded-full border-0 bg-emerald-500 hover:bg-emerald-600">
               Browse exchanges
             </Link>
           </div>
         </section>
       ) : (
-        <>
-          <form method="get" className="card border border-base-content/10 bg-base-100 shadow-sm">
-            <div className="card-body gap-3 p-4">
-              <label className="form-control w-full">
-                <span className="label py-1 text-xs text-base-content/65">Exchange</span>
-                <select
-                  name="exchangeId"
-                  className="select select-bordered select-sm w-full rounded-xl"
-                  defaultValue={exchangeId}
-                  required
-                >
-                  {memberships.map((m) => (
-                    <option key={m.id} value={m.exchangeId}>
-                      {m.exchange.name} ({m.exchange.kind === ExchangeKind.GROUP ? "Group" : "Event"})
-                    </option>
-                  ))}
-                </select>
-              </label>
+        <section className="space-y-3">
+          {validatedOwnerUserId ? (
+            <ExploreOwnerScopeNote
+              ownerAlias={ownerAlias}
+              showAllReefersHref={buildHref({ owner: undefined })}
+            />
+          ) : null}
 
-              <label className="form-control w-full">
-                <span className="label py-1 text-xs text-base-content/65">Search</span>
-                <input
-                  type="search"
-                  name="q"
-                  defaultValue={q}
-                  placeholder="Name or description"
-                  className="input input-bordered input-sm w-full rounded-xl"
-                />
-              </label>
-
-              <div className="grid grid-cols-2 gap-2">
-                <label className="form-control w-full">
-                  <span className="label py-1 text-xs text-base-content/65">Type</span>
-                  <select
-                    name="coralType"
-                    className="select select-bordered select-sm w-full rounded-xl"
-                    defaultValue={coralType}
-                  >
-                    <option value="">Any</option>
-                    {DISCOVER_CORAL_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="form-control w-full">
-                  <span className="label py-1 text-xs text-base-content/65">Colour</span>
-                  <select
-                    name="colour"
-                    className="select select-bordered select-sm w-full rounded-xl"
-                    defaultValue={colour}
-                  >
-                    <option value="">Any</option>
-                    {DISCOVER_CORAL_COLOURS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <label className="form-control w-full">
-                <span className="label py-1 text-xs text-base-content/65">Size (contains)</span>
-                <input
-                  name="size"
-                  defaultValue={size}
-                  placeholder="e.g. frag, colony"
-                  className="input input-bordered input-sm w-full rounded-xl"
-                />
-              </label>
-
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-base-content/80">
-                <input type="checkbox" name="free" value="1" defaultChecked={freeOnly} className="checkbox checkbox-sm" />
-                Free to good home only
-              </label>
-
-              {selected?.exchange.kind === ExchangeKind.GROUP ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="form-control w-full">
-                    <span className="label py-1 text-xs text-base-content/65">Handover</span>
-                    <select
-                      name="fulfilment"
-                      className="select select-bordered select-sm w-full rounded-xl"
-                      defaultValue={fulfilmentParsed ?? ""}
-                    >
-                      <option value="">Post or meet</option>
-                      <option value="POST">Post</option>
-                      <option value="MEET">Meet</option>
-                    </select>
-                  </label>
-                  <label className="form-control w-full">
-                    <span className="label py-1 text-xs text-base-content/65">Max distance (km)</span>
-                    <input
-                      name="maxKm"
-                      type="number"
-                      min={1}
-                      step={1}
-                      defaultValue={maxKmRaw}
-                      placeholder={viewerLat != null ? "Town-centre" : "Set address first"}
-                      disabled={viewerLat == null || viewerLon == null}
-                      className="input input-bordered input-sm w-full rounded-xl disabled:opacity-60"
-                    />
-                  </label>
-                </div>
-              ) : null}
-
-              {selected?.exchange.kind === ExchangeKind.GROUP && (viewerLat == null || viewerLon == null) ? (
-                <p className="text-xs text-base-content/55">
-                  Distance uses a geocoded town centre from your saved address. Complete onboarding with a town and
-                  country, or wait a moment after saving — coordinates fill in automatically when geocoding succeeds.
-                </p>
-              ) : null}
-
-              <div className="flex flex-wrap gap-2 pt-1">
-                <button type="submit" className="btn btn-primary btn-sm min-h-10 flex-1 rounded-xl">
-                  Apply filters
-                </button>
-                <Link href={buildHref({ q: undefined, coralType: undefined, colour: undefined, size: undefined, free: undefined, fulfilment: undefined, maxKm: undefined })} className="btn btn-ghost btn-sm min-h-10 rounded-xl">
-                  Clear
-                </Link>
-              </div>
-            </div>
-          </form>
-
-          <section className="space-y-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-base-content/65">Results</h2>
-            {rows.length === 0 ? (
-              <p className="text-sm text-base-content/70">No listings match these filters.</p>
-            ) : (
-              <ul className="space-y-3">
-                {rows.map((row) => (
-                  <li key={row.listingId}>
-                    <article className="card border border-base-content/10 bg-base-100 shadow-sm">
-                      <div className="card-body gap-3 p-4">
-                        <div className="flex gap-3">
-                          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-base-200 text-2xl text-base-content/40">
-                            {row.imageUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element -- hobbyist URLs
-                              <img src={row.imageUrl} alt="" className="h-full w-full object-cover" />
-                            ) : (
-                              <span aria-hidden>🪸</span>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-base-content">{row.name}</p>
-                            <p className="mt-1 line-clamp-2 text-sm text-base-content/70">{row.description}</p>
-                            <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-base-content/60">
-                              <span className="badge badge-ghost badge-sm">
-                                {row.owner.avatarEmoji ? `${row.owner.avatarEmoji} ` : ""}
-                                {row.owner.alias ?? "Member"}
-                              </span>
-                              {row.coralType ? <span className="badge badge-outline badge-sm">{row.coralType}</span> : null}
-                              {row.colour ? <span className="badge badge-outline badge-sm">{row.colour}</span> : null}
-                              {row.sizeLabel ? <span className="badge badge-outline badge-sm">{row.sizeLabel}</span> : null}
-                              {row.freeToGoodHome ? (
-                                <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
-                              ) : null}
-                              {row.distanceKm != null ? (
-                                <span className="badge badge-outline badge-sm">~{row.distanceKm.toFixed(0)} km (town)</span>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2 border-t border-base-content/10 pt-3">
-                          <Link
-                            href={`/exchanges/${encodeURIComponent(exchangeId)}/member/${encodeURIComponent(row.owner.id)}`}
-                            className="btn btn-outline btn-sm min-h-10 rounded-xl"
-                          >
-                            Browse seller
-                          </Link>
-                          <Link
-                            href={`/exchanges/${encodeURIComponent(exchangeId)}/trade?with=${encodeURIComponent(row.owner.id)}&focus=${encodeURIComponent(row.coralId)}`}
-                            className="btn btn-primary btn-sm min-h-10 rounded-xl"
-                          >
-                            Start trade
-                          </Link>
-                        </div>
-                      </div>
-                    </article>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </>
+          <ExploreResultsGrid rows={rows} exchangeId={exchangeId} />
+        </section>
       )}
     </div>
   );

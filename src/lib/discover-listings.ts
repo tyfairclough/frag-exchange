@@ -11,7 +11,6 @@ export type DiscoverRow = {
   imageUrl: string | null;
   coralType: string | null;
   colour: string | null;
-  sizeLabel: string | null;
   listingMode: CoralListingMode;
   freeToGoodHome: boolean;
   listedAt: Date;
@@ -31,9 +30,8 @@ export type DiscoverParams = {
   viewerLat: number | null;
   viewerLon: number | null;
   q?: string;
-  coralType?: string;
-  colour?: string;
-  size?: string;
+  coralTypes?: string[];
+  colours?: string[];
   freeOnly?: boolean;
   fulfilment?: "POST" | "MEET";
   maxKm?: number;
@@ -50,12 +48,39 @@ function listingModeFilter(fulfilment: "POST" | "MEET" | undefined) {
   return { listingMode: { in: [CoralListingMode.MEET, CoralListingMode.BOTH] as CoralListingMode[] } };
 }
 
+function parseStoredTypes(raw: string[] | undefined): string[] {
+  if (!raw?.length) {
+    return [];
+  }
+  const seen = new Set<string>();
+  for (const t of raw) {
+    const v = parseCoralTypeFromForm(t);
+    if (v) {
+      seen.add(v);
+    }
+  }
+  return [...seen];
+}
+
+function parseStoredColours(raw: string[] | undefined): string[] {
+  if (!raw?.length) {
+    return [];
+  }
+  const seen = new Set<string>();
+  for (const c of raw) {
+    const v = parseCoralColourFromForm(c);
+    if (v) {
+      seen.add(v);
+    }
+  }
+  return [...seen];
+}
+
 export async function discoverExchangeListings(params: DiscoverParams): Promise<DiscoverRow[]> {
   const now = new Date();
   const q = params.q?.trim();
-  const typeStored = params.coralType ? parseCoralTypeFromForm(params.coralType) : null;
-  const colourStored = params.colour ? parseCoralColourFromForm(params.colour) : null;
-  const sizeQ = params.size?.trim();
+  const typesIn = parseStoredTypes(params.coralTypes);
+  const coloursIn = parseStoredColours(params.colours);
 
   const fulfilment =
     params.exchangeKind === ExchangeKind.GROUP ? params.fulfilment : undefined;
@@ -67,15 +92,8 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
       coral: {
         profileStatus: CoralProfileStatus.UNLISTED,
         userId: params.ownerUserId ?? { not: params.viewerUserId },
-        ...(typeStored ? { coralType: typeStored } : {}),
-        ...(colourStored ? { colour: colourStored } : {}),
-        ...(sizeQ
-          ? {
-              sizeLabel: {
-                contains: sizeQ,
-              },
-            }
-          : {}),
+        ...(typesIn.length ? { coralType: { in: typesIn } } : {}),
+        ...(coloursIn.length ? { colour: { in: coloursIn } } : {}),
         ...(params.freeOnly ? { freeToGoodHome: true } : {}),
         ...(fulfilment ? listingModeFilter(fulfilment) : {}),
         ...(q
@@ -134,7 +152,6 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
       imageUrl: row.coral.imageUrl,
       coralType: row.coral.coralType,
       colour: row.coral.colour,
-      sizeLabel: row.coral.sizeLabel,
       listingMode: row.coral.listingMode,
       freeToGoodHome: row.coral.freeToGoodHome,
       listedAt: row.listedAt,

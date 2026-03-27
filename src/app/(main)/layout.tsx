@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { ExploreShellProvider } from "@/components/explore-shell-context";
 import { requireUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -11,6 +12,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const aliasLabel = user.alias?.trim() || "Me";
 
   return (
-    <AppShell profile={{ aliasLabel, avatarEmoji: user.avatarEmoji ?? "🐠" }}>{children}</AppShell>
+    <ExploreShellProvider>
+      <AppShell profile={{ aliasLabel, avatarEmoji: user.avatarEmoji ?? "🐠" }}>{children}</AppShell>
+    </ExploreShellProvider>
   );
 }

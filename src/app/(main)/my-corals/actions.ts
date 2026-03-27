@@ -53,7 +53,6 @@ export async function createCoralAction(formData: FormData) {
       freeToGoodHome,
       coralType,
       colour,
-      sizeLabel: null,
     },
   });
 
@@ -98,7 +97,6 @@ export async function updateCoralAction(coralId: string, formData: FormData) {
       freeToGoodHome,
       coralType,
       colour,
-      sizeLabel: null,
     },
   });
 
