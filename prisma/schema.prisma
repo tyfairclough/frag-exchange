@@ -64,6 +64,10 @@ model Exchange {
   id          String             @id @default(cuid())
   name        String             @db.VarChar(160)
   description String?            @db.Text
+  logo40Url   String?            @db.VarChar(2048)
+  logo80Url   String?            @db.VarChar(2048)
+  logo512Url  String?            @db.VarChar(2048)
+  logoUpdatedAt DateTime?
   kind        ExchangeKind
   visibility  ExchangeVisibility
   /// For event exchanges; used later for trade expiry (Chunk 6).

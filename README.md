@@ -82,6 +82,8 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
 
 See **[docs/deploy-hostinger.md](./docs/deploy-hostinger.md)** for panel settings, `DATABASE_URL`, build/start commands, and running migrations on deploy.
 
+**Coral photos:** uploads are written under `public/coral-uploads/{userId}/` at runtime. Ensure that path exists on the server and is writable by the Node process, and that it is preserved across deploys (otherwise user images are lost when the app directory is replaced).
+
 ## Project layout (Chunk 1)
 
 - `src/app/(main)/` — routed UI inside the app shell (home, explore, me placeholders)

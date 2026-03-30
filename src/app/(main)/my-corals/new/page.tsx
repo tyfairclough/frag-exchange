@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { CoralInventoryForm } from "@/components/coral-inventory-form";
-import { createCoralAction } from "@/app/(main)/my-corals/actions";
+import { AddCoralWizard } from "@/components/add-coral-wizard";
 
 export default async function NewCoralPage({
   searchParams,
@@ -25,8 +24,18 @@ export default async function NewCoralPage({
       {error === "name" ? (
         <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">Please enter a name.</p>
       ) : null}
+      {error === "image-too-large" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Photo is too large (max 6 MB). Choose a smaller image.
+        </p>
+      ) : null}
+      {error === "image-type" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Use a JPEG, PNG, or WebP photo.
+        </p>
+      ) : null}
 
-      <CoralInventoryForm saveAction={createCoralAction} />
+      <AddCoralWizard />
     </div>
   );
 }

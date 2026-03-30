@@ -90,3 +90,14 @@ export function canManageEventDesk(
   }
   return membership?.role === ExchangeMembershipRole.EVENT_MANAGER;
 }
+
+export function canEditExchangeLogo(
+  exchange: Pick<Exchange, "kind">,
+  membership: ExchangeMembership | null,
+  user: { email: string; globalRole: UserGlobalRole },
+): boolean {
+  if (isSuperAdmin(user)) {
+    return true;
+  }
+  return exchange.kind === ExchangeKind.EVENT && membership?.role === ExchangeMembershipRole.EVENT_MANAGER;
+}

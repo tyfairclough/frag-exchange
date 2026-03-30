@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExchangeKind, ExchangeVisibility } from "@/generated/prisma/enums";
 import { updateExchangeAction } from "@/app/(main)/exchanges/actions";
+import { ExchangeLogoField } from "@/app/(main)/exchanges/components/exchange-logo-field";
 import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { getPrisma } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
@@ -13,6 +14,7 @@ function toDatetimeLocalValue(d: Date): string {
 
 const editErrors: Record<string, string> = {
   name: "Enter a name for the exchange.",
+  logo: "Upload a valid logo image (JPG, PNG, or WebP up to 6MB).",
   "not-found": "That exchange could not be updated.",
 };
 
@@ -60,7 +62,11 @@ export default async function EditExchangePage({
         </div>
       ) : null}
 
-      <form action={updateExchangeAction} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <form
+        action={updateExchangeAction}
+        encType="multipart/form-data"
+        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+      >
         <input type="hidden" name="exchangeId" value={exchange.id} />
         <div className="space-y-4">
           <label className="block w-full">
@@ -145,6 +151,8 @@ export default async function EditExchangePage({
             />
             <span className="mt-1 block text-xs text-slate-500">Used later for trade expiry on event exchanges.</span>
           </label>
+
+          <ExchangeLogoField initialImageUrl={exchange.logo512Url ?? exchange.logo80Url ?? exchange.logo40Url} />
 
           <button
             type="submit"

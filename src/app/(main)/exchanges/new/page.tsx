@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createExchangeAction } from "@/app/(main)/exchanges/actions";
+import { ExchangeLogoField } from "@/app/(main)/exchanges/components/exchange-logo-field";
 import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
 
@@ -11,6 +12,7 @@ export default async function NewExchangePage({
   await requireSuperAdmin();
   const params = await searchParams;
   const nameError = params.error === "name";
+  const logoError = params.error === "logo";
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -39,8 +41,17 @@ export default async function NewExchangePage({
           Enter a name for the exchange.
         </div>
       ) : null}
+      {logoError ? (
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Upload a valid logo image (JPG, PNG, or WebP up to 6MB).
+        </div>
+      ) : null}
 
-      <form action={createExchangeAction} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <form
+        action={createExchangeAction}
+        encType="multipart/form-data"
+        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+      >
         <div className="space-y-4">
           <label className="block w-full">
             <span className="mb-1 block text-sm font-semibold text-slate-700">Name</span>
@@ -97,6 +108,8 @@ export default async function NewExchangePage({
             />
             <span className="mt-1 block text-xs text-slate-500">Used later for trade expiry on event exchanges.</span>
           </label>
+
+          <ExchangeLogoField />
 
           <button
             type="submit"

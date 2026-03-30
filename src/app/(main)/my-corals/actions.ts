@@ -1,11 +1,17 @@
 "use server";
 
+import { Buffer } from "node:buffer";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { CoralListingMode, CoralProfileStatus } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { enrichCoralFields } from "@/lib/coral-ai";
+import { enrichCoralFields, enrichCoralFromImage } from "@/lib/coral-ai";
+import {
+  CORAL_UPLOAD_MAX_BYTES,
+  saveCoralImageToPublic,
+  validateImageMime,
+} from "@/lib/coral-upload";
 import { parseCoralColourFromForm, parseCoralTypeFromForm } from "@/lib/coral-options";
 
 function str(value: FormDataEntryValue | null) {
@@ -27,17 +33,52 @@ export async function enrichCoralPreviewAction(name: string, imageUrl?: string |
   return enrichCoralFields({ name, imageUrl: imageUrl ?? null });
 }
 
+export async function enrichCoralFromImageAction(imageBase64: string, mimeType: string) {
+  await requireUser();
+  const mime = mimeType.trim().toLowerCase();
+  if (!validateImageMime(mime)) {
+    throw new Error("Invalid image type. Use JPEG, PNG, or WebP.");
+  }
+
+  const buf = Buffer.from(imageBase64, "base64");
+  if (!buf.length || buf.length > CORAL_UPLOAD_MAX_BYTES) {
+    throw new Error("Image is missing or too large (max 6 MB).");
+  }
+
+  return enrichCoralFromImage({ imageBase64, mimeType: mime });
+}
+
 export async function createCoralAction(formData: FormData) {
   const user = await requireUser();
 
   const name = str(formData.get("name"));
   const description = str(formData.get("description"));
   const imageUrlRaw = str(formData.get("imageUrl"));
-  const imageUrl = imageUrlRaw || null;
+  let imageUrl: string | null = imageUrlRaw || null;
   const listingMode = parseListingMode(str(formData.get("listingMode")));
   const freeToGoodHome = formData.get("freeToGoodHome") === "on";
   const coralType = parseCoralTypeFromForm(str(formData.get("coralType")));
   const colour = parseCoralColourFromForm(str(formData.get("colour")));
+
+  const imageFile = formData.get("imageFile");
+  if (imageFile && typeof imageFile === "object" && "arrayBuffer" in imageFile && "size" in imageFile) {
+    const file = imageFile as File;
+    if (file.size > 0) {
+      if (file.size > CORAL_UPLOAD_MAX_BYTES) {
+        redirect("/my-corals/new?error=image-too-large");
+      }
+      const mime = (file.type || "").trim().toLowerCase();
+      if (!validateImageMime(mime)) {
+        redirect("/my-corals/new?error=image-type");
+      }
+      const buffer = Buffer.from(await file.arrayBuffer());
+      imageUrl = await saveCoralImageToPublic({
+        userId: user.id,
+        buffer,
+        mimeType: mime,
+      });
+    }
+  }
 
   if (!name) {
     redirect("/my-corals/new?error=name");

@@ -13,12 +13,14 @@ import { requireUser } from "@/lib/auth";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
 import { getRequestOrigin } from "@/lib/request-origin";
 import {
+  canEditExchangeLogo,
   canIssuePrivateInvite,
   canPromoteEventManager,
   isSuperAdmin,
 } from "@/lib/super-admin";
 import { logAdminAudit } from "@/lib/admin-audit";
 import { getRequestIp } from "@/lib/rate-limit";
+import { saveExchangeLogoToPublic, validateExchangeLogoUpload } from "@/lib/exchange-logo-upload";
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -48,6 +50,28 @@ function parseVisibility(raw: string): ExchangeVisibility {
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+async function processExchangeLogoFromFormData(
+  exchangeId: string,
+  formData: FormData,
+): Promise<{ logo40Url: string; logo80Url: string; logo512Url: string; logoUpdatedAt: Date } | null> {
+  const logoFile = formData.get("logoFile");
+  if (!(logoFile instanceof File) || logoFile.size <= 0) {
+    return null;
+  }
+
+  const logoError = validateExchangeLogoUpload(logoFile);
+  if (logoError) {
+    throw new Error(`exchange-logo:${logoError}`);
+  }
+
+  const logoBuffer = Buffer.from(await logoFile.arrayBuffer());
+  return saveExchangeLogoToPublic({
+    exchangeId,
+    buffer: logoBuffer,
+    mimeType: logoFile.type,
+  });
 }
 
 export async function createExchangeAction(formData: FormData) {
@@ -87,6 +111,13 @@ export async function createExchangeAction(formData: FormData) {
         },
       },
     });
+    const logo = await processExchangeLogoFromFormData(created.id, formData);
+    if (logo) {
+      await getPrisma().exchange.update({
+        where: { id: created.id },
+        data: logo,
+      });
+    }
     const ip = await getRequestIp();
     await logAdminAudit({
       actorUserId: admin.id,
@@ -98,6 +129,9 @@ export async function createExchangeAction(formData: FormData) {
     });
   } catch (e) {
     throwIfMysqlPoolUnreachable(e);
+    if (e instanceof Error && e.message.startsWith("exchange-logo:")) {
+      redirect("/exchanges/new?error=logo");
+    }
   }
 
   revalidatePath("/exchanges");
@@ -149,8 +183,18 @@ export async function updateExchangeAction(formData: FormData) {
         });
       }
     });
+    const logo = await processExchangeLogoFromFormData(exchangeId, formData);
+    if (logo) {
+      await db.exchange.update({
+        where: { id: exchangeId },
+        data: logo,
+      });
+    }
   } catch (e) {
     throwIfMysqlPoolUnreachable(e);
+    if (e instanceof Error && e.message.startsWith("exchange-logo:")) {
+      redirect(`/exchanges/${exchangeId}/edit?error=logo`);
+    }
     redirect(`/exchanges/${exchangeId}/edit?error=not-found`);
   }
 
@@ -166,6 +210,53 @@ export async function updateExchangeAction(formData: FormData) {
 
   revalidatePath("/exchanges");
   revalidatePath(`/exchanges/${exchangeId}`);
+  revalidatePath("/explore");
+  redirect(`/exchanges/${exchangeId}?updated=1`);
+}
+
+export async function updateExchangeLogoAction(formData: FormData) {
+  const user = await requireUser();
+  const exchangeId = str(formData.get("exchangeId"));
+  if (!exchangeId) {
+    redirect("/exchanges?error=forbidden");
+  }
+
+  const exchange = await getPrisma().exchange.findUnique({
+    where: { id: exchangeId },
+    include: {
+      memberships: {
+        where: { userId: user.id },
+        take: 1,
+      },
+    },
+  });
+
+  if (!exchange) {
+    redirect("/exchanges?error=forbidden");
+  }
+
+  const membership = exchange.memberships[0] ?? null;
+  if (!canEditExchangeLogo(exchange, membership, user)) {
+    redirect(`/exchanges/${exchangeId}?error=forbidden`);
+  }
+
+  try {
+    const logo = await processExchangeLogoFromFormData(exchangeId, formData);
+    if (!logo) {
+      redirect(`/exchanges/${exchangeId}?error=logo`);
+    }
+    await getPrisma().exchange.update({
+      where: { id: exchangeId },
+      data: logo,
+    });
+  } catch (e) {
+    throwIfMysqlPoolUnreachable(e);
+    redirect(`/exchanges/${exchangeId}?error=logo`);
+  }
+
+  revalidatePath("/exchanges");
+  revalidatePath(`/exchanges/${exchangeId}`);
+  revalidatePath(`/exchanges/${exchangeId}/edit`);
   revalidatePath("/explore");
   redirect(`/exchanges/${exchangeId}?updated=1`);
 }

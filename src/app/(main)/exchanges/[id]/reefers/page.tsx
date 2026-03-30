@@ -58,12 +58,10 @@ export default async function ExchangeReefersPage({ params }: { params: Promise<
         <h1 className="text-2xl font-bold tracking-tight" style={{ color: MARKETING_NAVY }}>
           Reefers
         </h1>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm">
           <span className="font-medium" style={{ color: MARKETING_NAVY }}>
             {exchange.name}
           </span>
-          {" · "}
-          Active listings (90-day window) per hobbyist. Open Explore to search their corals.
         </p>
       </header>
 

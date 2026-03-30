@@ -2,7 +2,8 @@ import { completeOnboardingAction } from "@/app/onboarding/actions";
 import { OnboardingWizard } from "@/app/onboarding/onboarding-wizard";
 import { requireUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { MARKETING_CTA_GREEN, MARKETING_MUTED_BOX, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { IdealPostcodesAddressLookup } from "./ideal-postcodes-address-lookup";
 
 export default async function OnboardingPage({
   searchParams,
@@ -38,37 +39,16 @@ export default async function OnboardingPage({
             <form action={completeOnboardingAction} className="mt-5 space-y-3">
               <input type="hidden" name="mode" value="address" />
               <input type="hidden" name="next" value={nextPath} />
-              <div className="space-y-2 rounded-xl px-3 py-3" style={{ backgroundColor: MARKETING_MUTED_BOX }}>
-                <input name="line1" className="w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="Address line 1" defaultValue={addr?.line1 ?? ""} />
-                <input
-                  name="line2"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-                  placeholder="Address line 2 (optional)"
-                  defaultValue={addr?.line2 ?? ""}
-                />
-                <input name="town" className="w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="Town / city" defaultValue={addr?.town ?? ""} />
-                <input
-                  name="region"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-                  placeholder="County / region (optional)"
-                  defaultValue={addr?.region ?? ""}
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    name="postalCode"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-                    placeholder="Postal code"
-                    defaultValue={addr?.postalCode ?? ""}
-                  />
-                  <input
-                    name="countryCode"
-                    maxLength={2}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 uppercase"
-                    placeholder="GB"
-                    defaultValue={addr?.countryCode ?? ""}
-                  />
-                </div>
-              </div>
+              <IdealPostcodesAddressLookup
+                initialValues={{
+                  line1: addr?.line1 ?? "",
+                  line2: addr?.line2 ?? "",
+                  town: addr?.town ?? "",
+                  region: addr?.region ?? "",
+                  postalCode: addr?.postalCode ?? "",
+                  countryCode: addr?.countryCode ?? "",
+                }}
+              />
               <button type="submit" className="w-full rounded-full px-5 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: MARKETING_CTA_GREEN }}>
                 Save and continue
               </button>

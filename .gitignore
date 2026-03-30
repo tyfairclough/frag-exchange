@@ -43,3 +43,7 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# User-uploaded coral images (keep directory via .gitkeep)
+/public/coral-uploads/*
+!/public/coral-uploads/.gitkeep

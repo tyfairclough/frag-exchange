@@ -6,6 +6,14 @@ import { isSuperAdmin } from "@/lib/super-admin";
 import { joinPublicExchangeFormAction } from "@/app/(main)/exchanges/actions";
 import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 
+function reefersLabel(count: number): string {
+  return count === 1 ? "1 reefer" : `${count} reefers`;
+}
+
+function coralsAvailableLabel(count: number): string {
+  return count === 1 ? "1 coral available" : `${count} corals available`;
+}
+
 const exchangeErrors: Record<string, string> = {
   forbidden: "You do not have permission for that action.",
   "join-not-found": "That public exchange was not found.",
@@ -29,22 +37,52 @@ export default async function ExchangesPage({
   const [myMemberships, publicExchanges, allExchanges] = await Promise.all([
     getPrisma().exchangeMembership.findMany({
       where: { userId: user.id },
-      include: { exchange: true },
+      include: {
+        exchange: {
+          include: {
+            _count: { select: { memberships: true } },
+          },
+        },
+      },
       orderBy: { joinedAt: "desc" },
     }),
     getPrisma().exchange.findMany({
       where: { visibility: ExchangeVisibility.PUBLIC },
       orderBy: { createdAt: "desc" },
+      include: {
+        _count: { select: { memberships: true } },
+      },
     }),
     superUser
       ? getPrisma().exchange.findMany({
           orderBy: { createdAt: "desc" },
           include: {
-            memberships: { select: { id: true } },
+            _count: { select: { memberships: true } },
           },
         })
       : Promise.resolve([]),
   ]);
+
+  const now = new Date();
+  const listingExchangeIds = [
+    ...new Set([
+      ...myMemberships.map((m) => m.exchangeId),
+      ...publicExchanges.map((e) => e.id),
+      ...allExchanges.map((e) => e.id),
+    ]),
+  ];
+  const listingAgg =
+    listingExchangeIds.length === 0
+      ? []
+      : await getPrisma().exchangeListing.groupBy({
+          by: ["exchangeId"],
+          where: {
+            exchangeId: { in: listingExchangeIds },
+            expiresAt: { gt: now },
+          },
+          _count: { _all: true },
+        });
+  const activeListingsByExchange = new Map(listingAgg.map((g) => [g.exchangeId, g._count._all]));
 
   const myIds = new Set(myMemberships.map((m) => m.exchangeId));
 
@@ -52,14 +90,10 @@ export default async function ExchangesPage({
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Chunk 4 — Exchanges</p>
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: MARKETING_NAVY }}>
             Exchanges
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            Join public hubs or use an invite for private ones. Operators create exchanges and assign event managers on
-            event exchanges.
-          </p>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">Join public hubs or use an invite for private ones.</p>
         </div>
         {superUser ? (
           <Link
@@ -90,13 +124,6 @@ export default async function ExchangesPage({
         </div>
       ) : null}
 
-      {!superUser ? (
-        <p className="text-xs text-slate-500">
-          Super admin access uses <code className="rounded bg-base-200 px-1">users.globalRole</code> or{" "}
-          <code className="rounded bg-base-200 px-1">FRAG_SUPER_ADMIN_EMAILS</code> in the environment.
-        </p>
-      ) : null}
-
       <section className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">My exchanges</h2>
         {myMemberships.length === 0 ? (
@@ -109,13 +136,21 @@ export default async function ExchangesPage({
                   href={`/exchanges/${m.exchange.id}`}
                   className="block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow"
                 >
-                  <p className="font-semibold" style={{ color: MARKETING_NAVY }}>
-                    {m.exchange.name}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    {m.exchange.logo40Url ? (
+                      <img src={m.exchange.logo40Url} alt="" aria-hidden className="h-8 w-8 rounded-md object-cover" />
+                    ) : (
+                      <img src="/fragswap_logo.svg" alt="" aria-hidden className="h-8 w-8 object-contain" />
+                    )}
+                    <p className="font-semibold" style={{ color: MARKETING_NAVY }}>
+                      {m.exchange.name}
+                    </p>
+                  </div>
                   <p className="mt-1 text-xs text-slate-600">
                     {m.exchange.kind === ExchangeKind.EVENT ? "Event" : "Group"} ·{" "}
                     {m.exchange.visibility === ExchangeVisibility.PUBLIC ? "Public" : "Private"} · Role:{" "}
-                    {m.role === "EVENT_MANAGER" ? "Event manager" : "Member"}
+                    {m.role === "EVENT_MANAGER" ? "Event manager" : "Member"} · {reefersLabel(m.exchange._count.memberships)}{" "}
+                    · {coralsAvailableLabel(activeListingsByExchange.get(m.exchange.id) ?? 0)}
                   </p>
                 </Link>
               </li>
@@ -134,17 +169,25 @@ export default async function ExchangesPage({
               <li key={ex.id}>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
                   <div className="flex flex-row flex-wrap items-center justify-between gap-3">
+                    {ex.logo40Url ? (
+                      <img src={ex.logo40Url} alt="" aria-hidden className="h-8 w-8 rounded-md object-cover" />
+                    ) : (
+                      <img src="/fragswap_logo.svg" alt="" aria-hidden className="h-8 w-8 object-contain" />
+                    )}
                     <div className="min-w-0 flex-1">
-                      <Link
-                        href={`/exchanges/${ex.id}`}
-                        className="font-semibold hover:underline"
-                        style={{ color: MARKETING_NAVY }}
-                      >
-                        {ex.name}
-                      </Link>
-                      <p className="text-xs text-slate-600">
-                        {ex.kind === ExchangeKind.EVENT ? "Event" : "Group"} · Public
-                      </p>
+                      <div className="flex flex-col items-start justify-start gap-0">
+                        <Link
+                          href={`/exchanges/${ex.id}`}
+                          className="font-semibold hover:underline"
+                          style={{ color: MARKETING_NAVY }}
+                        >
+                          {ex.name}
+                        </Link>
+                        <p className="text-xs text-slate-600">
+                          {ex.kind === ExchangeKind.EVENT ? "Event" : "Group"} · Public · {reefersLabel(ex._count.memberships)} ·{" "}
+                          {coralsAvailableLabel(activeListingsByExchange.get(ex.id) ?? 0)}
+                        </p>
+                      </div>
                     </div>
                     {myIds.has(ex.id) ? (
                       <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">Joined</span>
@@ -178,13 +221,20 @@ export default async function ExchangesPage({
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300">
                   <div className="flex flex-row flex-wrap items-start justify-between gap-3 gap-y-2">
                     <Link href={`/exchanges/${ex.id}`} className="min-w-0 flex-1">
-                      <p className="font-semibold hover:underline" style={{ color: MARKETING_NAVY }}>
-                        {ex.name}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        {ex.logo40Url ? (
+                          <img src={ex.logo40Url} alt="" aria-hidden className="h-8 w-8 rounded-md object-cover" />
+                        ) : (
+                          <img src="/fragswap_logo.svg" alt="" aria-hidden className="h-8 w-8 object-contain" />
+                        )}
+                        <p className="font-semibold hover:underline" style={{ color: MARKETING_NAVY }}>
+                          {ex.name}
+                        </p>
+                      </div>
                       <p className="text-xs text-slate-600">
                         {ex.kind === ExchangeKind.EVENT ? "Event" : "Group"} ·{" "}
-                        {ex.visibility === ExchangeVisibility.PUBLIC ? "Public" : "Private"} · {ex.memberships.length}{" "}
-                        members
+                        {ex.visibility === ExchangeVisibility.PUBLIC ? "Public" : "Private"} · {reefersLabel(ex._count.memberships)} ·{" "}
+                        {coralsAvailableLabel(activeListingsByExchange.get(ex.id) ?? 0)}
                       </p>
                     </Link>
                     <Link

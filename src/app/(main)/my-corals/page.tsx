@@ -35,7 +35,7 @@ export default async function MyCoralsPage({
         <div>
           <h1 className="text-xl font-semibold text-base-content">My corals</h1>
           <p className="mt-1 text-sm text-base-content/70">
-            Profile inventory — attach to exchanges when listings go live. Listings without an image are allowed.
+            Manage corals you want to swap here. Once added you can list them on multiple exchanges.
           </p>
         </div>
         <Link href="/my-corals/new" className="btn btn-primary btn-sm min-h-10 shrink-0 rounded-xl">

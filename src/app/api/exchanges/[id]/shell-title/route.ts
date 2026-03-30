@@ -16,7 +16,7 @@ export async function GET(
   const { id } = await context.params;
   const exchange = await getPrisma().exchange.findUnique({
     where: { id },
-    select: { id: true, name: true, visibility: true },
+    select: { id: true, name: true, visibility: true, logo40Url: true },
   });
 
   if (!exchange) {
@@ -35,5 +35,5 @@ export async function GET(
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  return NextResponse.json({ title: exchange.name });
+  return NextResponse.json({ title: exchange.name, logoUrl: exchange.logo40Url });
 }

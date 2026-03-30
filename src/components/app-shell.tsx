@@ -34,19 +34,21 @@ function SwitchExchangeIcon() {
   );
 }
 
-function ShellTitleLabel({ title }: { title: string }) {
+function ShellTitleLabel({ title, showSwitchIcon = true }: { title: string; showSwitchIcon?: boolean }) {
   return (
     <span className="hidden min-w-0 sm:inline-flex sm:items-center sm:gap-1.5">
       <span className="truncate" title={title}>
         {title}
       </span>
-      <span
-        className="tooltip tooltip-bottom shrink-0 text-slate-500"
-        data-tip="Switch exchange"
-        aria-hidden
-      >
-        <SwitchExchangeIcon />
-      </span>
+      {showSwitchIcon ? (
+        <span
+          className="tooltip tooltip-bottom shrink-0 text-slate-500"
+          data-tip="Switch exchange"
+          aria-hidden
+        >
+          <SwitchExchangeIcon />
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -54,15 +56,12 @@ function ShellTitleLabel({ title }: { title: string }) {
 function ShellTitleInner() {
   const pathname = usePathname();
 
-  if (pathname === "/explore") {
-    return (
-      <span className="min-w-0 truncate font-semibold tracking-tight text-[#122B49] sm:max-w-[12rem]" title="Frag Exchange">
-        Frag Exchange
-      </span>
-    );
-  }
-
-  const exchangeId = useMemo(() => getExchangeIdFromPathname(pathname), [pathname]);
+  const exchangeId = useMemo(() => {
+    if (pathname === "/explore") {
+      return null;
+    }
+    return getExchangeIdFromPathname(pathname);
+  }, [pathname]);
 
   const [exchangeTitle, setExchangeTitle] = useState<string | null>(null);
 
@@ -80,7 +79,7 @@ function ShellTitleInner() {
         if (!res.ok) {
           return null;
         }
-        return (await res.json()) as { title?: string };
+        return (await res.json()) as { title?: string; logoUrl?: string | null };
       })
       .then((payload) => {
         if (payload?.title) {
@@ -98,25 +97,71 @@ function ShellTitleInner() {
     };
   }, [exchangeId]);
 
+  if (pathname === "/explore") {
+    return (
+      <span className="min-w-0 truncate font-semibold tracking-tight text-[#122B49] sm:max-w-[12rem]" title="Frag Exchange">
+        Frag Exchange
+      </span>
+    );
+  }
+
   const shellTitle = exchangeId ? (exchangeTitle ?? DEFAULT_TITLE) : DEFAULT_TITLE;
 
-  return <ShellTitleLabel title={shellTitle} />;
+  const showSwitchIcon = pathname !== "/exchanges";
+
+  return <ShellTitleLabel title={shellTitle} showSwitchIcon={showSwitchIcon} />;
 }
 
 function ShellBrandLink() {
+  const pathname = usePathname();
+  const exchangeId = pathname === "/explore" ? null : getExchangeIdFromPathname(pathname);
+  const [exchangeLogoUrl, setExchangeLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!exchangeId) {
+      return;
+    }
+    const controller = new AbortController();
+    void fetch(`/api/exchanges/${encodeURIComponent(exchangeId)}/shell-title`, {
+      signal: controller.signal,
+      cache: "no-store",
+    })
+      .then(async (res) => (res.ok ? ((await res.json()) as { logoUrl?: string | null }) : null))
+      .then((payload) => {
+        setExchangeLogoUrl(payload?.logoUrl ?? null);
+      })
+      .catch(() => {
+        setExchangeLogoUrl(null);
+      });
+    return () => controller.abort();
+  }, [exchangeId]);
+
+  const shellLogoUrl = exchangeId ? exchangeLogoUrl : null;
+
   return (
     <Link
       href="/exchanges"
       className="flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-lg px-1 py-2 text-lg font-semibold tracking-tight text-slate-900"
     >
-      <img
-        src="/fragswap_logo.svg"
-        alt=""
-        width={32}
-        height={32}
-        className="h-8 w-8 shrink-0 object-contain"
-        aria-hidden
-      />
+      {shellLogoUrl ? (
+        <img
+          src={shellLogoUrl}
+          alt=""
+          width={32}
+          height={32}
+          className="h-8 w-8 shrink-0 rounded-md object-cover"
+          aria-hidden
+        />
+      ) : (
+        <img
+          src="/fragswap_logo.svg"
+          alt=""
+          width={32}
+          height={32}
+          className="h-8 w-8 shrink-0 object-contain"
+          aria-hidden
+        />
+      )}
       <ShellTitleInner />
     </Link>
   );
@@ -133,7 +178,7 @@ function ShellProfileLink({
     <Link
       href="/me"
       aria-current={meActive ? "page" : undefined}
-      className={`inline-flex max-w-[min(100%,14rem)] shrink-0 items-center gap-2 rounded-full border py-1 pl-3 pr-1 text-sm font-medium shadow-sm transition-colors active:bg-slate-100 ${
+      className={`inline-flex max-w-[120px] shrink-0 items-center gap-2 rounded-full border py-1 pl-3 pr-1 text-sm font-medium shadow-sm transition-colors active:bg-slate-100 ${
         meActive
           ? "border-emerald-200 bg-emerald-50 text-emerald-900 hover:border-emerald-300 hover:bg-emerald-100"
           : "border-[#e0e0e0] bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50"
@@ -169,9 +214,16 @@ export function AppShell({
   const pathname = usePathname();
   const meActive = pathname === "/me";
   const isExplore = pathname === "/explore";
+  const hideBottomNav = pathname === "/my-corals/new";
 
   return (
-    <div className="flex min-h-dvh flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))]">
+    <div
+      className={
+        hideBottomNav
+          ? "flex min-h-dvh flex-col"
+          : "flex min-h-dvh flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))]"
+      }
+    >
       <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/85 sm:px-6">
         <div className="mx-auto w-full max-w-6xl">
           {isExplore ? (
@@ -201,7 +253,7 @@ export function AppShell({
 
       <main className="relative flex flex-1 flex-col px-0 sm:px-2">{children}</main>
 
-      <BottomNav />
+      {hideBottomNav ? null : <BottomNav />}
     </div>
   );
 }
