@@ -89,7 +89,7 @@ export function OnboardingWizard({
       <div className="mx-auto w-full max-w-lg">
         <section className="rounded-3xl border border-slate-200/80 bg-white px-5 py-6 shadow-sm sm:px-7 sm:py-7">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: MARKETING_NAVY }}>
-            Welcome to Frag Exchange
+            Welcome to REEFX
           </h1>
           <p className="mt-2 text-sm text-slate-600">One quick step at a time. This only takes a minute.</p>
           <div className="mt-5">

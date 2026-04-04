@@ -1,4 +1,4 @@
-// Prisma config — Frag Exchange uses MySQL only (`prisma/schema.prisma` datasource).
+// Prisma config — REEFX uses MySQL only (`prisma/schema.prisma` datasource).
 // DATABASE_URL: local dev uses `.env.development` (Docker); production comes from the host (e.g. Hostinger panel).
 import dotenv from "dotenv";
 import { defineConfig } from "prisma/config";

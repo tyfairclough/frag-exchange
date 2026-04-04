@@ -1,4 +1,4 @@
-# Deploying Frag Exchange on Hostinger (Node.js / Next.js)
+# Deploying REEFX on Hostinger (Node.js / Next.js)
 
 This app targets Hostinger’s **Node.js** hosting with the **Next.js** preset. Files you deploy should live under the panel’s **Node.js application root** (commonly `~/domains/<your-domain>/nodejs` or as shown in Hostinger’s docs). Do **not** assume you can replace `public_html/.htaccess` manually; follow their routing and preset instructions.
 

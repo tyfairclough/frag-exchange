@@ -1,4 +1,4 @@
-// Frag Exchange — Prisma schema (MySQL / Hostinger)
+// REEFX — Prisma schema (MySQL / Hostinger)
 // https://pris.ly/d/prisma-schema
 
 generator client {

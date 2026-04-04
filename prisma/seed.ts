@@ -29,11 +29,11 @@ async function main() {
     return;
   }
 
-  const email = process.env.FRAG_BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
-  const password = process.env.FRAG_BOOTSTRAP_ADMIN_PASSWORD;
+  const email = process.env.REEFX_BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.REEFX_BOOTSTRAP_ADMIN_PASSWORD;
   if (!email || !email.includes("@") || !password) {
     console.error(
-      "No super admin in the database. Set FRAG_BOOTSTRAP_ADMIN_EMAIL and FRAG_BOOTSTRAP_ADMIN_PASSWORD in .env, then run: npx prisma db seed",
+      "No super admin in the database. Set REEFX_BOOTSTRAP_ADMIN_EMAIL and REEFX_BOOTSTRAP_ADMIN_PASSWORD in .env, then run: npx prisma db seed",
     );
     process.exit(1);
   }

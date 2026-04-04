@@ -191,7 +191,7 @@ export default async function ExchangeDetailPage({
             {exchange.logo80Url ? (
               <img src={exchange.logo80Url} alt="" aria-hidden className="h-10 w-10 rounded-md object-cover" />
             ) : (
-              <img src="/fragswap_logo.svg" alt="" aria-hidden className="h-10 w-10 object-contain" />
+              <img src="/reefx_logo.svg" alt="" aria-hidden className="h-10 w-10 object-contain" />
             )}
             <h1 className="text-3xl font-bold tracking-tight" style={{ color: MARKETING_NAVY }}>
               {exchange.name}

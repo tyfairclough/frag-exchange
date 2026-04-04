@@ -1,7 +1,13 @@
+import { ContactPreference } from "@/generated/prisma/client";
 import Link from "next/link";
 import { signOutAction } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { isSuperAdmin } from "@/lib/super-admin";
+
+const contactPreferenceLabel: Record<ContactPreference, string> = {
+  [ContactPreference.EMAIL]: "Email",
+  [ContactPreference.SMS]: "SMS",
+};
 
 export default async function MePage() {
   const user = await requireUser();
@@ -37,15 +43,20 @@ export default async function MePage() {
 
           <div className="mt-3 space-y-1 text-base-content/75">
             <p>
-              ToS: {user.tosAcceptedAt ? `Yes (v${user.tosVersion ?? "?"})` : "No"}
+              Terms of Service:{" "}
+              {user.tosAcceptedAt
+                ? `Agreed (${user.tosVersion ?? user.tosAcceptedAt.toISOString().slice(0, 10)})`
+                : "No"}
             </p>
             <p>
-              Privacy notice: {user.privacyAcceptedAt ? `Yes (v${user.privacyVersion ?? "?"})` : "No"}
+              Privacy notice:{" "}
+              {user.privacyAcceptedAt
+                ? `Agreed (${user.privacyVersion ?? user.privacyAcceptedAt.toISOString().slice(0, 10)})`
+                : "No"}
             </p>
-            <p>Operator access: {superUser ? "Yes" : "No"}</p>
-            <p>Onboarding path: {user.onboardingPath ?? "Not set"}</p>
-            <p>Contact preference: {user.contactPreference}</p>
-            <p>Address saved: {user.address ? "Yes" : "No"}</p>
+            {superUser ? <p>Operator access: Yes</p> : null}
+            <p>Contact preference: {contactPreferenceLabel[user.contactPreference]}</p>
+            <p>Address: {user.address ? "Yes" : "No"}</p>
           </div>
 
           <form action={signOutAction} className="mt-4">

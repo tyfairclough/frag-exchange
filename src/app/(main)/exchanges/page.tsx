@@ -130,31 +130,42 @@ export default async function ExchangesPage({
           <p className="text-sm text-slate-600">You have not joined any exchanges yet.</p>
         ) : (
           <ul className="space-y-3">
-            {myMemberships.map((m) => (
-              <li key={m.id}>
-                <Link
-                  href={`/exchanges/${m.exchange.id}`}
-                  className="block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow"
-                >
-                  <div className="flex items-center gap-2">
-                    {m.exchange.logo40Url ? (
-                      <img src={m.exchange.logo40Url} alt="" aria-hidden className="h-8 w-8 rounded-md object-cover" />
-                    ) : (
-                      <img src="/fragswap_logo.svg" alt="" aria-hidden className="h-8 w-8 object-contain" />
-                    )}
-                    <p className="font-semibold" style={{ color: MARKETING_NAVY }}>
-                      {m.exchange.name}
-                    </p>
+            {myMemberships.map((m) => {
+              const exchangeHref = `/exchanges/${m.exchange.id}`;
+              return (
+                <li key={m.id}>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow">
+                    <div className="flex flex-row flex-wrap items-center justify-between gap-3">
+                      <Link href={exchangeHref} className="min-w-0 flex-1 rounded-xl outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500">
+                        <div className="flex items-center gap-2">
+                          {m.exchange.logo40Url ? (
+                            <img src={m.exchange.logo40Url} alt="" aria-hidden className="h-8 w-8 rounded-md object-cover" />
+                          ) : (
+                            <img src="/reefx_logo.svg" alt="" aria-hidden className="h-8 w-8 object-contain" />
+                          )}
+                          <p className="font-semibold" style={{ color: MARKETING_NAVY }}>
+                            {m.exchange.name}
+                          </p>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-600">
+                          {m.exchange.kind === ExchangeKind.EVENT ? "Event" : "Group"} ·{" "}
+                          {m.exchange.visibility === ExchangeVisibility.PUBLIC ? "Public" : "Private"} · Role:{" "}
+                          {m.role === "EVENT_MANAGER" ? "Event manager" : "Member"} · {reefersLabel(m.exchange._count.memberships)}{" "}
+                          · {coralsAvailableLabel(activeListingsByExchange.get(m.exchange.id) ?? 0)}
+                        </p>
+                      </Link>
+                      <Link
+                        href={exchangeHref}
+                        className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold transition hover:border-slate-400 hover:bg-slate-100"
+                        style={{ color: MARKETING_LINK_BLUE }}
+                      >
+                        Go to exchange
+                      </Link>
+                    </div>
                   </div>
-                  <p className="mt-1 text-xs text-slate-600">
-                    {m.exchange.kind === ExchangeKind.EVENT ? "Event" : "Group"} ·{" "}
-                    {m.exchange.visibility === ExchangeVisibility.PUBLIC ? "Public" : "Private"} · Role:{" "}
-                    {m.role === "EVENT_MANAGER" ? "Event manager" : "Member"} · {reefersLabel(m.exchange._count.memberships)}{" "}
-                    · {coralsAvailableLabel(activeListingsByExchange.get(m.exchange.id) ?? 0)}
-                  </p>
-                </Link>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -172,7 +183,7 @@ export default async function ExchangesPage({
                     {ex.logo40Url ? (
                       <img src={ex.logo40Url} alt="" aria-hidden className="h-8 w-8 rounded-md object-cover" />
                     ) : (
-                      <img src="/fragswap_logo.svg" alt="" aria-hidden className="h-8 w-8 object-contain" />
+                      <img src="/reefx_logo.svg" alt="" aria-hidden className="h-8 w-8 object-contain" />
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-col items-start justify-start gap-0">
@@ -225,7 +236,7 @@ export default async function ExchangesPage({
                         {ex.logo40Url ? (
                           <img src={ex.logo40Url} alt="" aria-hidden className="h-8 w-8 rounded-md object-cover" />
                         ) : (
-                          <img src="/fragswap_logo.svg" alt="" aria-hidden className="h-8 w-8 object-contain" />
+                          <img src="/reefx_logo.svg" alt="" aria-hidden className="h-8 w-8 object-contain" />
                         )}
                         <p className="font-semibold hover:underline" style={{ color: MARKETING_NAVY }}>
                           {ex.name}

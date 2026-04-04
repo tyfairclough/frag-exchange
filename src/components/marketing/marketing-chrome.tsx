@@ -8,35 +8,15 @@ export const MARKETING_LINK_BLUE = "#1D4ED8";
 
 export function CoralLogo({ className }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      width="36"
-      height="36"
-      viewBox="0 0 40 40"
-      fill="none"
+    // eslint-disable-next-line @next/next/no-img-element -- static brand SVG from /public
+    <img
+      src="/reefx_logo.svg"
+      alt=""
+      width={36}
+      height={36}
+      className={`object-contain ${className ?? ""}`.trim()}
       aria-hidden
-    >
-      <path
-        d="M20 4c-2.5 3.2-4 6.8-4 10.5 0 4.2 1.8 8 4.5 10.8C23.2 23.5 25 19.7 25 15.5 25 11.8 23.5 8.2 21 5 20.6 4.5 20.3 4.2 20 4Z"
-        fill={MARKETING_NAVY}
-        opacity="0.92"
-      />
-      <path
-        d="M9 22c3.5-1.2 7-1 10.2.5-2.8 2.5-5.5 5.8-7.2 9.8C10.5 29.5 9 26 9 22Z"
-        fill="#E879A9"
-        opacity="0.95"
-      />
-      <path
-        d="M31 22c-3.5-1.2-7-1-10.2.5 2.8 2.5 5.5 5.8 7.2 9.8 2.5-2.8 4-6.3 4-10.3Z"
-        fill="#22B41C"
-        opacity="0.9"
-      />
-      <path
-        d="M20 26c-1.8 2.2-3 4.8-3.5 7.5h7c-.5-2.7-1.7-5.3-3.5-7.5Z"
-        fill="#7C3AED"
-        opacity="0.88"
-      />
-    </svg>
+    />
   );
 }
 
@@ -47,7 +27,7 @@ export function MarketingSiteHeader() {
         <Link href="/" className="flex items-center gap-2.5">
           <CoralLogo className="shrink-0" />
           <span className="text-lg font-semibold tracking-tight sm:text-xl" style={{ color: MARKETING_NAVY }}>
-            Frag Exchange
+            REEFX
           </span>
           <span
             className="rounded-full px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide"
@@ -78,10 +58,10 @@ export function MarketingSiteFooter() {
             <Link href="/" className="flex items-center gap-2">
               <CoralLogo className="h-8 w-8 shrink-0" />
               <span className="text-base font-semibold" style={{ color: MARKETING_NAVY }}>
-                Frag Exchange
+                REEFX
               </span>
             </Link>
-            <p className="mt-3 text-xs text-slate-500">© {new Date().getFullYear()} Frag Exchange</p>
+            <p className="mt-3 text-xs text-slate-500">© {new Date().getFullYear()} REEFX</p>
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:gap-12">
             <div>
@@ -117,7 +97,7 @@ export function MarketingSiteFooter() {
                 </li>
                 <li>
                   <Link href="/auth/login" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
-                    Add Frag Exchange to your event
+                    Add REEFX to your event
                   </Link>
                 </li>
               </ul>

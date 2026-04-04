@@ -1,4 +1,4 @@
-# Local development only — MySQL 8 for Frag Exchange (Prisma).
+# Local development only — MySQL 8 for REEFX (Prisma).
 # From this folder: npm run db:up
 # Stop: npm run db:down
 #

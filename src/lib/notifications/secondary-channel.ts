@@ -25,7 +25,7 @@ export async function sendSecondaryNotification(params: {
     try {
       const headers: Record<string, string> = {
         "content-type": "application/json",
-        ...(secret ? { "x-frag-notify-secret": secret } : {}),
+        ...(secret ? { "x-reefx-notify-secret": secret } : {}),
       };
       await withAsyncRetries(
         async () => {
