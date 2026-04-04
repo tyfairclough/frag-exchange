@@ -1,0 +1,1 @@
+{"sessionId":"677650","runId":"shadow-db-fix","hypothesisId":"H4","location":"scripts/db-grant-migrate.mjs","message":"bootstrap sql via docker compose exec","data":{"exitCode":0,"sqlFile":"99-prisma-migrate-grants.sql"},"timestamp":1774168905693}
