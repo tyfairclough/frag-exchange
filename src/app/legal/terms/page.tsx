@@ -14,7 +14,7 @@ export default function TermsPage() {
         </p>
         <ul className="mt-3 list-disc space-y-2 pl-5">
           <li>Use the service lawfully and respect other hobbyists.</li>
-          <li>Listings and trades are between users; Frag Exchange facilitates discovery only.</li>
+          <li>Listings and trades are between users; REEFX facilitates discovery only.</li>
         </ul>
       </article>
     </main>

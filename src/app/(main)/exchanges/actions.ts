@@ -8,7 +8,7 @@ import {
   ExchangeMembershipRole,
   ExchangeVisibility,
 } from "@/generated/prisma/enums";
-import { getPrisma, throwIfMysqlPoolUnreachable } from "@/lib/db";
+import { assertMysqlReachable, getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
 import { getRequestOrigin } from "@/lib/request-origin";
@@ -127,11 +127,12 @@ export async function createExchangeAction(formData: FormData) {
       metadata: { name: created.name, kind: created.kind, visibility: created.visibility },
       ip,
     });
-  } catch (e) {
-    throwIfMysqlPoolUnreachable(e);
+  } catch (e: unknown) {
     if (e instanceof Error && e.message.startsWith("exchange-logo:")) {
       redirect("/exchanges/new?error=logo");
     }
+    assertMysqlReachable(e);
+    throw e instanceof Error ? e : new Error(String(e));
   }
 
   revalidatePath("/exchanges");
@@ -190,11 +191,11 @@ export async function updateExchangeAction(formData: FormData) {
         data: logo,
       });
     }
-  } catch (e) {
-    throwIfMysqlPoolUnreachable(e);
+  } catch (e: unknown) {
     if (e instanceof Error && e.message.startsWith("exchange-logo:")) {
       redirect(`/exchanges/${exchangeId}/edit?error=logo`);
     }
+    assertMysqlReachable(e);
     redirect(`/exchanges/${exchangeId}/edit?error=not-found`);
   }
 
@@ -249,8 +250,8 @@ export async function updateExchangeLogoAction(formData: FormData) {
       where: { id: exchangeId },
       data: logo,
     });
-  } catch (e) {
-    throwIfMysqlPoolUnreachable(e);
+  } catch (e: unknown) {
+    assertMysqlReachable(e);
     redirect(`/exchanges/${exchangeId}?error=logo`);
   }
 
@@ -271,8 +272,8 @@ export async function deleteExchangeAction(formData: FormData) {
 
   try {
     await getPrisma().exchange.delete({ where: { id: exchangeId } });
-  } catch (e) {
-    throwIfMysqlPoolUnreachable(e);
+  } catch (e: unknown) {
+    assertMysqlReachable(e);
     redirect("/exchanges?error=forbidden");
   }
 

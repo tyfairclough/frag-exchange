@@ -25,6 +25,7 @@ function NavLinks({ exploreExchangeIdParam }: { exploreExchangeIdParam: string |
         label: "Explore",
         icon: CompassIcon,
       },
+      { key: "add-coral", href: "/my-corals/new", label: "Add coral", icon: AddCoralIcon },
     ],
     [pathname, exploreExchangeIdParam],
   );
@@ -95,6 +96,20 @@ function CompassIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
       <path d="m14.5 9.5-2 5-5 2 2-5 5-2Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function AddCoralIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M12 8.25v7.5M8.25 12h7.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

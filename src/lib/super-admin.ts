@@ -7,7 +7,7 @@ import {
 import type { Exchange, ExchangeMembership } from "@/generated/prisma/client";
 
 export function parseSuperAdminEmails(): string[] {
-  return (process.env.FRAG_SUPER_ADMIN_EMAILS ?? "")
+  return (process.env.REEFX_SUPER_ADMIN_EMAILS ?? "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);

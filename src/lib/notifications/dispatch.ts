@@ -110,24 +110,24 @@ export function buildBodies(params: {
     "",
     ...params.lines,
     ...(params.actionUrl
-      ? ["", `${params.actionLabel ?? "Open in Frag Exchange"}:`, params.actionUrl]
+      ? ["", `${params.actionLabel ?? "Open in REEFX"}:`, params.actionUrl]
       : []),
     "",
-    "— Frag Exchange",
+    "— REEFX",
   ].join("\n");
 
   const linkBlock =
     params.actionUrl && params.actionLabel
       ? `<p><a href="${escapeHtml(params.actionUrl)}">${escapeHtml(params.actionLabel)}</a></p>`
       : params.actionUrl
-        ? `<p><a href="${escapeHtml(params.actionUrl)}">View in Frag Exchange</a></p>`
+        ? `<p><a href="${escapeHtml(params.actionUrl)}">View in REEFX</a></p>`
         : "";
 
   const html = `
     <p>${escapeHtml(params.title)}</p>
     ${params.lines.map((l) => `<p>${escapeHtml(l)}</p>`).join("")}
     ${linkBlock}
-    <p style="font-size:12px;color:#666">Frag Exchange notification</p>
+    <p style="font-size:12px;color:#666">REEFX notification</p>
   `.trim();
 
   return { text, html };

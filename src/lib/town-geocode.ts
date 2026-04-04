@@ -23,8 +23,8 @@ export async function geocodeTownCenter(input: {
   }
 
   const ua =
-    process.env.FRAG_NOMINATIM_USER_AGENT?.trim() ||
-    "FragExchange/0.1 (contact: support@frag-exchange.local)";
+    process.env.REEFX_NOMINATIM_USER_AGENT?.trim() ||
+    "REEFX/0.1 (contact: support@reefx.net)";
 
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.searchParams.set("q", q);

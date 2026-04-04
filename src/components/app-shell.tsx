@@ -7,7 +7,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { ExploreHeaderChrome } from "@/components/explore-header-chrome";
 import { getExchangeIdFromPathname } from "@/lib/exchange-path";
 
-const DEFAULT_TITLE = "Frag Exchange";
+const DEFAULT_TITLE = "REEFX";
 
 type AppShellProfile = {
   aliasLabel: string;
@@ -99,8 +99,8 @@ function ShellTitleInner() {
 
   if (pathname === "/explore") {
     return (
-      <span className="min-w-0 truncate font-semibold tracking-tight text-[#122B49] sm:max-w-[12rem]" title="Frag Exchange">
-        Frag Exchange
+      <span className="min-w-0 truncate font-semibold tracking-tight text-[#122B49] sm:max-w-[12rem]" title="REEFX">
+        REEFX
       </span>
     );
   }
@@ -154,7 +154,7 @@ function ShellBrandLink() {
         />
       ) : (
         <img
-          src="/fragswap_logo.svg"
+          src="/reefx_logo.svg"
           alt=""
           width={32}
           height={32}

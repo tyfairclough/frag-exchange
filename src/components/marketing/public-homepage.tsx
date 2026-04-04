@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import {
   MARKETING_CTA_GREEN,
@@ -12,17 +11,13 @@ import type { PublicMarketingListingRow } from "@/lib/marketing-listings";
 
 type ListingRow = PublicMarketingListingRow;
 
-const statusDotClasses = ["bg-emerald-500", "bg-amber-400", "bg-rose-500"] as const;
-
-function ListingCard({ row, index }: { row: ListingRow; index: number }) {
+function ListingCard({ row }: { row: ListingRow }) {
   const { coral, exchange } = row;
-  const dot = statusDotClasses[index % statusDotClasses.length];
   const typeLabel = coral.coralType?.trim() || "Coral";
 
   return (
     <article className="flex w-[min(100%,280px)] shrink-0 snap-start overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 sm:w-auto sm:min-w-0 sm:flex-1 sm:snap-none">
       <div className="relative aspect-square w-[42%] min-w-[120px] bg-slate-200 sm:w-2/5">
-        <span className={`absolute left-2 top-2 h-2.5 w-2.5 rounded-full ${dot} ring-2 ring-white`} />
         {coral.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote hobbyist URLs
           <img src={coral.imageUrl} alt="" className="h-full w-full object-cover" />
@@ -60,13 +55,13 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
     <div className="min-h-dvh bg-white text-slate-600">
       <MarketingSiteHeader />
 
-      <section className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:gap-12 sm:px-6 sm:py-14 lg:grid-cols-2 lg:items-center">
-        <div>
+      <section className="mx-auto grid max-w-6xl gap-10 px-4 pt-10 sm:gap-12 sm:px-6 sm:pt-14 lg:grid-cols-2 lg:items-center">
+        <div className="py-10 sm:py-14">
           <h1
             className="text-[1.65rem] font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.65rem] lg:leading-[1.12]"
             style={{ color: MARKETING_NAVY }}
           >
-            Build your reef with the Frag Exchange
+            Build your reef with REEFX
           </h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
             Join events and local exchanges to swap corals, for free, with fellow reefers.
@@ -88,13 +83,15 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
           </div>
         </div>
         <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-          <Image
-            src="/marketing/hero-corals.png"
+          {/* eslint-disable-next-line @next/next/no-img-element -- static marketing SVG from /public */}
+          <img
+            src="/marketing/coral_illustration_001.svg"
             alt=""
             width={640}
-            height={520}
+            height={335}
             className="h-auto w-full object-contain"
-            priority
+            decoding="async"
+            fetchPriority="high"
           />
         </div>
       </section>
@@ -110,8 +107,8 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
             </p>
           ) : (
             <div className="mt-8 flex gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
-              {listings.map((row, i) => (
-                <ListingCard key={row.id} row={row} index={i} />
+              {listings.map((row) => (
+                <ListingCard key={row.id} row={row} />
               ))}
             </div>
           )}
@@ -182,7 +179,7 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
             Pricing
           </h2>
           <p className="mt-3 text-slate-600">
-            Free for hobbyists. Organisers can add Frag Exchange to an event or group to run swaps smoothly — sign in to
+            Free for hobbyists. Organisers can add REEFX to an event or group to run swaps smoothly — sign in to
             learn more.
           </p>
         </div>

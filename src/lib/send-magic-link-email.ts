@@ -23,10 +23,10 @@ export async function sendMagicLinkEmail(params: {
   to: string;
   verifyUrl: string;
 }): Promise<SendResult> {
-  const subject = "Your Frag Exchange sign-in link";
+  const subject = "Your REEFX sign-in link";
   const html = `
     <p>Hi,</p>
-    <p>Use this link to sign in to Frag Exchange (expires in 20 minutes):</p>
+    <p>Use this link to sign in to REEFX (expires in 20 minutes):</p>
     <p><a href="${escapeHtml(params.verifyUrl)}">Sign in</a></p>
     <p>If you did not request this, you can ignore this email.</p>
     <p style="font-size:12px;color:#666">Privacy notice version ${LEGAL_VERSION} applies to account data.</p>
@@ -35,7 +35,7 @@ export async function sendMagicLinkEmail(params: {
   const text = [
     "Hi,",
     "",
-    "Use this link to sign in to Frag Exchange (expires in 20 minutes):",
+    "Use this link to sign in to REEFX (expires in 20 minutes):",
     params.verifyUrl,
     "",
     "If you did not request this, you can ignore this email.",

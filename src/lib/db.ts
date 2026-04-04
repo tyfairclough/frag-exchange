@@ -32,7 +32,7 @@ function assertMysqlOnlyDatabaseUrl(url: string) {
     lower.startsWith("prisma+postgres://")
   ) {
     throw new Error(
-      "Frag Exchange uses MySQL only. Set DATABASE_URL to mysql://… (see .env.example). PostgreSQL and prisma+postgres URLs are not supported.",
+      "REEFX uses MySQL only. Set DATABASE_URL to mysql://… (see .env.example). PostgreSQL and prisma+postgres URLs are not supported.",
     );
   }
 }
@@ -74,7 +74,7 @@ export function getPrisma(): PrismaClient {
  * MariaDB pool could not open any connection (wrong host/port, server stopped, firewall).
  * Surfaces a short actionable message instead of only "pool timeout … active=0 idle=0".
  */
-export function throwIfMysqlPoolUnreachable(err: unknown): never {
+export function assertMysqlReachable(err: unknown): void {
   const msg = err instanceof Error ? err.message : String(err);
   const emptyPool =
     msg.includes("pool timeout") && msg.includes("active=0") && msg.includes("idle=0");
@@ -83,5 +83,10 @@ export function throwIfMysqlPoolUnreachable(err: unknown): never {
       "MySQL is not reachable with your DATABASE_URL (no connection could be opened). Start MariaDB/MySQL or Docker on that host and port, set a real user/password/database in .env, then run migrations from the web folder: npm run db:migrate:dev",
     );
   }
+}
+
+export function throwIfMysqlPoolUnreachable(err: unknown): never {
+  assertMysqlReachable(err);
+  const msg = err instanceof Error ? err.message : String(err);
   throw err instanceof Error ? err : new Error(msg);
 }

@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "missing-id" }, { status: 400 });
   }
 
-  const apiKey = process.env.FRAG_IDEAL_POSTCODES_API_KEY?.trim();
+  const apiKey = process.env.REEFX_IDEAL_POSTCODES_API_KEY?.trim();
   if (!apiKey) {
     return NextResponse.json({ error: "ideal-postcodes-missing-api-key" }, { status: 500 });
   }

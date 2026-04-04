@@ -13,11 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://reefx.net"),
   title: {
-    default: "Frag Exchange",
-    template: "%s · Frag Exchange",
+    default: "REEFX",
+    template: "%s · REEFX",
   },
-  description: "Coral frags, swaps, and exchanges — foundation build.",
+  description: "REEFX — coral frags, swaps, and exchanges for reefers.",
 };
 
 export const viewport: Viewport = {

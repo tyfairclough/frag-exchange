@@ -7,7 +7,7 @@ import { getPublicBrowseEvents, getPublicBrowseGroups } from "@/lib/public-excha
 
 export const metadata: Metadata = {
   title: "Exchanges online",
-  description: "Browse public Frag Exchange events and groups. Join to list and swap corals.",
+  description: "Browse public REEFX events and groups. Join to list and swap corals.",
 };
 
 export const revalidate = 60;

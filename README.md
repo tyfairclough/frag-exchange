@@ -1,6 +1,6 @@
-# Frag Exchange (web)
+# REEFX (web)
 
-Next.js app for **Frag Exchange**: mobile-first shell, **MySQL** via **Prisma 7**, aligned with a **Hostinger Node.js** deployment (Next.js preset).
+Next.js app for **REEFX** (reefx.net): mobile-first shell, **MySQL** via **Prisma 7**, aligned with a **Hostinger Node.js** deployment (Next.js preset).
 
 Runtime DB access uses Prisma’s **`@prisma/adapter-mariadb`** driver with the [`mariadb`](https://www.npmjs.com/package/mariadb) client (MySQL-compatible; same `mysql://…` `DATABASE_URL` as in Prisma’s docs).
 
@@ -21,7 +21,7 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
    cp .env.example .env
    ```
 
-   **Database URL:** committed **`.env.development`** points Prisma/Next at the local Docker MySQL (`frag` / `fraglocaldev` / `frag_exchange` on `127.0.0.1:3306`). It is loaded only when you run **`npm run dev`** (`NODE_ENV=development`). Add optional keys (Mailtrap, etc.) to `.env` or `.env.local`.
+   **Database URL:** committed **`.env.development`** points Prisma/Next at the local Docker MySQL (`frag` / `fraglocaldev` / `frag_exchange` on `127.0.0.1:3306`). It is loaded only when you run **`npm run dev`** (`NODE_ENV=development`). Add optional keys (Mailtrap, etc.) to `.env` or `.env.local`. App-specific secrets use the **`REEFX_*`** prefix (see `.env.example`).
 
    **Production** on Hostinger: set **`DATABASE_URL`** in the Node.js app environment — `.env.development` is not used when `NODE_ENV=production`.
 
