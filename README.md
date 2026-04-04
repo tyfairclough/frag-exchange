@@ -1,4 +1,4 @@
-# Frag Exchange
+# REEFX
 
 Product implementation lives in **`web/`** — a Next.js app (Chunk 1: foundation, MySQL/Prisma, mobile-first shell, Hostinger-oriented deploy notes).
 
