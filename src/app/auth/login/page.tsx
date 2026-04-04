@@ -1,6 +1,5 @@
-import Image from "next/image";
 import { requestMagicLinkAction, signInWithPasswordAction } from "@/app/auth/actions";
-import { MARKETING_CTA_GREEN, MARKETING_MUTED_BOX, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { AUTH_PROVIDERS } from "@/lib/auth/providers";
 
 const loginErrors: Record<string, string> = {
@@ -116,17 +115,16 @@ export default async function LoginPage({
         </section>
 
         <section className="order-2 lg:justify-self-end">
-          <div
-            className="relative mx-auto w-full max-w-md overflow-hidden rounded-2xl p-6 sm:max-w-lg lg:max-w-xl"
-            style={{ backgroundColor: MARKETING_MUTED_BOX }}
-          >
-            <Image
-              src="/marketing/hero-corals.png"
+          <div className="relative mx-auto w-full max-w-md sm:max-w-lg lg:max-w-xl">
+            {/* eslint-disable-next-line @next/next/no-img-element -- static marketing SVG from /public */}
+            <img
+              src="/marketing/coral_illustration_001.svg"
               alt=""
               width={640}
-              height={520}
+              height={335}
               className="h-auto w-full object-contain"
-              priority
+              decoding="async"
+              fetchPriority="high"
             />
           </div>
         </section>

@@ -85,6 +85,7 @@ export default async function ExchangesPage({
   const activeListingsByExchange = new Map(listingAgg.map((g) => [g.exchangeId, g._count._all]));
 
   const myIds = new Set(myMemberships.map((m) => m.exchangeId));
+  const joinablePublicExchanges = publicExchanges.filter((ex) => !myIds.has(ex.id));
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -93,7 +94,7 @@ export default async function ExchangesPage({
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: MARKETING_NAVY }}>
             Exchanges
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">Join public hubs or use an invite for private ones.</p>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">Join public exchanges or use an invite to join a private exchange.</p>
         </div>
         {superUser ? (
           <Link
@@ -172,11 +173,15 @@ export default async function ExchangesPage({
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Public exchanges</h2>
-        {publicExchanges.length === 0 ? (
-          <p className="text-sm text-slate-600">No public exchanges yet.</p>
+        {joinablePublicExchanges.length === 0 ? (
+          <p className="text-sm text-slate-600">
+            {publicExchanges.length === 0
+              ? "No public exchanges yet."
+              : "No other public exchanges to join right now."}
+          </p>
         ) : (
           <ul className="space-y-3">
-            {publicExchanges.map((ex) => (
+            {joinablePublicExchanges.map((ex) => (
               <li key={ex.id}>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
                   <div className="flex flex-row flex-wrap items-center justify-between gap-3">
@@ -200,20 +205,16 @@ export default async function ExchangesPage({
                         </p>
                       </div>
                     </div>
-                    {myIds.has(ex.id) ? (
-                      <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">Joined</span>
-                    ) : (
-                      <form action={joinPublicExchangeFormAction}>
-                        <input type="hidden" name="exchangeId" value={ex.id} />
-                        <button
-                          type="submit"
-                          className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold transition hover:border-slate-400 hover:bg-slate-100"
-                          style={{ color: MARKETING_LINK_BLUE }}
-                        >
-                          Join
-                        </button>
-                      </form>
-                    )}
+                    <form action={joinPublicExchangeFormAction}>
+                      <input type="hidden" name="exchangeId" value={ex.id} />
+                      <button
+                        type="submit"
+                        className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold transition hover:border-slate-400 hover:bg-slate-100"
+                        style={{ color: MARKETING_LINK_BLUE }}
+                      >
+                        Join
+                      </button>
+                    </form>
                   </div>
                 </div>
               </li>
