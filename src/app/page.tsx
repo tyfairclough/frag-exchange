@@ -21,6 +21,11 @@ export default async function RootHomePage() {
     redirect("/exchanges");
   }
 
-  const listings = await getRecentPublicExchangeListings(8);
+  let listings: Awaited<ReturnType<typeof getRecentPublicExchangeListings>> = [];
+  try {
+    listings = await getRecentPublicExchangeListings(8);
+  } catch (e) {
+    console.error("[RootHomePage] getRecentPublicExchangeListings failed:", e);
+  }
   return <PublicHomepage listings={listings} />;
 }

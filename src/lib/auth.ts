@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createHash, randomBytes } from "node:crypto";
-import { agentDebugLog } from "@/lib/agent-debug-log";
 import { getPrisma, throwIfMysqlPoolUnreachable } from "@/lib/db";
 
 const SESSION_COOKIE = "fe_session";
@@ -108,47 +107,14 @@ export async function clearSession() {
 export async function getCurrentUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
-  // #region agent log
-  agentDebugLog(
-    "auth.ts:getCurrentUser",
-    "after_cookie_read",
-    { hasSessionCookie: Boolean(token) },
-    "H1",
-  );
-  // #endregion
   if (!token) {
     return null;
   }
 
-  let session;
-  try {
-    session = await getPrisma().session.findUnique({
-      where: { tokenHash: hashToken(token) },
-      include: { user: { include: { address: true } } },
-    });
-  } catch (e) {
-    // #region agent log
-    agentDebugLog(
-      "auth.ts:getCurrentUser",
-      "session_findUnique_threw",
-      { errKind: e instanceof Error ? e.constructor.name : typeof e },
-      "H1",
-    );
-    // #endregion
-    throw e;
-  }
-
-  // #region agent log
-  const sessionOk = Boolean(
-    session && !session.revokedAt && session.expiresAt > new Date(),
-  );
-  agentDebugLog(
-    "auth.ts:getCurrentUser",
-    "session_query_done",
-    { hasRow: Boolean(session), sessionOk },
-    "H1",
-  );
-  // #endregion
+  const session = await getPrisma().session.findUnique({
+    where: { tokenHash: hashToken(token) },
+    include: { user: { include: { address: true } } },
+  });
 
   if (!session || session.revokedAt || session.expiresAt <= new Date()) {
     return null;

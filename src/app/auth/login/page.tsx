@@ -8,6 +8,8 @@ const loginErrors: Record<string, string> = {
   "sso-not-ready": "That sign-in method is not available yet.",
   "invalid-credentials": "Email or password is incorrect.",
   "rate-limit": "Too many attempts from this network. Please wait a little while and try again.",
+  "server-unavailable":
+    "Sign-in could not reach the database or complete the request. If you run the app yourself, check DATABASE_URL and that MySQL is running, then try again.",
 };
 
 export default async function LoginPage({

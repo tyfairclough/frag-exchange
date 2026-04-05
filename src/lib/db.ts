@@ -1,5 +1,4 @@
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
-import { agentDebugLog } from "@/lib/agent-debug-log";
 import { PrismaClient } from "@/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
@@ -67,27 +66,7 @@ export function getPrisma(): PrismaClient {
     return globalForPrisma.prisma;
   }
 
-  // #region agent log
-  agentDebugLog(
-    "db.ts:getPrisma",
-    "creating_prisma_client",
-    { hasDatabaseUrl: Boolean(process.env.DATABASE_URL), nodeEnv: process.env.NODE_ENV ?? "" },
-    "H2",
-  );
-  // #endregion
-  try {
-    globalForPrisma.prisma = createPrismaClient();
-  } catch (e) {
-    // #region agent log
-    agentDebugLog(
-      "db.ts:getPrisma",
-      "createPrismaClient_threw",
-      { errKind: e instanceof Error ? e.constructor.name : typeof e },
-      "H2",
-    );
-    // #endregion
-    throw e;
-  }
+  globalForPrisma.prisma = createPrismaClient();
   return globalForPrisma.prisma;
 }
 

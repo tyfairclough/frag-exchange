@@ -1,6 +1,5 @@
 "use client";
 
-import { agentDebugLog } from "@/lib/agent-debug-log";
 import { useEffect } from "react";
 
 export default function RootError({
@@ -12,18 +11,6 @@ export default function RootError({
 }) {
   useEffect(() => {
     console.error(error);
-    // #region agent log
-    agentDebugLog(
-      "error.tsx:RootError",
-      "error_boundary",
-      {
-        digest: error.digest ?? null,
-        msgLen: (error.message ?? "").length,
-        name: error.name ?? "",
-      },
-      "H5",
-    );
-    // #endregion
   }, [error]);
 
   return (

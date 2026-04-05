@@ -1,5 +1,6 @@
 "use server";
 
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { clearSession, createMagicLink, createSession } from "@/lib/auth";
@@ -24,22 +25,28 @@ export async function requestMagicLinkAction(formData: FormData) {
     redirect("/auth/login?error=invalid-email");
   }
 
-  const headerStore = await headers();
-  const requestIp = headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-  const { token } = await createMagicLink(email, requestIp);
+  try {
+    const headerStore = await headers();
+    const requestIp = headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const { token } = await createMagicLink(email, requestIp);
 
-  const origin = await getRequestOrigin();
-  const verifyUrl = `${origin}/auth/verify?token=${encodeURIComponent(token)}`;
+    const origin = await getRequestOrigin();
+    const verifyUrl = `${origin}/auth/verify?token=${encodeURIComponent(token)}`;
 
-  const sent = await sendMagicLinkEmail({ to: email, verifyUrl });
-  if (!sent.ok) {
-    console.error("[magic-link] outbound email failed", sent.status, sent.body);
+    const sent = await sendMagicLinkEmail({ to: email, verifyUrl });
+    if (!sent.ok) {
+      console.error("[magic-link] outbound email failed", sent.status, sent.body);
+    }
+
+    const debugQuery =
+      process.env.NODE_ENV === "development" ? `&debugToken=${encodeURIComponent(token)}` : "";
+
+    redirect(`/auth/check-email?email=${encodeURIComponent(email)}${debugQuery}`);
+  } catch (e) {
+    if (isRedirectError(e)) throw e;
+    console.error("[requestMagicLinkAction] failed:", e);
+    redirect("/auth/login?error=server-unavailable");
   }
-
-  const debugQuery =
-    process.env.NODE_ENV === "development" ? `&debugToken=${encodeURIComponent(token)}` : "";
-
-  redirect(`/auth/check-email?email=${encodeURIComponent(email)}${debugQuery}`);
 }
 
 export async function signOutAction() {
@@ -62,26 +69,33 @@ export async function signInWithPasswordAction(formData: FormData) {
     redirect("/auth/login?error=invalid-credentials");
   }
 
-  const user = await getPrisma().user.findUnique({
-    where: { email },
-    select: { id: true, passwordHash: true, onboardingCompletedAt: true },
-  });
+  try {
+    const user = await getPrisma().user.findUnique({
+      where: { email },
+      select: { id: true, passwordHash: true, onboardingCompletedAt: true },
+    });
 
-  if (!user?.passwordHash) {
-    redirect("/auth/login?error=invalid-credentials");
+    if (!user?.passwordHash) {
+      redirect("/auth/login?error=invalid-credentials");
+    }
+
+    const ok = await verifyPassword(password, user.passwordHash);
+    if (!ok) {
+      redirect("/auth/login?error=invalid-credentials");
+    }
+
+    await createSession(user.id);
+
+    const nextPath = await consumeAuthNextCookie();
+    if (nextPath && !user.onboardingCompletedAt) {
+      await setOnboardingNextCookie(nextPath);
+    }
+    const destination =
+      nextPath && user.onboardingCompletedAt ? nextPath : user.onboardingCompletedAt ? "/" : "/onboarding";
+    redirect(destination);
+  } catch (e) {
+    if (isRedirectError(e)) throw e;
+    console.error("[signInWithPasswordAction] failed:", e);
+    redirect("/auth/login?error=server-unavailable");
   }
-
-  const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) {
-    redirect("/auth/login?error=invalid-credentials");
-  }
-
-  await createSession(user.id);
-
-  const nextPath = await consumeAuthNextCookie();
-  if (nextPath && !user.onboardingCompletedAt) {
-    await setOnboardingNextCookie(nextPath);
-  }
-  const destination = nextPath && user.onboardingCompletedAt ? nextPath : user.onboardingCompletedAt ? "/" : "/onboarding";
-  redirect(destination);
 }
