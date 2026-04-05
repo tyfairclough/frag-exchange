@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import type { NextResponse } from "next/server";
 import { createHash, randomBytes } from "node:crypto";
 import { getPrisma, throwIfMysqlPoolUnreachable } from "@/lib/db";
 
@@ -67,7 +68,18 @@ export async function consumeMagicLink(token: string) {
   return link.user;
 }
 
-export async function createSession(userId: string) {
+const SESSION_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+};
+
+/**
+ * @param attachResponse When set (e.g. magic-link verify `NextResponse.redirect`), the session
+ * cookie is written on that response so the browser always receives it with the redirect.
+ */
+export async function createSession(userId: string, attachResponse?: NextResponse) {
   const token = makeToken();
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * SESSION_TTL_DAYS);
@@ -80,14 +92,14 @@ export async function createSession(userId: string) {
     },
   });
 
+  const opts = { ...SESSION_COOKIE_OPTIONS, expires: expiresAt };
+  if (attachResponse) {
+    attachResponse.cookies.set(SESSION_COOKIE, token, opts);
+    return;
+  }
+
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    expires: expiresAt,
-    path: "/",
-  });
+  cookieStore.set(SESSION_COOKIE, token, opts);
 }
 
 export async function clearSession() {

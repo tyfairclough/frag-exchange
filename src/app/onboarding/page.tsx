@@ -70,11 +70,20 @@ export default async function OnboardingPage({
   }
 
   const prisma = getPrisma();
-  const aliasWords = await fetchAliasWordStrings(prisma);
+  let aliasWords: string[] = [];
+  let suggestedAlias = "";
+  try {
+    aliasWords = await fetchAliasWordStrings(prisma);
+    const insufficient = aliasWords.length < MIN_ALIAS_GENERATOR_WORDS;
+    suggestedAlias = insufficient
+      ? ""
+      : (await pickUniqueAliasCandidate(prisma, user.id, aliasWords)) ?? "";
+  } catch (e) {
+    console.error("[onboarding] alias generator query failed", e);
+    aliasWords = [];
+    suggestedAlias = "";
+  }
   const aliasWordsInsufficient = aliasWords.length < MIN_ALIAS_GENERATOR_WORDS;
-  const suggestedAlias = aliasWordsInsufficient
-    ? ""
-    : (await pickUniqueAliasCandidate(prisma, user.id, aliasWords)) ?? "";
 
   return (
     <OnboardingWizard

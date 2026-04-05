@@ -48,8 +48,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/auth/login?error=invalid-token", base));
   }
 
-  await createSession(user.id);
-
   const nextPath = await consumeAuthNextCookie();
   if (nextPath && !user.onboardingCompletedAt) {
     await setOnboardingNextCookie(nextPath);
@@ -60,5 +58,7 @@ export async function GET(request: Request) {
       : user.onboardingCompletedAt
         ? "/"
         : "/onboarding";
-  return NextResponse.redirect(new URL(destination, base));
+  const redirectRes = NextResponse.redirect(new URL(destination, base));
+  await createSession(user.id, redirectRes);
+  return redirectRes;
 }
