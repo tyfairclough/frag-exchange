@@ -35,6 +35,13 @@ function str(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** Hidden field `from=reefers` returns users to the exchange Reefers tab after promote/demote. */
+function eventManagerActionRedirectBase(exchangeId: string, formData: FormData): string {
+  return str(formData.get("from")) === "reefers"
+    ? `/exchanges/${exchangeId}/reefers`
+    : `/operator/${exchangeId}`;
+}
+
 function parseKind(raw: string): ExchangeKind {
   if (raw === ExchangeKind.GROUP) {
     return ExchangeKind.GROUP;
@@ -625,9 +632,11 @@ export async function promoteEventManagerFormAction(formData: FormData) {
 
   const user = await requireUser();
 
+  const base = eventManagerActionRedirectBase(exchangeId, formData);
+
   const exchange = await getPrisma().exchange.findUnique({ where: { id: exchangeId } });
   if (!exchange || !canPromoteEventManager(exchange, user)) {
-    redirect(`/operator/${exchangeId}?error=forbidden`);
+    redirect(`${base}?error=forbidden`);
   }
 
   const target = await getPrisma().exchangeMembership.findFirst({
@@ -635,7 +644,7 @@ export async function promoteEventManagerFormAction(formData: FormData) {
   });
 
   if (!target || target.role !== ExchangeMembershipRole.MEMBER) {
-    redirect(`/operator/${exchangeId}?error=promote-invalid`);
+    redirect(`${base}?error=promote-invalid`);
   }
 
   await getPrisma().exchangeMembership.update({
@@ -644,8 +653,9 @@ export async function promoteEventManagerFormAction(formData: FormData) {
   });
 
   revalidatePath(`/exchanges/${exchangeId}`);
+  revalidatePath(`/exchanges/${exchangeId}/reefers`);
   revalidatePath(`/operator/${exchangeId}`);
-  redirect(`/operator/${exchangeId}?promoted=1`);
+  redirect(`${base}?promoted=1`);
 }
 
 export async function demoteEventManagerFormAction(formData: FormData) {
@@ -656,13 +666,15 @@ export async function demoteEventManagerFormAction(formData: FormData) {
   }
 
   const user = await requireUser();
+  const base = eventManagerActionRedirectBase(exchangeId, formData);
+
   if (!isSuperAdmin(user)) {
-    redirect(`/operator/${exchangeId}?error=forbidden`);
+    redirect(`${base}?error=forbidden`);
   }
 
   const exchange = await getPrisma().exchange.findUnique({ where: { id: exchangeId } });
   if (!exchange || exchange.kind !== ExchangeKind.EVENT) {
-    redirect(`/operator/${exchangeId}?error=demote-invalid`);
+    redirect(`${base}?error=demote-invalid`);
   }
 
   const target = await getPrisma().exchangeMembership.findFirst({
@@ -670,7 +682,7 @@ export async function demoteEventManagerFormAction(formData: FormData) {
   });
 
   if (!target || target.role !== ExchangeMembershipRole.EVENT_MANAGER) {
-    redirect(`/operator/${exchangeId}?error=demote-invalid`);
+    redirect(`${base}?error=demote-invalid`);
   }
 
   await getPrisma().exchangeMembership.update({
@@ -689,6 +701,7 @@ export async function demoteEventManagerFormAction(formData: FormData) {
   });
 
   revalidatePath(`/exchanges/${exchangeId}`);
+  revalidatePath(`/exchanges/${exchangeId}/reefers`);
   revalidatePath(`/operator/${exchangeId}`);
-  redirect(`/operator/${exchangeId}?demoted=1`);
+  redirect(`${base}?demoted=1`);
 }

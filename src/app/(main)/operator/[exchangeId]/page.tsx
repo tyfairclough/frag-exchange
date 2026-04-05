@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import {
   CoralProfileStatus,
   ExchangeKind,
-  ExchangeMembershipRole,
   ExchangeVisibility,
   TradeStatus,
 } from "@/generated/prisma/enums";
@@ -12,15 +11,8 @@ import {
   canAccessOperatorDashboard,
   canIssuePrivateInvite,
   canManageEventDesk,
-  canPromoteEventManager,
-  canSeeMemberRoster,
   canViewExchangeDirectory,
-  isSuperAdmin,
 } from "@/lib/super-admin";
-import {
-  demoteEventManagerFormAction,
-  promoteEventManagerFormAction,
-} from "@/app/(main)/exchanges/actions";
 import { EventDateHighlight } from "@/app/(main)/exchanges/components/event-datetime-highlight";
 import { OperatorExchangeDeleteDialog } from "@/app/(main)/operator/components/operator-exchange-delete-dialog";
 import { OperatorExchangeTabs } from "@/app/(main)/operator/components/operator-exchange-tabs";
@@ -79,11 +71,8 @@ export default async function OperatorExchangeDashboardPage({
     notFound();
   }
 
-  const roster = canSeeMemberRoster(exchange, membership, user);
   const invitePower = canIssuePrivateInvite(exchange, membership, user);
-  const promotePower = canPromoteEventManager(exchange, user);
   const eventDesk = canManageEventDesk(exchange, membership, user);
-  const superUser = isSuperAdmin(user);
   const errorMessage = sp.error ? operatorErrors[sp.error] ?? "Something went wrong." : null;
 
   const now = new Date();
@@ -116,18 +105,6 @@ export default async function OperatorExchangeDashboardPage({
     TradeStatus.REJECTED,
     TradeStatus.EXPIRED,
   ];
-
-  const pendingInvites = roster
-    ? await getPrisma().exchangeInvite.findMany({
-        where: {
-          exchangeId: exchange.id,
-          usedAt: null,
-          expiresAt: { gt: now },
-        },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, email: true, expiresAt: true },
-      })
-    : [];
 
   const reefersCount = exchange.memberships.length;
 
@@ -227,76 +204,6 @@ export default async function OperatorExchangeDashboardPage({
           </ul>
         </div>
       </section>
-
-      {roster ? (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Reefers</h2>
-          <p className="text-xs text-slate-500">Super admins and event managers on event exchanges.</p>
-          <ul className="space-y-2">
-            {pendingInvites.map((inv) => (
-              <li
-                key={inv.id}
-                className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium" style={{ color: MARKETING_NAVY }}>
-                    {inv.email}
-                  </p>
-                  <p className="text-xs text-slate-600">Pending activation</p>
-                  <p className="text-xs text-slate-500">
-                    Invite expires{" "}
-                    <time dateTime={inv.expiresAt.toISOString()}>
-                      {inv.expiresAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
-                    </time>
-                  </p>
-                </div>
-              </li>
-            ))}
-            {exchange.memberships.map((m) => (
-              <li
-                key={m.id}
-                className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium" style={{ color: MARKETING_NAVY }}>
-                    {m.user.alias ?? "No alias"}
-                  </p>
-                  <p className="text-xs text-slate-600">{m.user.email}</p>
-                  <p className="text-xs text-slate-500">
-                    {m.role === ExchangeMembershipRole.EVENT_MANAGER ? "Event manager" : "Reefer"}
-                  </p>
-                </div>
-                {promotePower && m.role === ExchangeMembershipRole.MEMBER ? (
-                  <form action={promoteEventManagerFormAction}>
-                    <input type="hidden" name="exchangeId" value={exchange.id} />
-                    <input type="hidden" name="memberUserId" value={m.user.id} />
-                    <button
-                      type="submit"
-                      className="inline-flex min-h-8 items-center rounded-full border border-slate-300 px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-                    >
-                      Make event manager
-                    </button>
-                  </form>
-                ) : null}
-                {superUser &&
-                exchange.kind === ExchangeKind.EVENT &&
-                m.role === ExchangeMembershipRole.EVENT_MANAGER ? (
-                  <form action={demoteEventManagerFormAction}>
-                    <input type="hidden" name="exchangeId" value={exchange.id} />
-                    <input type="hidden" name="managerUserId" value={m.user.id} />
-                    <button
-                      type="submit"
-                      className="inline-flex min-h-8 items-center rounded-full border border-slate-300 px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-                    >
-                      Demote to reefer
-                    </button>
-                  </form>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
 
       {exchange.visibility === ExchangeVisibility.PUBLIC ? (
         <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 shadow-sm">

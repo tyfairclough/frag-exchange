@@ -25,15 +25,6 @@ type Props = {
   exploreHref?: string;
 };
 
-function tabLinkClass(active: boolean) {
-  return [
-    "inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-xl px-3.5 text-sm font-semibold transition",
-    active
-      ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80"
-      : "text-slate-600 hover:bg-white/60 hover:text-slate-900",
-  ].join(" ");
-}
-
 export function OperatorExchangeTabs({
   exchangeId,
   active,
@@ -81,23 +72,21 @@ export function OperatorExchangeTabs({
   return (
     <nav
       aria-label="Operator"
-      className="rounded-2xl border border-slate-200 bg-slate-100/90 p-1.5 shadow-sm sm:p-2"
+      className="tabs tabs-lift tabs-md min-w-0 flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      <div className="-mx-0.5 flex gap-1 overflow-x-auto px-0.5 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {items.map((tab) => {
-          const isActive = tab.id === active;
-          return (
-            <Link
-              key={tab.id}
-              href={tab.href}
-              className={tabLinkClass(isActive)}
-              aria-current={isActive ? "page" : undefined}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </div>
+      {items.map((tab) => {
+        const isActive = tab.id === active;
+        return (
+          <Link
+            key={tab.id}
+            href={tab.href}
+            className="tab shrink-0 whitespace-nowrap font-semibold"
+            aria-current={isActive ? "page" : undefined}
+          >
+            {tab.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

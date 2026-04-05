@@ -18,27 +18,4 @@ const r = spawnSync(
   { input: sql, cwd: webRoot, stdio: ["pipe", "inherit", "inherit"] },
 );
 
-// #region agent log
-{
-  const wsRoot = path.resolve(webRoot, "..");
-  const logPath = path.join(wsRoot, ".cursor", "debug-677650.log");
-  const line =
-    JSON.stringify({
-      sessionId: "677650",
-      runId: "shadow-db-fix",
-      hypothesisId: "H4",
-      location: "scripts/db-grant-migrate.mjs",
-      message: "bootstrap sql via docker compose exec",
-      data: { exitCode: r.status ?? String(r.signal), sqlFile: "99-prisma-migrate-grants.sql" },
-      timestamp: Date.now(),
-    }) + "\n";
-  try {
-    fs.mkdirSync(path.dirname(logPath), { recursive: true });
-    fs.appendFileSync(logPath, line, "utf8");
-  } catch {
-    /* optional */
-  }
-}
-// #endregion
-
 process.exit(r.status === 0 ? 0 : 1);

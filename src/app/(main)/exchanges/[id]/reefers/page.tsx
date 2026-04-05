@@ -1,21 +1,44 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CoralProfileStatus, ExchangeKind, ExchangeVisibility } from "@/generated/prisma/enums";
+import {
+  CoralProfileStatus,
+  ExchangeKind,
+  ExchangeMembershipRole,
+  ExchangeVisibility,
+} from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import {
   canAccessOperatorDashboard,
   canIssuePrivateInvite,
   canManageEventDesk,
+  canPromoteEventManager,
   canViewExchangeDirectory,
 } from "@/lib/super-admin";
+import {
+  demoteEventManagerFormAction,
+  promoteEventManagerFormAction,
+} from "@/app/(main)/exchanges/actions";
 import { OperatorExchangeTabs } from "@/app/(main)/operator/components/operator-exchange-tabs";
 import { PendingInviteResendForm } from "@/app/(main)/exchanges/components/pending-invite-resend-form";
 import { MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 
-export default async function ExchangeReefersPage({ params }: { params: Promise<{ id: string }> }) {
+const reeferManageErrors: Record<string, string> = {
+  forbidden: "You do not have permission for that action.",
+  "promote-invalid": "That member cannot be promoted right now.",
+  "demote-invalid": "That manager cannot be demoted right now.",
+};
+
+export default async function ExchangeReefersPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ promoted?: string; demoted?: string; error?: string }>;
+}) {
   const user = await requireUser();
   const { id: exchangeId } = await params;
+  const sp = await searchParams;
 
   const exchange = await getPrisma().exchange.findUnique({
     where: { id: exchangeId },
@@ -35,6 +58,9 @@ export default async function ExchangeReefersPage({ params }: { params: Promise<
   if (!canViewExchangeDirectory(exchange, membership, user)) {
     notFound();
   }
+
+  const promotePower = canPromoteEventManager(exchange, user);
+  const errorMessage = sp.error ? reeferManageErrors[sp.error] ?? "Something went wrong." : null;
 
   const operatorTabs =
     canAccessOperatorDashboard(user, membership) ? (
@@ -82,6 +108,24 @@ export default async function ExchangeReefersPage({ params }: { params: Promise<
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       {operatorTabs}
 
+      {sp.promoted === "1" ? (
+        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Reefer promoted to event manager.
+        </div>
+      ) : null}
+
+      {sp.demoted === "1" ? (
+        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Event manager demoted to reefer.
+        </div>
+      ) : null}
+
+      {errorMessage ? (
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {errorMessage}
+        </div>
+      ) : null}
+
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight" style={{ color: MARKETING_NAVY }}>
           Reefers
@@ -98,7 +142,11 @@ export default async function ExchangeReefersPage({ params }: { params: Promise<
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/80">
               <th className="px-4 py-3 font-semibold text-slate-700">Reefer</th>
+              <th className="px-4 py-3 font-semibold text-slate-700">Role</th>
               <th className="px-4 py-3 font-semibold text-slate-700">Corals on exchange</th>
+              {promotePower ? (
+                <th className="px-4 py-3 font-semibold text-slate-700">Event role</th>
+              ) : null}
               <th className="px-4 py-3 font-semibold text-slate-700">Explore</th>
             </tr>
           </thead>
@@ -114,7 +162,40 @@ export default async function ExchangeReefersPage({ params }: { params: Promise<
                       {m.user.alias ?? "No alias"}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-slate-700">
+                    {m.role === ExchangeMembershipRole.EVENT_MANAGER ? "Event manager" : "Reefer"}
+                  </td>
                   <td className="px-4 py-3 tabular-nums text-slate-700">{count}</td>
+                  {promotePower ? (
+                    <td className="px-4 py-3">
+                      {m.role === ExchangeMembershipRole.MEMBER ? (
+                        <form action={promoteEventManagerFormAction} className="inline">
+                          <input type="hidden" name="exchangeId" value={exchangeId} />
+                          <input type="hidden" name="memberUserId" value={m.user.id} />
+                          <input type="hidden" name="from" value="reefers" />
+                          <button
+                            type="submit"
+                            className="inline-flex min-h-8 items-center rounded-full border border-slate-300 px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                          >
+                            Make event manager
+                          </button>
+                        </form>
+                      ) : null}
+                      {m.role === ExchangeMembershipRole.EVENT_MANAGER ? (
+                        <form action={demoteEventManagerFormAction} className="inline">
+                          <input type="hidden" name="exchangeId" value={exchangeId} />
+                          <input type="hidden" name="managerUserId" value={m.user.id} />
+                          <input type="hidden" name="from" value="reefers" />
+                          <button
+                            type="submit"
+                            className="inline-flex min-h-8 items-center rounded-full border border-slate-300 px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                          >
+                            Demote to reefer
+                          </button>
+                        </form>
+                      ) : null}
+                    </td>
+                  ) : null}
                   <td className="px-4 py-3">
                     {count > 0 ? (
                       <Link
