@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
 import { ExploreHeaderChrome } from "@/components/explore-header-chrome";
@@ -13,6 +13,8 @@ type AppShellProfile = {
   aliasLabel: string;
   avatarEmoji: string;
 };
+
+type OperatorManagedExchange = { id: string; name: string };
 
 function SwitchExchangeIcon() {
   return (
@@ -167,6 +169,12 @@ function ShellBrandLink() {
   );
 }
 
+function profilePillClass(active: boolean) {
+  return active
+    ? "border-emerald-200 bg-emerald-50 text-emerald-900 hover:border-emerald-300 hover:bg-emerald-100"
+    : "border-[#e0e0e0] bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50";
+}
+
 function ShellProfileLink({
   profile,
   meActive,
@@ -178,11 +186,7 @@ function ShellProfileLink({
     <Link
       href="/me"
       aria-current={meActive ? "page" : undefined}
-      className={`inline-flex max-w-[120px] shrink-0 items-center gap-2 rounded-full border py-1 pl-3 pr-1 text-sm font-medium shadow-sm transition-colors active:bg-slate-100 ${
-        meActive
-          ? "border-emerald-200 bg-emerald-50 text-emerald-900 hover:border-emerald-300 hover:bg-emerald-100"
-          : "border-[#e0e0e0] bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50"
-      }`}
+      className={`inline-flex max-w-[120px] shrink-0 items-center gap-2 rounded-full border py-1 pl-3 pr-1 text-sm font-medium shadow-sm transition-colors active:bg-slate-100 ${profilePillClass(meActive)}`}
       aria-label={`Profile: ${profile.aliasLabel}`}
     >
       <span className="min-w-0 flex-1 truncate text-left">{profile.aliasLabel}</span>
@@ -196,6 +200,156 @@ function ShellProfileLink({
   );
 }
 
+function ShellProfileMenu({
+  profile,
+  showAdminLink,
+  operatorManagedExchanges,
+}: {
+  profile: AppShellProfile;
+  showAdminLink: boolean;
+  operatorManagedExchanges: OperatorManagedExchange[];
+}) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const meActive = pathname === "/me" || pathname.startsWith("/me/");
+  const adminActive = pathname.startsWith("/admin");
+  const operatorActive = pathname === "/operator" || pathname.startsWith("/operator/");
+  const sectionActive = meActive || adminActive || operatorActive;
+  const manageExchangeHref =
+    operatorManagedExchanges.length === 1
+      ? `/operator/${encodeURIComponent(operatorManagedExchanges[0].id)}`
+      : "/operator";
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+      }
+    };
+    const onPointer = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative shrink-0" ref={rootRef}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Profile menu: ${profile.aliasLabel}`}
+        onClick={() => setOpen((v) => !v)}
+        className={`inline-flex max-w-[140px] items-center gap-1 rounded-full border py-1 pl-3 pr-1.5 text-sm font-medium shadow-sm transition-colors active:bg-slate-100 ${profilePillClass(sectionActive)}`}
+      >
+        <span className="min-w-0 flex-1 truncate text-left">{profile.aliasLabel}</span>
+        <span
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-lg leading-none text-white"
+          aria-hidden
+        >
+          {profile.avatarEmoji}
+        </span>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        >
+          <path
+            d="m6 9 6 6 6-6"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {open ? (
+        <ul
+          role="menu"
+          className="absolute right-0 z-50 mt-1 min-w-[10rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+        >
+          <li role="none">
+            <Link
+              href="/me"
+              role="menuitem"
+              aria-current={meActive ? "page" : undefined}
+              className="block px-4 py-2.5 text-sm text-slate-800 hover:bg-slate-50"
+              onClick={() => setOpen(false)}
+            >
+              Me
+            </Link>
+          </li>
+          {operatorManagedExchanges.length > 0 ? (
+            <li role="none">
+              <Link
+                href={manageExchangeHref}
+                role="menuitem"
+                aria-current={operatorActive ? "page" : undefined}
+                className="block px-4 py-2.5 text-sm text-slate-800 hover:bg-slate-50"
+                onClick={() => setOpen(false)}
+              >
+                Manage exchange
+              </Link>
+            </li>
+          ) : null}
+          {showAdminLink ? (
+            <li role="none">
+              <Link
+                href="/admin"
+                role="menuitem"
+                aria-current={adminActive ? "page" : undefined}
+                className="block px-4 py-2.5 text-sm text-slate-800 hover:bg-slate-50"
+                onClick={() => setOpen(false)}
+              >
+                Admin
+              </Link>
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function ShellProfileArea({
+  profile,
+  showSuperAdminMenu,
+  operatorManagedExchanges,
+}: {
+  profile: AppShellProfile;
+  showSuperAdminMenu: boolean;
+  operatorManagedExchanges: OperatorManagedExchange[];
+}) {
+  const pathname = usePathname();
+  const meActive = pathname === "/me" || pathname.startsWith("/me/");
+  const showProfileMenu = showSuperAdminMenu || operatorManagedExchanges.length > 0;
+  if (showProfileMenu) {
+    return (
+      <ShellProfileMenu
+        profile={profile}
+        showAdminLink={showSuperAdminMenu}
+        operatorManagedExchanges={operatorManagedExchanges}
+      />
+    );
+  }
+  return <ShellProfileLink profile={profile} meActive={meActive} />;
+}
+
 function HeaderExploreChrome() {
   return (
     <Suspense fallback={null}>
@@ -207,12 +361,15 @@ function HeaderExploreChrome() {
 export function AppShell({
   children,
   profile,
+  showSuperAdminMenu = false,
+  operatorManagedExchanges = [],
 }: {
   children: React.ReactNode;
   profile: AppShellProfile;
+  showSuperAdminMenu?: boolean;
+  operatorManagedExchanges?: OperatorManagedExchange[];
 }) {
   const pathname = usePathname();
-  const meActive = pathname === "/me";
   const isExplore = pathname === "/explore";
   const hideBottomNav = pathname === "/my-corals/new";
 
@@ -231,21 +388,33 @@ export function AppShell({
               <div className="flex flex-col gap-2 md:hidden">
                 <div className="flex items-center justify-between gap-3">
                   <ShellBrandLink />
-                  <ShellProfileLink profile={profile} meActive={meActive} />
+                  <ShellProfileArea
+                    profile={profile}
+                    showSuperAdminMenu={showSuperAdminMenu}
+                    operatorManagedExchanges={operatorManagedExchanges}
+                  />
                 </div>
                 <HeaderExploreChrome />
               </div>
               <div className="hidden items-center justify-between gap-3 md:flex">
                 <ShellBrandLink />
                 <HeaderExploreChrome />
-                <ShellProfileLink profile={profile} meActive={meActive} />
+                <ShellProfileArea
+                  profile={profile}
+                  showSuperAdminMenu={showSuperAdminMenu}
+                  operatorManagedExchanges={operatorManagedExchanges}
+                />
               </div>
             </>
           ) : (
             <div className="flex items-center justify-between gap-3">
               <ShellBrandLink />
               <HeaderExploreChrome />
-              <ShellProfileLink profile={profile} meActive={meActive} />
+              <ShellProfileArea
+                profile={profile}
+                showSuperAdminMenu={showSuperAdminMenu}
+                operatorManagedExchanges={operatorManagedExchanges}
+              />
             </div>
           )}
         </div>

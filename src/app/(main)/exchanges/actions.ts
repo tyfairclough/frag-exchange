@@ -1,6 +1,6 @@
 "use server";
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -13,18 +13,19 @@ import { requireUser } from "@/lib/auth";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
 import { getRequestOrigin } from "@/lib/request-origin";
 import {
+  canAccessOperatorDashboard,
   canEditExchangeLogo,
   canIssuePrivateInvite,
   canPromoteEventManager,
+  canViewExchangeDirectory,
   isSuperAdmin,
 } from "@/lib/super-admin";
 import { logAdminAudit } from "@/lib/admin-audit";
 import { getRequestIp } from "@/lib/rate-limit";
 import { saveExchangeLogoToPublic, validateExchangeLogoUpload } from "@/lib/exchange-logo-upload";
-
-function hashToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
+import { hashExchangeInviteToken } from "@/lib/exchange-invite-token-hash";
+import { normalizeInviteEmail } from "@/lib/bulk-invite-parse";
+import { sendExchangeInviteEmail } from "@/lib/send-exchange-invite-email";
 
 function makeToken() {
   return randomBytes(32).toString("hex");
@@ -51,6 +52,10 @@ function parseVisibility(raw: string): ExchangeVisibility {
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
+
+export type BulkInviteResultRow =
+  | { email: string; inviteUrl: string; emailDelivery: "sent" | "skipped" | "failed" }
+  | { email: string; error: string };
 
 async function processExchangeLogoFromFormData(
   exchangeId: string,
@@ -136,21 +141,42 @@ export async function createExchangeAction(formData: FormData) {
   }
 
   revalidatePath("/exchanges");
+  revalidatePath("/admin");
+  revalidatePath("/admin/exchanges");
   redirect("/exchanges?created=1");
 }
 
 export async function updateExchangeAction(formData: FormData) {
-  const admin = await requireSuperAdmin();
+  const user = await requireUser();
 
   const exchangeId = str(formData.get("exchangeId"));
   if (!exchangeId) {
     redirect("/exchanges?error=forbidden");
   }
 
+  const db = getPrisma();
+  const exchange = await db.exchange.findUnique({
+    where: { id: exchangeId },
+    include: {
+      memberships: { where: { userId: user.id }, take: 1 },
+    },
+  });
+
+  if (!exchange) {
+    redirect(`/exchanges/${exchangeId}/edit?error=not-found`);
+  }
+
+  const membership = exchange.memberships[0] ?? null;
+  if (!canViewExchangeDirectory(exchange, membership, user)) {
+    redirect("/exchanges?error=forbidden");
+  }
+  if (!canAccessOperatorDashboard(user, membership)) {
+    redirect("/exchanges?error=forbidden");
+  }
+
+  const superUser = isSuperAdmin(user);
   const name = str(formData.get("name"));
   const description = str(formData.get("description")) || null;
-  const kind = parseKind(str(formData.get("kind")));
-  const visibility = parseVisibility(str(formData.get("visibility")));
   const eventDateRaw = str(formData.get("eventDate"));
   let eventDate: Date | null = null;
   if (eventDateRaw) {
@@ -164,26 +190,38 @@ export async function updateExchangeAction(formData: FormData) {
     redirect(`/exchanges/${exchangeId}/edit?error=name`);
   }
 
-  const db = getPrisma();
   try {
-    await db.$transaction(async (tx) => {
-      await tx.exchange.update({
+    if (superUser) {
+      const kind = parseKind(str(formData.get("kind")));
+      const visibility = parseVisibility(str(formData.get("visibility")));
+      await db.$transaction(async (tx) => {
+        await tx.exchange.update({
+          where: { id: exchangeId },
+          data: {
+            name,
+            description,
+            kind,
+            visibility,
+            eventDate,
+          },
+        });
+        if (kind === ExchangeKind.GROUP) {
+          await tx.exchangeMembership.updateMany({
+            where: { exchangeId, role: ExchangeMembershipRole.EVENT_MANAGER },
+            data: { role: ExchangeMembershipRole.MEMBER },
+          });
+        }
+      });
+    } else {
+      await db.exchange.update({
         where: { id: exchangeId },
         data: {
           name,
           description,
-          kind,
-          visibility,
           eventDate,
         },
       });
-      if (kind === ExchangeKind.GROUP) {
-        await tx.exchangeMembership.updateMany({
-          where: { exchangeId, role: ExchangeMembershipRole.EVENT_MANAGER },
-          data: { role: ExchangeMembershipRole.MEMBER },
-        });
-      }
-    });
+    }
     const logo = await processExchangeLogoFromFormData(exchangeId, formData);
     if (logo) {
       await db.exchange.update({
@@ -200,19 +238,35 @@ export async function updateExchangeAction(formData: FormData) {
   }
 
   const ip = await getRequestIp();
+  const updated = await db.exchange.findUnique({
+    where: { id: exchangeId },
+    select: { kind: true, visibility: true },
+  });
   await logAdminAudit({
-    actorUserId: admin.id,
-    action: "exchange.update",
+    actorUserId: user.id,
+    action: superUser ? "exchange.update" : "exchange.update.operator",
     targetType: "exchange",
     targetId: exchangeId,
-    metadata: { name, kind, visibility },
+    metadata: {
+      name,
+      kind: updated?.kind,
+      visibility: updated?.visibility,
+      restricted: !superUser,
+    },
     ip,
   });
 
   revalidatePath("/exchanges");
   revalidatePath(`/exchanges/${exchangeId}`);
   revalidatePath("/explore");
-  redirect(`/exchanges/${exchangeId}?updated=1`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/exchanges");
+  revalidatePath("/operator");
+  revalidatePath(`/operator/${exchangeId}`);
+  if (superUser) {
+    redirect(`/exchanges/${exchangeId}?updated=1`);
+  }
+  redirect(`/operator/${exchangeId}?updated=1`);
 }
 
 export async function updateExchangeLogoAction(formData: FormData) {
@@ -244,7 +298,7 @@ export async function updateExchangeLogoAction(formData: FormData) {
   try {
     const logo = await processExchangeLogoFromFormData(exchangeId, formData);
     if (!logo) {
-      redirect(`/exchanges/${exchangeId}?error=logo`);
+      redirect(`/exchanges/${exchangeId}/edit?error=logo`);
     }
     await getPrisma().exchange.update({
       where: { id: exchangeId },
@@ -252,21 +306,43 @@ export async function updateExchangeLogoAction(formData: FormData) {
     });
   } catch (e: unknown) {
     assertMysqlReachable(e);
-    redirect(`/exchanges/${exchangeId}?error=logo`);
+    redirect(`/exchanges/${exchangeId}/edit?error=logo`);
   }
 
   revalidatePath("/exchanges");
   revalidatePath(`/exchanges/${exchangeId}`);
   revalidatePath(`/exchanges/${exchangeId}/edit`);
   revalidatePath("/explore");
+  revalidatePath("/admin");
+  revalidatePath("/admin/exchanges");
+  revalidatePath("/operator");
+  revalidatePath(`/operator/${exchangeId}`);
   redirect(`/exchanges/${exchangeId}?updated=1`);
 }
 
 export async function deleteExchangeAction(formData: FormData) {
-  const admin = await requireSuperAdmin();
+  const user = await requireUser();
 
   const exchangeId = str(formData.get("exchangeId"));
   if (!exchangeId) {
+    redirect("/exchanges?error=forbidden");
+  }
+
+  const exchange = await getPrisma().exchange.findUnique({
+    where: { id: exchangeId },
+    include: {
+      memberships: { where: { userId: user.id }, take: 1 },
+    },
+  });
+
+  if (!exchange) {
+    redirect("/exchanges?error=forbidden");
+  }
+
+  const membership = exchange.memberships[0] ?? null;
+  const superUser = isSuperAdmin(user);
+  const manager = membership?.role === ExchangeMembershipRole.EVENT_MANAGER;
+  if (!superUser && !manager) {
     redirect("/exchanges?error=forbidden");
   }
 
@@ -279,8 +355,8 @@ export async function deleteExchangeAction(formData: FormData) {
 
   const ip = await getRequestIp();
   await logAdminAudit({
-    actorUserId: admin.id,
-    action: "exchange.delete",
+    actorUserId: user.id,
+    action: superUser ? "exchange.delete" : "exchange.delete.operator",
     targetType: "exchange",
     targetId: exchangeId,
     ip,
@@ -289,6 +365,10 @@ export async function deleteExchangeAction(formData: FormData) {
   revalidatePath("/exchanges");
   revalidatePath(`/exchanges/${exchangeId}`);
   revalidatePath("/explore");
+  revalidatePath("/admin");
+  revalidatePath("/admin/exchanges");
+  revalidatePath("/operator");
+  revalidatePath(`/operator/${exchangeId}`);
   redirect("/exchanges?deleted=1");
 }
 
@@ -326,15 +406,13 @@ export async function joinPublicExchangeFormAction(formData: FormData) {
   redirect(`/exchanges/${exchangeId}?joined=1`);
 }
 
-export async function createInviteAction(
+/** Create one invite and send its email (used sequentially from the client with ~11s gaps for provider rate limits). */
+export async function createInviteAndSendEmailAction(
   exchangeId: string,
-  email: string,
-): Promise<{ ok: true; inviteUrl: string } | { ok: false; error: string }> {
+  emailRaw: string,
+): Promise<{ ok: true; row: BulkInviteResultRow } | { ok: false; error: string }> {
   const user = await requireUser();
-  const normalized = normalizeEmail(email);
-  if (!normalized || !normalized.includes("@")) {
-    return { ok: false, error: "Enter a valid email address." };
-  }
+  const normalized = normalizeInviteEmail(emailRaw);
 
   const exchange = await getPrisma().exchange.findUnique({
     where: { id: exchangeId },
@@ -352,11 +430,44 @@ export async function createInviteAction(
     return { ok: false, error: "You cannot create invites for this exchange." };
   }
 
-  const token = makeToken();
-  const tokenHash = hashToken(token);
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
+  if (!normalized) {
+    return {
+      ok: true,
+      row: { email: "(empty)", error: "Enter a valid email address." },
+    };
+  }
 
-  await getPrisma().exchangeInvite.create({
+  if (!normalized.includes("@")) {
+    return {
+      ok: true,
+      row: { email: normalized, error: "Enter a valid email address." },
+    };
+  }
+
+  const db = getPrisma();
+  const now = new Date();
+  const pending = await db.exchangeInvite.findFirst({
+    where: {
+      exchangeId,
+      email: normalized,
+      usedAt: null,
+      expiresAt: { gt: now },
+    },
+  });
+  if (pending) {
+    return {
+      ok: true,
+      row: {
+        email: normalized,
+        error: "An invite is already pending for this address.",
+      },
+    };
+  }
+
+  const token = makeToken();
+  const tokenHash = hashExchangeInviteToken(token);
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
+  const created = await db.exchangeInvite.create({
     data: {
       exchangeId,
       email: normalized,
@@ -368,9 +479,92 @@ export async function createInviteAction(
 
   const origin = await getRequestOrigin();
   const inviteUrl = `${origin}/exchanges/invite/${encodeURIComponent(token)}`;
+  const emailDelivery = await sendExchangeInviteEmail({
+    to: normalized,
+    inviteUrl,
+    exchangeName: exchange.name,
+  });
+
+  await db.exchangeInvite.update({
+    where: { id: created.id },
+    data: { lastSentAt: new Date() },
+  });
 
   revalidatePath(`/exchanges/${exchangeId}`);
-  return { ok: true, inviteUrl };
+  revalidatePath(`/exchanges/${exchangeId}/reefers`);
+  revalidatePath(`/operator/${exchangeId}`);
+
+  return {
+    ok: true,
+    row: { email: normalized, inviteUrl, emailDelivery },
+  };
+}
+
+export type ResendInviteState = { ok: true } | { ok: false; message: string } | null;
+
+/** Resend email for an unused, non-expired private exchange invite (operators / super admins). */
+export async function resendExchangeInviteEmailAction(
+  _prev: ResendInviteState,
+  formData: FormData,
+): Promise<ResendInviteState> {
+  const inviteId = str(formData.get("inviteId"));
+  const exchangeId = str(formData.get("exchangeId"));
+  if (!inviteId || !exchangeId) {
+    return { ok: false, message: "Missing invite details." };
+  }
+
+  const user = await requireUser();
+  const db = getPrisma();
+  const invite = await db.exchangeInvite.findFirst({
+    where: { id: inviteId, exchangeId },
+    include: {
+      exchange: {
+        include: {
+          memberships: { where: { userId: user.id } },
+        },
+      },
+    },
+  });
+
+  if (!invite) {
+    return { ok: false, message: "Invite not found." };
+  }
+
+  const membership = invite.exchange.memberships[0] ?? null;
+  if (!canIssuePrivateInvite(invite.exchange, membership, user)) {
+    return { ok: false, message: "You cannot resend this invite." };
+  }
+
+  const now = new Date();
+  if (invite.usedAt !== null) {
+    return { ok: false, message: "This invite was already used." };
+  }
+  if (invite.expiresAt <= now) {
+    return { ok: false, message: "This invite has expired. Send a new invite from Invites." };
+  }
+
+  const token = makeToken();
+  const tokenHash = hashExchangeInviteToken(token);
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
+
+  await db.exchangeInvite.update({
+    where: { id: invite.id },
+    data: { tokenHash, expiresAt, lastSentAt: new Date() },
+  });
+
+  const origin = await getRequestOrigin();
+  const inviteUrl = `${origin}/exchanges/invite/${encodeURIComponent(token)}`;
+  await sendExchangeInviteEmail({
+    to: invite.email,
+    inviteUrl,
+    exchangeName: invite.exchange.name,
+  });
+
+  revalidatePath(`/exchanges/${exchangeId}`);
+  revalidatePath(`/exchanges/${exchangeId}/reefers`);
+  revalidatePath(`/operator/${exchangeId}`);
+
+  return { ok: true };
 }
 
 export async function acceptInviteFormAction(formData: FormData) {
@@ -383,7 +577,7 @@ export async function acceptInviteFormAction(formData: FormData) {
 
 export async function acceptInviteAction(token: string) {
   const user = await requireUser();
-  const tokenHash = hashToken(token);
+  const tokenHash = hashExchangeInviteToken(token);
 
   const invite = await getPrisma().exchangeInvite.findUnique({
     where: { tokenHash },
@@ -433,7 +627,7 @@ export async function promoteEventManagerFormAction(formData: FormData) {
 
   const exchange = await getPrisma().exchange.findUnique({ where: { id: exchangeId } });
   if (!exchange || !canPromoteEventManager(exchange, user)) {
-    redirect(`/exchanges/${exchangeId}?error=forbidden`);
+    redirect(`/operator/${exchangeId}?error=forbidden`);
   }
 
   const target = await getPrisma().exchangeMembership.findFirst({
@@ -441,7 +635,7 @@ export async function promoteEventManagerFormAction(formData: FormData) {
   });
 
   if (!target || target.role !== ExchangeMembershipRole.MEMBER) {
-    redirect(`/exchanges/${exchangeId}?error=promote-invalid`);
+    redirect(`/operator/${exchangeId}?error=promote-invalid`);
   }
 
   await getPrisma().exchangeMembership.update({
@@ -450,7 +644,8 @@ export async function promoteEventManagerFormAction(formData: FormData) {
   });
 
   revalidatePath(`/exchanges/${exchangeId}`);
-  redirect(`/exchanges/${exchangeId}?promoted=1`);
+  revalidatePath(`/operator/${exchangeId}`);
+  redirect(`/operator/${exchangeId}?promoted=1`);
 }
 
 export async function demoteEventManagerFormAction(formData: FormData) {
@@ -462,12 +657,12 @@ export async function demoteEventManagerFormAction(formData: FormData) {
 
   const user = await requireUser();
   if (!isSuperAdmin(user)) {
-    redirect(`/exchanges/${exchangeId}?error=forbidden`);
+    redirect(`/operator/${exchangeId}?error=forbidden`);
   }
 
   const exchange = await getPrisma().exchange.findUnique({ where: { id: exchangeId } });
   if (!exchange || exchange.kind !== ExchangeKind.EVENT) {
-    redirect(`/exchanges/${exchangeId}?error=demote-invalid`);
+    redirect(`/operator/${exchangeId}?error=demote-invalid`);
   }
 
   const target = await getPrisma().exchangeMembership.findFirst({
@@ -475,7 +670,7 @@ export async function demoteEventManagerFormAction(formData: FormData) {
   });
 
   if (!target || target.role !== ExchangeMembershipRole.EVENT_MANAGER) {
-    redirect(`/exchanges/${exchangeId}?error=demote-invalid`);
+    redirect(`/operator/${exchangeId}?error=demote-invalid`);
   }
 
   await getPrisma().exchangeMembership.update({
@@ -494,5 +689,6 @@ export async function demoteEventManagerFormAction(formData: FormData) {
   });
 
   revalidatePath(`/exchanges/${exchangeId}`);
-  redirect(`/exchanges/${exchangeId}?demoted=1`);
+  revalidatePath(`/operator/${exchangeId}`);
+  redirect(`/operator/${exchangeId}?demoted=1`);
 }

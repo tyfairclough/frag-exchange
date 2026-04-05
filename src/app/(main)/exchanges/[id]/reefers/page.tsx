@@ -1,9 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CoralProfileStatus } from "@/generated/prisma/enums";
+import { CoralProfileStatus, ExchangeKind, ExchangeVisibility } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { canViewExchangeDirectory } from "@/lib/super-admin";
+import {
+  canAccessOperatorDashboard,
+  canIssuePrivateInvite,
+  canManageEventDesk,
+  canViewExchangeDirectory,
+} from "@/lib/super-admin";
+import { OperatorExchangeTabs } from "@/app/(main)/operator/components/operator-exchange-tabs";
+import { PendingInviteResendForm } from "@/app/(main)/exchanges/components/pending-invite-resend-form";
 import { MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 
 export default async function ExchangeReefersPage({ params }: { params: Promise<{ id: string }> }) {
@@ -29,6 +36,18 @@ export default async function ExchangeReefersPage({ params }: { params: Promise<
     notFound();
   }
 
+  const operatorTabs =
+    canAccessOperatorDashboard(user, membership) ? (
+      <OperatorExchangeTabs
+        exchangeId={exchangeId}
+        active="reefers"
+        exchangeKind={exchange.kind}
+        showEventPickup={exchange.kind === ExchangeKind.EVENT && membership != null}
+        showEventDesk={canManageEventDesk(exchange, membership, user)}
+        showPrivateInvites={canIssuePrivateInvite(exchange, membership, user)}
+      />
+    ) : null;
+
   const now = new Date();
   const listingRows = await getPrisma().exchangeListing.findMany({
     where: {
@@ -45,14 +64,23 @@ export default async function ExchangeReefersPage({ params }: { params: Promise<
     countByUserId.set(uid, (countByUserId.get(uid) ?? 0) + 1);
   }
 
+  const showPendingInvites =
+    exchange.visibility === ExchangeVisibility.PRIVATE && canIssuePrivateInvite(exchange, membership, user);
+  const pendingInvites = showPendingInvites
+    ? await getPrisma().exchangeInvite.findMany({
+        where: {
+          exchangeId,
+          usedAt: null,
+          expiresAt: { gt: now },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, email: true, createdAt: true, lastSentAt: true },
+      })
+    : [];
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
-      <Link
-        href={`/exchanges/${encodeURIComponent(exchangeId)}`}
-        className="inline-flex min-h-10 w-fit items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-      >
-        Back to exchange
-      </Link>
+      {operatorTabs}
 
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight" style={{ color: MARKETING_NAVY }}>
@@ -115,6 +143,51 @@ export default async function ExchangeReefersPage({ params }: { params: Promise<
 
       {exchange.memberships.length === 0 ? (
         <p className="text-sm text-slate-600">No reefers on this exchange yet.</p>
+      ) : null}
+
+      {showPendingInvites ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900">Pending invitations</h2>
+          <p className="text-sm text-slate-600">
+            People who have been emailed an invite but have not joined yet. Resending rotates the link and extends the
+            expiry window.
+          </p>
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-black/5">
+            <table className="min-w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/80">
+                  <th className="px-4 py-3 font-semibold text-slate-700">Email</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700">Invitation sent</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingInvites.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-6 text-center text-slate-600">
+                      No pending invitations.
+                    </td>
+                  </tr>
+                ) : (
+                  pendingInvites.map((inv) => {
+                    const sentAt = inv.lastSentAt ?? inv.createdAt;
+                    return (
+                      <tr key={inv.id} className="border-b border-slate-100 last:border-0">
+                        <td className="px-4 py-3 font-medium text-slate-900">{inv.email}</td>
+                        <td className="px-4 py-3 tabular-nums text-slate-700">
+                          {sentAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                        </td>
+                        <td className="px-4 py-3">
+                          <PendingInviteResendForm inviteId={inv.id} exchangeId={exchangeId} />
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       ) : null}
     </div>
   );

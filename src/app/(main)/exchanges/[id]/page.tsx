@@ -9,28 +9,13 @@ import {
 } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import {
-  canEditExchangeLogo,
-  canIssuePrivateInvite,
-  canManageEventDesk,
-  canPromoteEventManager,
-  canSeeMemberRoster,
-  canViewExchangeDirectory,
-  isSuperAdmin,
-} from "@/lib/super-admin";
-import {
-  demoteEventManagerFormAction,
-  joinPublicExchangeFormAction,
-  promoteEventManagerFormAction,
-  updateExchangeLogoAction,
-} from "@/app/(main)/exchanges/actions";
+import { EventDateHighlight } from "@/app/(main)/exchanges/components/event-datetime-highlight";
+import { canManageEventDesk, canViewExchangeDirectory, isSuperAdmin } from "@/lib/super-admin";
+import { joinPublicExchangeFormAction } from "@/app/(main)/exchanges/actions";
 import {
   addExchangeListingFormAction,
   removeExchangeListingFormAction,
 } from "@/app/(main)/exchanges/listing-actions";
-import { ExchangeLogoField } from "@/app/(main)/exchanges/components/exchange-logo-field";
-import { PrivateInviteForm } from "@/app/(main)/exchanges/components/private-invite-form";
-import { DeleteExchangeButton } from "@/app/(main)/exchanges/components/delete-exchange-button";
 import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 
 function reefersLabel(count: number): string {
@@ -55,7 +40,6 @@ const detailErrors: Record<string, string> = {
   "listing-forbidden": "Join this exchange before listing corals here.",
   "listing-coral": "That coral cannot be listed on this exchange.",
   "listing-invalid": "That listing request was incomplete.",
-  logo: "Upload a valid logo image (JPG, PNG, or WebP up to 6MB).",
 };
 
 export default async function ExchangeDetailPage({
@@ -65,8 +49,6 @@ export default async function ExchangeDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{
     joined?: string;
-    promoted?: string;
-    demoted?: string;
     updated?: string;
     error?: string;
     listed?: string;
@@ -93,12 +75,10 @@ export default async function ExchangeDetailPage({
 
   const membership = exchange.memberships.find((m) => m.userId === user.id) ?? null;
   const canView = canViewExchangeDirectory(exchange, membership, user);
-  const roster = canSeeMemberRoster(exchange, membership, user);
-  const invitePower = canIssuePrivateInvite(exchange, membership, user);
-  const promotePower = canPromoteEventManager(exchange, user);
-  const eventDesk = canManageEventDesk(exchange, membership, user);
   const superUser = isSuperAdmin(user);
-  const canEditLogo = canEditExchangeLogo(exchange, membership, user);
+  const showManageExchange =
+    canView && (superUser || membership?.role === ExchangeMembershipRole.EVENT_MANAGER);
+  const eventDesk = canManageEventDesk(exchange, membership, user);
 
   const errorMessage = sp.error ? detailErrors[sp.error] ?? "Something went wrong." : null;
 
@@ -149,18 +129,6 @@ export default async function ExchangeDetailPage({
         </div>
       ) : null}
 
-      {sp.promoted === "1" ? (
-        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Reefer promoted to event manager.
-        </div>
-      ) : null}
-
-      {sp.demoted === "1" ? (
-        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Event manager demoted to reefer.
-        </div>
-      ) : null}
-
       {sp.updated === "1" ? (
         <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Exchange updated.
@@ -197,16 +165,13 @@ export default async function ExchangeDetailPage({
               {exchange.name}
             </h1>
           </div>
-          {superUser ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href={`/exchanges/${exchange.id}/edit`}
-                className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-              >
-                Edit
-              </Link>
-              <DeleteExchangeButton exchangeId={exchange.id} exchangeName={exchange.name} />
-            </div>
+          {showManageExchange ? (
+            <Link
+              href={`/operator/${encodeURIComponent(exchange.id)}`}
+              className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+            >
+              Manage exchange
+            </Link>
           ) : null}
         </div>
         {exchange.description ? (
@@ -239,32 +204,21 @@ export default async function ExchangeDetailPage({
           ) : null}
         </div>
         {exchange.kind === ExchangeKind.EVENT && exchange.eventDate ? (
-          <p className="text-sm text-slate-600">
-            Event date:{" "}
-            <time dateTime={exchange.eventDate.toISOString()}>
-              {exchange.eventDate.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
-            </time>
-          </p>
+          <EventDateHighlight
+            eventAtIso={exchange.eventDate.toISOString()}
+            formattedDate={exchange.eventDate.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+            eventDeskHref={`/exchanges/${encodeURIComponent(exchange.id)}/event-ops`}
+            showEventDeskLink={eventDesk}
+          />
         ) : null}
-        {exchange.kind === ExchangeKind.EVENT && canView && (membership || eventDesk) ? (
+        {exchange.kind === ExchangeKind.EVENT && canView && membership ? (
           <div className="flex flex-wrap gap-2">
-            {membership ? (
-              <Link
-                href={`/exchanges/${encodeURIComponent(exchange.id)}/event-pickup`}
-                className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-              >
-                Event pickup
-              </Link>
-            ) : null}
-            {eventDesk ? (
-              <Link
-                href={`/exchanges/${encodeURIComponent(exchange.id)}/event-ops`}
-                className="inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold text-white transition hover:opacity-95"
-                style={{ backgroundColor: MARKETING_LINK_BLUE }}
-              >
-                Event desk
-              </Link>
-            ) : null}
+            <Link
+              href={`/exchanges/${encodeURIComponent(exchange.id)}/event-pickup`}
+              className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+            >
+              Event pickup
+            </Link>
           </div>
         ) : null}
       </header>
@@ -447,94 +401,6 @@ export default async function ExchangeDetailPage({
                 </ul>
               )}
             </div>
-          </div>
-        </section>
-      ) : null}
-
-      {roster ? (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Reefer roster</h2>
-          <p className="text-xs text-slate-500">Shown to super admins and event managers on event exchanges.</p>
-          <ul className="space-y-2">
-            {exchange.memberships.map((m) => (
-              <li
-                key={m.id}
-                className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium" style={{ color: MARKETING_NAVY }}>
-                    {m.user.alias ?? "No alias"}
-                  </p>
-                  <p className="text-xs text-slate-600">{m.user.email}</p>
-                  <p className="text-xs text-slate-500">
-                    {m.role === ExchangeMembershipRole.EVENT_MANAGER ? "Event manager" : "Reefer"}
-                  </p>
-                </div>
-                {promotePower && m.role === ExchangeMembershipRole.MEMBER ? (
-                  <form action={promoteEventManagerFormAction}>
-                    <input type="hidden" name="exchangeId" value={exchange.id} />
-                    <input type="hidden" name="memberUserId" value={m.user.id} />
-                    <button
-                      type="submit"
-                      className="inline-flex min-h-8 items-center rounded-full border border-slate-300 px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-                    >
-                      Make event manager
-                    </button>
-                  </form>
-                ) : null}
-                {superUser &&
-                exchange.kind === ExchangeKind.EVENT &&
-                m.role === ExchangeMembershipRole.EVENT_MANAGER ? (
-                  <form action={demoteEventManagerFormAction}>
-                    <input type="hidden" name="exchangeId" value={exchange.id} />
-                    <input type="hidden" name="managerUserId" value={m.user.id} />
-                    <button
-                      type="submit"
-                      className="inline-flex min-h-8 items-center rounded-full border border-slate-300 px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-                    >
-                      Demote to reefer
-                    </button>
-                  </form>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {invitePower ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold" style={{ color: MARKETING_NAVY }}>
-              Invites (private)
-            </h2>
-            <p className="text-xs text-slate-500">
-              Super admins and event managers can generate single-use links. The invitee must use the same email when
-              signing in.
-            </p>
-            <PrivateInviteForm exchangeId={exchange.id} />
-          </div>
-        </section>
-      ) : null}
-
-      {canEditLogo ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold" style={{ color: MARKETING_NAVY }}>
-              Exchange logo
-            </h2>
-            <p className="text-xs text-slate-500">Set a square logo shown next to this exchange across the app.</p>
-            <form action={updateExchangeLogoAction} encType="multipart/form-data" className="space-y-3">
-              <input type="hidden" name="exchangeId" value={exchange.id} />
-              <ExchangeLogoField initialImageUrl={exchange.logo512Url ?? exchange.logo80Url ?? exchange.logo40Url} />
-              <button
-                type="submit"
-                className="inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold text-white transition hover:opacity-95"
-                style={{ backgroundColor: MARKETING_CTA_GREEN }}
-              >
-                Save logo
-              </button>
-            </form>
           </div>
         </section>
       ) : null}

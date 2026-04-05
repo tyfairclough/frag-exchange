@@ -59,6 +59,15 @@ model AdminAuditLog {
   @@map("admin_audit_logs")
 }
 
+/// Words used to build default onboarding aliases (super-admin CRUD).
+model AliasGeneratorWord {
+  id        String   @id @default(cuid())
+  word      String   @unique @db.VarChar(64)
+  createdAt DateTime @default(now())
+
+  @@map("alias_generator_words")
+}
+
 /// Chunk 4 — exchange hub: event vs group, public vs private, membership + invites.
 model Exchange {
   id          String             @id @default(cuid())
@@ -106,6 +115,8 @@ model ExchangeInvite {
   tokenHash   String    @unique @db.VarChar(64)
   expiresAt   DateTime
   usedAt      DateTime?
+  /// Last time the invite link was emailed (initial send or resend); falls back to createdAt in UI when null.
+  lastSentAt  DateTime?
   invitedById String
   createdAt   DateTime  @default(now())
   exchange    Exchange  @relation(fields: [exchangeId], references: [id], onDelete: Cascade)

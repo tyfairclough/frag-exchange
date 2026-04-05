@@ -9,6 +9,16 @@ import { refreshTownCenterForUserAddress } from "@/lib/town-geocode";
 import { consumeOnboardingNextCookie } from "@/lib/onboarding-next-cookie";
 import { getSafeInternalNextPath } from "@/lib/safe-next-path";
 import { autoJoinOnboardingDestination } from "@/lib/auto-join-onboarding-destination";
+import { LEGAL_VERSION } from "@/lib/legal-version";
+import {
+  buildAliasCandidateFromWordList,
+  clampAliasFromClient,
+  fetchAliasWordStrings,
+  MAX_USER_ALIAS_LENGTH,
+  MIN_ALIAS_GENERATOR_WORDS,
+  otherUserHasAlias,
+  pickUniqueAliasCandidate,
+} from "@/lib/suggested-alias";
 
 function str(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -17,7 +27,6 @@ function str(value: FormDataEntryValue | null) {
 export async function completeOnboardingAction(formData: FormData) {
   const user = await requireUser();
 
-  const LEGAL_VERSION = "2026-03-20";
   const mode = str(formData.get("mode"));
 
   const line1 = str(formData.get("line1"));
@@ -64,7 +73,8 @@ export async function completeOnboardingAction(formData: FormData) {
     redirect(nextPath);
   }
 
-  const alias = str(formData.get("alias"));
+  const explicitAlias = clampAliasFromClient(str(formData.get("alias")));
+  const suggestedAlias = clampAliasFromClient(str(formData.get("suggestedAlias")));
   const avatarEmoji = str(formData.get("avatarEmoji"));
   const tos = formData.get("tosAccepted") === "on";
   const privacy = formData.get("privacyAccepted") === "on";
@@ -75,13 +85,49 @@ export async function completeOnboardingAction(formData: FormData) {
     redirect("/onboarding?error=privacy");
   }
 
+  const prisma = getPrisma();
+  const words = await fetchAliasWordStrings(prisma);
+
+  if (explicitAlias.length > MAX_USER_ALIAS_LENGTH) {
+    redirect("/onboarding?error=alias-length");
+  }
+
+  if (words.length < MIN_ALIAS_GENERATOR_WORDS && !explicitAlias) {
+    redirect("/onboarding?error=alias-words");
+  }
+
+  let resolvedAlias: string;
+  if (explicitAlias) {
+    resolvedAlias = explicitAlias;
+    if (await otherUserHasAlias(prisma, resolvedAlias, user.id)) {
+      redirect("/onboarding?error=alias-taken");
+    }
+  } else {
+    let candidate = suggestedAlias;
+    if (!candidate) {
+      candidate = (await pickUniqueAliasCandidate(prisma, user.id, words)) ?? "";
+    }
+    if (!candidate) {
+      redirect("/onboarding?error=alias-words");
+    }
+    resolvedAlias = candidate;
+    let guard = 0;
+    while ((await otherUserHasAlias(prisma, resolvedAlias, user.id)) && guard < 30) {
+      resolvedAlias = buildAliasCandidateFromWordList(words);
+      guard += 1;
+    }
+    if (await otherUserHasAlias(prisma, resolvedAlias, user.id)) {
+      redirect("/onboarding?error=alias-words");
+    }
+  }
+
   const now = new Date();
 
-  await getPrisma().$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: user.id },
       data: {
-        alias: alias || null,
+        alias: resolvedAlias,
         avatarEmoji: avatarEmoji || null,
         tosAcceptedAt: now,
         tosVersion: LEGAL_VERSION,
@@ -124,12 +170,31 @@ export async function completeOnboardingAction(formData: FormData) {
     }
   }
 
-  const destination = (await consumeOnboardingNextCookie()) ?? "/";
+  const rawNext = await consumeOnboardingNextCookie();
+  const destination = rawNext ?? "/";
   const autoJoin = await autoJoinOnboardingDestination(user.id, destination);
   if (autoJoin.joined && autoJoin.exchangeId) {
     revalidatePath("/exchanges");
     revalidatePath("/exchanges/browse");
     revalidatePath(`/exchanges/${autoJoin.exchangeId}`);
+    redirect(autoJoin.destination);
   }
-  redirect(autoJoin.destination);
+
+  const inviteMatch = destination.match(/^\/exchanges\/invite\/([^/?#]+)$/);
+  if (inviteMatch) {
+    const rawToken = inviteMatch[1] ?? "";
+    let token = rawToken;
+    try {
+      token = decodeURIComponent(rawToken);
+    } catch {
+      token = rawToken;
+    }
+    redirect(`/exchanges?welcome=1&inviteToken=${encodeURIComponent(token)}`);
+  }
+
+  if (!rawNext || destination === "/" || destination === "/exchanges") {
+    redirect("/exchanges?welcome=1");
+  }
+
+  redirect(destination);
 }

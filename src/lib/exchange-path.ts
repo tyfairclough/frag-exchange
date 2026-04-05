@@ -1,12 +1,16 @@
-/** Exchange UUID segment from `/exchanges/[id]/...`, excluding non-id routes. */
+/** Exchange UUID segment from `/exchanges/[id]/...` or `/operator/[id]`, excluding non-id routes. */
 export function getExchangeIdFromPathname(pathname: string): string | null {
-  const match = pathname.match(/^\/exchanges\/([^/]+)/);
-  if (!match) {
-    return null;
+  const ex = pathname.match(/^\/exchanges\/([^/]+)/);
+  if (ex) {
+    const id = decodeURIComponent(ex[1]);
+    if (id === "new" || id === "browse" || id === "invite") {
+      return null;
+    }
+    return id;
   }
-  const id = decodeURIComponent(match[1]);
-  if (id === "new" || id === "browse" || id === "invite") {
-    return null;
+  const op = pathname.match(/^\/operator\/([^/]+)/);
+  if (op) {
+    return decodeURIComponent(op[1]);
   }
-  return id;
+  return null;
 }

@@ -8,7 +8,13 @@ import {
 } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { canViewExchangeDirectory } from "@/lib/super-admin";
+import {
+  canAccessOperatorDashboard,
+  canIssuePrivateInvite,
+  canManageEventDesk,
+  canViewExchangeDirectory,
+} from "@/lib/super-admin";
+import { OperatorExchangeTabs } from "@/app/(main)/operator/components/operator-exchange-tabs";
 import {
   acceptTradeAction,
   counterTradeAction,
@@ -69,6 +75,18 @@ export default async function ExchangeTradeDetailPage({
   if (!canViewExchangeDirectory(exchange, membership, viewer) || !membership) {
     notFound();
   }
+
+  const operatorTabs =
+    canAccessOperatorDashboard(viewer, membership) ? (
+      <OperatorExchangeTabs
+        exchangeId={exchangeId}
+        active="trades"
+        exchangeKind={exchange.kind}
+        showEventPickup={exchange.kind === ExchangeKind.EVENT}
+        showEventDesk={canManageEventDesk(exchange, membership, viewer)}
+        showPrivateInvites={canIssuePrivateInvite(exchange, membership, viewer)}
+      />
+    ) : null;
 
   const now = new Date();
   const baseUrl = await getRequestOrigin();
@@ -159,13 +177,17 @@ export default async function ExchangeTradeDetailPage({
     : [[], []];
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
-      <Link
-        href={`/exchanges/${encodeURIComponent(exchangeId)}/trades`}
-        className="btn btn-ghost btn-sm min-h-10 w-fit rounded-xl"
-      >
-        All trades on this exchange
-      </Link>
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+      {operatorTabs ? null : (
+        <Link
+          href={`/exchanges/${encodeURIComponent(exchangeId)}/trades`}
+          className="btn btn-ghost btn-sm min-h-10 w-fit rounded-xl"
+        >
+          All trades on this exchange
+        </Link>
+      )}
+
+      {operatorTabs}
 
       <header className="space-y-1">
         <h1 className="text-xl font-semibold text-base-content">Trade</h1>

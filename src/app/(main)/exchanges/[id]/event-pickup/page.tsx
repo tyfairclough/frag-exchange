@@ -3,6 +3,12 @@ import { notFound, redirect } from "next/navigation";
 import { ExchangeKind, TradeCoralEventHandoffStatus, TradeStatus } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import {
+  canAccessOperatorDashboard,
+  canIssuePrivateInvite,
+  canManageEventDesk,
+} from "@/lib/super-admin";
+import { OperatorExchangeTabs } from "@/app/(main)/operator/components/operator-exchange-tabs";
 import { checkOutTradeCoralFormAction } from "@/app/(main)/exchanges/event-handoff-actions";
 import { handoffErrors } from "@/lib/event-handoff-errors";
 import { bringsCoralUserId, recipientUserIdForHandoff } from "@/lib/event-handoff";
@@ -40,6 +46,18 @@ export default async function EventPickupPage({
     redirect(`/exchanges/${exchangeId}?error=forbidden`);
   }
 
+  const operatorTabs =
+    canAccessOperatorDashboard(user, membership) ? (
+      <OperatorExchangeTabs
+        exchangeId={exchangeId}
+        active="event-pickup"
+        exchangeKind={exchange.kind}
+        showEventPickup
+        showEventDesk={canManageEventDesk(exchange, membership, user)}
+        showPrivateInvites={canIssuePrivateInvite(exchange, membership, user)}
+      />
+    ) : null;
+
   const lines = await db.tradeCoral.findMany({
     where: {
       eventHandoffStatus: { not: null },
@@ -72,10 +90,8 @@ export default async function EventPickupPage({
   const err = sp.error ? handoffErrors[sp.error] ?? "Something went wrong." : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-6">
-      <Link href={`/exchanges/${exchangeId}`} className="btn btn-ghost btn-sm min-h-10 w-fit rounded-xl">
-        Back to exchange
-      </Link>
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+      {operatorTabs}
 
       {sp.checkedOut === "1" ? (
         <div role="status" className="alert alert-success text-sm">

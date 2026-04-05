@@ -686,7 +686,7 @@ export function ExploreHeaderChrome() {
             <div className="flex items-center border-l border-slate-200/80 pl-1 pr-1">
               <button
                 type="button"
-                className="btn btn-circle btn-sm border-0 bg-emerald-500 text-white hover:bg-emerald-600"
+                className="btn btn-circle btn-sm size-8 min-h-8 border-0 bg-emerald-500 text-white hover:bg-emerald-600"
                 aria-label="Search"
                 onClick={apply}
               >

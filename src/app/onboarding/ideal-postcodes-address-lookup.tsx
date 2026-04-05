@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MARKETING_LINK_BLUE, MARKETING_MUTED_BOX, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 
-type AddressFormValues = {
+export type AddressFormValues = {
   line1: string;
   line2: string;
   town: string;
@@ -17,16 +17,53 @@ type Suggestion = {
   suggestion: string;
 };
 
-export function IdealPostcodesAddressLookup({ initialValues }: { initialValues: AddressFormValues }) {
-  const [mode, setMode] = useState<"lookup" | "form">("lookup");
+function hasAnyAddressField(v: AddressFormValues) {
+  return [v.line1, v.line2, v.town, v.region, v.postalCode, v.countryCode].some((s) => s.trim().length > 0);
+}
+
+type IdealPostcodesAddressLookupProps = {
+  initialValues: AddressFormValues;
+  /** When both `value` and `onAddressChange` are set, address fields are controlled by the parent (no `name` on inputs). */
+  value?: AddressFormValues;
+  onAddressChange?: (next: AddressFormValues) => void;
+};
+
+export function IdealPostcodesAddressLookup({
+  initialValues,
+  value: controlledValue,
+  onAddressChange,
+}: IdealPostcodesAddressLookupProps) {
+  const controlled = controlledValue !== undefined && onAddressChange !== undefined;
+
+  const [mode, setMode] = useState<"lookup" | "form">(() =>
+    hasAnyAddressField(initialValues) ? "form" : "lookup",
+  );
 
   const [lookupText, setLookupText] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const [values, setValues] = useState<AddressFormValues>(initialValues);
+  const [internalValues, setInternalValues] = useState<AddressFormValues>(initialValues);
   const resolveRequestSeq = useRef(0);
+
+  const fieldValues: AddressFormValues = controlled ? controlledValue : internalValues;
+
+  function patchAddress(partial: Partial<AddressFormValues>) {
+    if (controlled) {
+      onAddressChange({ ...controlledValue, ...partial });
+    } else {
+      setInternalValues((prev) => ({ ...prev, ...partial }));
+    }
+  }
+
+  function setAddress(next: AddressFormValues) {
+    if (controlled) {
+      onAddressChange(next);
+    } else {
+      setInternalValues(next);
+    }
+  }
 
   const trimmedLookup = lookupText.trim();
 
@@ -99,7 +136,7 @@ export function IdealPostcodesAddressLookup({ initialValues }: { initialValues: 
       if (seq !== resolveRequestSeq.current) return;
 
       const a = data.address as Partial<AddressFormValues>;
-      setValues({
+      setAddress({
         line1: String(a.line1 ?? "").trim(),
         line2: String(a.line2 ?? "").trim(),
         town: String(a.town ?? "").trim(),
@@ -121,7 +158,9 @@ export function IdealPostcodesAddressLookup({ initialValues }: { initialValues: 
     setSuggestions([]);
     setLookupText("");
     setApiError(null);
-    setValues(manualValues);
+    if (!controlled) {
+      setInternalValues(manualValues);
+    }
     setMode("form");
   }
 
@@ -175,45 +214,47 @@ export function IdealPostcodesAddressLookup({ initialValues }: { initialValues: 
       ) : (
         <div className="space-y-2 rounded-xl px-3 py-3" style={{ backgroundColor: MARKETING_MUTED_BOX }}>
           <input
-            name="line1"
-            value={values.line1}
-            onChange={(e) => setValues((v) => ({ ...v, line1: e.target.value }))}
+            {...(controlled ? {} : { name: "line1" })}
+            value={fieldValues.line1}
+            onChange={(e) => patchAddress({ line1: e.target.value })}
             className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
             placeholder="Address line 1"
           />
           <input
-            name="line2"
-            value={values.line2}
-            onChange={(e) => setValues((v) => ({ ...v, line2: e.target.value }))}
+            {...(controlled ? {} : { name: "line2" })}
+            value={fieldValues.line2}
+            onChange={(e) => patchAddress({ line2: e.target.value })}
             className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
             placeholder="Address line 2 (optional)"
           />
           <input
-            name="town"
-            value={values.town}
-            onChange={(e) => setValues((v) => ({ ...v, town: e.target.value }))}
+            {...(controlled ? {} : { name: "town" })}
+            value={fieldValues.town}
+            onChange={(e) => patchAddress({ town: e.target.value })}
             className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
             placeholder="Town / city"
           />
           <input
-            name="region"
-            value={values.region}
-            onChange={(e) => setValues((v) => ({ ...v, region: e.target.value }))}
+            {...(controlled ? {} : { name: "region" })}
+            value={fieldValues.region}
+            onChange={(e) => patchAddress({ region: e.target.value })}
             className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
             placeholder="County / region (optional)"
           />
           <div className="grid grid-cols-2 gap-2">
             <input
-              name="postalCode"
-              value={values.postalCode}
-              onChange={(e) => setValues((v) => ({ ...v, postalCode: e.target.value }))}
+              {...(controlled ? {} : { name: "postalCode" })}
+              value={fieldValues.postalCode}
+              onChange={(e) => patchAddress({ postalCode: e.target.value })}
               className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
               placeholder="Postal code"
             />
             <input
-              name="countryCode"
-              value={values.countryCode}
-              onChange={(e) => setValues((v) => ({ ...v, countryCode: e.target.value.toUpperCase().slice(0, 2) }))}
+              {...(controlled ? {} : { name: "countryCode" })}
+              value={fieldValues.countryCode}
+              onChange={(e) =>
+                patchAddress({ countryCode: e.target.value.toUpperCase().slice(0, 2) })
+              }
               maxLength={2}
               className="w-full rounded-lg border border-slate-300 px-3 py-2.5 uppercase"
               placeholder="GB"
@@ -226,4 +267,3 @@ export function IdealPostcodesAddressLookup({ initialValues }: { initialValues: 
     </div>
   );
 }
-

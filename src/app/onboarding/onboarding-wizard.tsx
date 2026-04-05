@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { completeOnboardingAction } from "@/app/onboarding/actions";
-import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_MUTED_BOX, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { IdealPostcodesAddressLookup } from "@/app/onboarding/ideal-postcodes-address-lookup";
+import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 
 const avatarChoices = ["🐠", "🪸", "🐙", "🦀", "🐡", "🐟", "🦐", "🪼"] as const;
 const TOTAL_STEPS = 4;
@@ -39,11 +40,15 @@ function Progress({ step }: { step: number }) {
 }
 
 export function OnboardingWizard({
+  aliasWordsInsufficient,
   initialValues,
   initialError,
+  suggestedAlias,
 }: {
+  aliasWordsInsufficient: boolean;
   initialValues: WizardValues;
   initialError?: string;
+  suggestedAlias: string;
 }) {
   const [step, setStep] = useState<number>(1);
   const [values, setValues] = useState<WizardValues>(initialValues);
@@ -61,6 +66,15 @@ export function OnboardingWizard({
     if (initialError === "address") {
       return "If you add an address, complete line 1, town, postal code, and country code.";
     }
+    if (initialError === "alias-words") {
+      return "Default aliases are not available right now. Please type your own alias below, or ask an operator to restore the word list.";
+    }
+    if (initialError === "alias-taken") {
+      return "That alias is already taken. Choose a different one.";
+    }
+    if (initialError === "alias-length") {
+      return "Alias must be 80 characters or fewer.";
+    }
     return null;
   }, [clientError, initialError]);
 
@@ -76,6 +90,16 @@ export function OnboardingWizard({
       setClientError("Alias must be 80 characters or fewer.");
       return;
     }
+    if (step === 2 && aliasWordsInsufficient && !values.alias.trim()) {
+      setClientError("Please enter an alias to continue.");
+      return;
+    }
+    setStep((s) => Math.min(s + 1, TOTAL_STEPS));
+  }
+
+  function agreeAndContinue() {
+    setClientError(null);
+    setValues((v) => ({ ...v, tosAccepted: true, privacyAccepted: true }));
     setStep((s) => Math.min(s + 1, TOTAL_STEPS));
   }
 
@@ -91,7 +115,9 @@ export function OnboardingWizard({
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: MARKETING_NAVY }}>
             Welcome to REEFX
           </h1>
-          <p className="mt-2 text-sm text-slate-600">One quick step at a time. This only takes a minute.</p>
+          <p className="mt-2 text-sm text-slate-600">
+            Welcome aboard! Let&apos;s get you setup, this only takes a minute.
+          </p>
           <div className="mt-5">
             <Progress step={step} />
           </div>
@@ -102,9 +128,14 @@ export function OnboardingWizard({
 
           {step === 1 ? (
             <div className="mt-6 space-y-4">
-              <h2 className="text-lg font-semibold" style={{ color: MARKETING_NAVY }}>
-                Terms and privacy
-              </h2>
+              <div>
+                <h2 className="text-lg font-semibold leading-tight" style={{ color: MARKETING_NAVY }}>
+                  The boring stuff
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  REEFX won&apos;t sell your data and follows GDPR regulations.
+                </p>
+              </div>
               <label className="flex items-start gap-3 rounded-xl border border-slate-200 px-3 py-3">
                 <input
                   type="checkbox"
@@ -140,17 +171,27 @@ export function OnboardingWizard({
 
           {step === 2 ? (
             <div className="mt-6 space-y-4">
-              <h2 className="text-lg font-semibold" style={{ color: MARKETING_NAVY }}>
-                Pick your alias
-              </h2>
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold" style={{ color: MARKETING_NAVY }}>
+                  Pick your alias
+                </h2>
+                <p className="text-xs text-slate-500">This is how other reefers will see you.</p>
+              </div>
+              {aliasWordsInsufficient ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  Suggested aliases are unavailable. Please choose your own alias to continue.
+                </div>
+              ) : null}
               <input
                 value={values.alias}
                 onChange={(e) => setValues((v) => ({ ...v, alias: e.target.value }))}
                 maxLength={80}
-                placeholder="ReefRookie92"
+                placeholder={suggestedAlias || "Your alias"}
                 className="w-full rounded-xl border border-slate-300 px-3 py-3 text-base outline-none focus:border-sky-500"
               />
-              <p className="text-xs text-slate-500">This is how other reefers will see you.</p>
+              {!aliasWordsInsufficient && suggestedAlias ? (
+                <p className="text-xs text-slate-500">Leave blank to use the suggested name shown in the field.</p>
+              ) : null}
             </div>
           ) : null}
 
@@ -185,49 +226,27 @@ export function OnboardingWizard({
                 Postal address (optional)
               </h2>
               <p className="text-sm text-slate-600">
-                Optional now. You can add it later, but group trading/listing requires it.
+                If you want to exchange coral by post, you will need to supply an address. You can do this later.
               </p>
-              <div className="space-y-2 rounded-xl px-3 py-3" style={{ backgroundColor: MARKETING_MUTED_BOX }}>
-                <input
-                  value={values.line1}
-                  onChange={(e) => setValues((v) => ({ ...v, line1: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-                  placeholder="Address line 1"
-                />
-                <input
-                  value={values.line2}
-                  onChange={(e) => setValues((v) => ({ ...v, line2: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-                  placeholder="Address line 2 (optional)"
-                />
-                <input
-                  value={values.town}
-                  onChange={(e) => setValues((v) => ({ ...v, town: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-                  placeholder="Town / city"
-                />
-                <input
-                  value={values.region}
-                  onChange={(e) => setValues((v) => ({ ...v, region: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-                  placeholder="County / region (optional)"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    value={values.postalCode}
-                    onChange={(e) => setValues((v) => ({ ...v, postalCode: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-                    placeholder="Postal code"
-                  />
-                  <input
-                    value={values.countryCode}
-                    onChange={(e) => setValues((v) => ({ ...v, countryCode: e.target.value.toUpperCase() }))}
-                    maxLength={2}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 uppercase"
-                    placeholder="GB"
-                  />
-                </div>
-              </div>
+              <IdealPostcodesAddressLookup
+                initialValues={{
+                  line1: values.line1,
+                  line2: values.line2,
+                  town: values.town,
+                  region: values.region,
+                  postalCode: values.postalCode,
+                  countryCode: values.countryCode,
+                }}
+                value={{
+                  line1: values.line1,
+                  line2: values.line2,
+                  town: values.town,
+                  region: values.region,
+                  postalCode: values.postalCode,
+                  countryCode: values.countryCode,
+                }}
+                onAddressChange={(addr) => setValues((v) => ({ ...v, ...addr }))}
+              />
             </div>
           ) : null}
 
@@ -244,17 +263,18 @@ export function OnboardingWizard({
             {step < TOTAL_STEPS ? (
               <button
                 type="button"
-                onClick={next}
+                onClick={step === 1 ? agreeAndContinue : next}
                 className="ml-auto rounded-full px-5 py-2.5 text-sm font-semibold text-white"
                 style={{ backgroundColor: MARKETING_CTA_GREEN }}
               >
-                Continue
+                {step === 1 ? "Agree and continue" : "Continue"}
               </button>
             ) : (
               <form action={completeOnboardingAction} className="ml-auto">
                 {values.tosAccepted ? <input type="hidden" name="tosAccepted" value="on" /> : null}
                 {values.privacyAccepted ? <input type="hidden" name="privacyAccepted" value="on" /> : null}
                 <input type="hidden" name="alias" value={values.alias} />
+                <input type="hidden" name="suggestedAlias" value={suggestedAlias} />
                 <input type="hidden" name="avatarEmoji" value={values.avatarEmoji} />
                 <input type="hidden" name="line1" value={values.line1} />
                 <input type="hidden" name="line2" value={values.line2} />
@@ -264,7 +284,8 @@ export function OnboardingWizard({
                 <input type="hidden" name="countryCode" value={values.countryCode} />
                 <button
                   type="submit"
-                  className="rounded-full px-5 py-2.5 text-sm font-semibold text-white"
+                  disabled={aliasWordsInsufficient && !values.alias.trim()}
+                  className="rounded-full px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                   style={{ backgroundColor: MARKETING_CTA_GREEN }}
                 >
                   Complete onboarding

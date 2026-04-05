@@ -1,14 +1,24 @@
 import { completeOnboardingAction } from "@/app/onboarding/actions";
 import { OnboardingWizard } from "@/app/onboarding/onboarding-wizard";
 import { requireUser } from "@/lib/auth";
+import { getPrisma } from "@/lib/db";
 import { redirect } from "next/navigation";
+import {
+  fetchAliasWordStrings,
+  MIN_ALIAS_GENERATOR_WORDS,
+  pickUniqueAliasCandidate,
+} from "@/lib/suggested-alias";
 import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { IdealPostcodesAddressLookup } from "./ideal-postcodes-address-lookup";
 
 export default async function OnboardingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; mode?: string; next?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    mode?: string;
+    next?: string;
+  }>;
 }) {
   const user = await requireUser();
   const params = await searchParams;
@@ -59,8 +69,16 @@ export default async function OnboardingPage({
     );
   }
 
+  const prisma = getPrisma();
+  const aliasWords = await fetchAliasWordStrings(prisma);
+  const aliasWordsInsufficient = aliasWords.length < MIN_ALIAS_GENERATOR_WORDS;
+  const suggestedAlias = aliasWordsInsufficient
+    ? ""
+    : (await pickUniqueAliasCandidate(prisma, user.id, aliasWords)) ?? "";
+
   return (
     <OnboardingWizard
+      aliasWordsInsufficient={aliasWordsInsufficient}
       initialError={params.error}
       initialValues={{
         alias: user.alias ?? "",
@@ -74,6 +92,7 @@ export default async function OnboardingPage({
         postalCode: addr?.postalCode ?? "",
         countryCode: addr?.countryCode ?? "",
       }}
+      suggestedAlias={suggestedAlias}
     />
   );
 }

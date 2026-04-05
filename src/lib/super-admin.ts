@@ -101,3 +101,14 @@ export function canEditExchangeLogo(
   }
   return exchange.kind === ExchangeKind.EVENT && membership?.role === ExchangeMembershipRole.EVENT_MANAGER;
 }
+
+/** Super admins or event managers for this exchange (operator dashboard / manage entry points). */
+export function canAccessOperatorDashboard(
+  user: { email: string; globalRole: UserGlobalRole },
+  membership: ExchangeMembership | null,
+): boolean {
+  if (isSuperAdmin(user)) {
+    return true;
+  }
+  return membership?.role === ExchangeMembershipRole.EVENT_MANAGER;
+}
