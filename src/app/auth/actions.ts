@@ -37,7 +37,7 @@ export async function requestMagicLinkAction(formData: FormData) {
   }
 
   const debugQuery =
-    process.env.NODE_ENV !== "production" ? `&debugToken=${encodeURIComponent(token)}` : "";
+    process.env.NODE_ENV === "development" ? `&debugToken=${encodeURIComponent(token)}` : "";
 
   redirect(`/auth/check-email?email=${encodeURIComponent(email)}${debugQuery}`);
 }

@@ -1,6 +1,6 @@
 import { requestMagicLinkAction, signInWithPasswordAction } from "@/app/auth/actions";
 import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
-import { AUTH_PROVIDERS } from "@/lib/auth/providers";
+import { getSecondaryAuthProviders } from "@/lib/auth/providers";
 
 const loginErrors: Record<string, string> = {
   "invalid-email": "Enter a valid email address.",
@@ -17,16 +17,23 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const errorMessage = params.error ? loginErrors[params.error] ?? "Something went wrong. Try again." : null;
+  const plannedProviders = getSecondaryAuthProviders();
 
   return (
-    <main className="min-h-dvh bg-white text-slate-600">
-      <section className="mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:px-6 sm:py-12 lg:grid-cols-2 lg:items-center lg:gap-10">
+    <main
+      className="flex min-h-dvh flex-col bg-white bg-right-bottom bg-no-repeat text-slate-600"
+      style={{
+        backgroundImage: "url('/marketing/coral_illustration_001.svg')",
+        backgroundSize: "auto 50vh",
+      }}
+    >
+      <section className="mx-auto grid w-full max-w-6xl flex-1 gap-8 px-4 py-8 sm:px-6 sm:py-12 lg:grid-cols-2 lg:items-center lg:gap-10">
         <section className="order-1 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-black/5 sm:p-7">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl" style={{ color: MARKETING_NAVY }}>
-            Sign in to REEFX
+            Access REEFX
           </h1>
           <p className="mt-3 text-sm text-slate-600">
-            Magic link is active today. Additional providers are listed for a single SSO integration point later.
+            New and returning reefers, access your account here.
           </p>
 
           {errorMessage ? (
@@ -35,99 +42,80 @@ export default async function LoginPage({
             </div>
           ) : null}
 
-          <form action={requestMagicLinkAction} className="mt-5 space-y-3">
-            <label className="block w-full">
-              <span className="mb-1 block text-sm font-medium text-slate-700">Email</span>
-              <input
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                placeholder="you@example.com"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              />
-            </label>
-            <button
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-full px-6 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.99]"
-              style={{ backgroundColor: MARKETING_CTA_GREEN }}
-              type="submit"
-            >
-              Continue with magic link
-            </button>
+          <form className="mt-5 flex flex-col gap-3">
+            <div className="order-1 space-y-3">
+              <label className="block w-full">
+                <span className="mb-1 block text-sm font-medium text-slate-700">Email</span>
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                />
+              </label>
+            </div>
+
+            <div className="order-4 space-y-3">
+              <label className="block w-full">
+                <span className="mb-1 block text-sm font-medium text-slate-700">Password</span>
+                <input
+                  name="password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                />
+              </label>
+              <button
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-medium text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+                formAction={signInWithPasswordAction}
+                type="submit"
+              >
+                Sign in with password
+              </button>
+            </div>
+
+            <div className="order-3 my-5 flex items-center gap-3 text-xs text-slate-500">
+              <span className="h-px flex-1 bg-slate-200" />
+              <span>Or access with a password</span>
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+
+            <div className="order-2">
+              <button
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full px-6 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.99]"
+                formAction={requestMagicLinkAction}
+                formNoValidate
+                style={{ backgroundColor: MARKETING_CTA_GREEN }}
+                type="submit"
+              >
+                Send email access link
+              </button>
+            </div>
           </form>
 
-          <div className="my-5 flex items-center gap-3 text-xs text-slate-500">
-            <span className="h-px flex-1 bg-slate-200" />
-            <span>Or sign in with password</span>
-            <span className="h-px flex-1 bg-slate-200" />
-          </div>
-
-          <form action={signInWithPasswordAction} className="space-y-3">
-            <label className="block w-full">
-              <span className="mb-1 block text-sm font-medium text-slate-700">Email</span>
-              <input
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                placeholder="you@example.com"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              />
-            </label>
-            <label className="block w-full">
-              <span className="mb-1 block text-sm font-medium text-slate-700">Password</span>
-              <input
-                name="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              />
-            </label>
-            <button
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-medium text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
-              type="submit"
-            >
-              Sign in with password
-            </button>
-          </form>
-
-          <div className="my-5 flex items-center gap-3 text-xs text-slate-500">
-            <span className="h-px flex-1 bg-slate-200" />
-            <span>More sign-in options (planned)</span>
-            <span className="h-px flex-1 bg-slate-200" />
-          </div>
-          <ul className="space-y-2">
-            {AUTH_PROVIDERS.filter((p) => !p.enabled).map((provider) => (
-              <li key={provider.id}>
-                <button
-                  className="inline-flex min-h-11 w-full items-center justify-between rounded-full border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 opacity-80"
-                  disabled
-                  type="button"
-                  title={provider.description}
-                >
-                  <span>{provider.label}</span>
-                  <span className="text-xs">Planned</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          {plannedProviders.length > 0 ? (
+            <ul className="mt-5 space-y-2">
+              {plannedProviders.map((provider) => (
+                <li key={provider.id}>
+                  <button
+                    className="inline-flex min-h-11 w-full items-center justify-between rounded-full border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 opacity-80"
+                    disabled
+                    type="button"
+                    title={provider.description}
+                  >
+                    <span>{provider.label}</span>
+                    <span className="text-xs">Planned</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </section>
 
-        <section className="order-2 lg:justify-self-end">
-          <div className="relative mx-auto w-full max-w-md sm:max-w-lg lg:max-w-xl">
-            {/* eslint-disable-next-line @next/next/no-img-element -- static marketing SVG from /public */}
-            <img
-              src="/marketing/coral_illustration_001.svg"
-              alt=""
-              width={640}
-              height={335}
-              className="h-auto w-full object-contain"
-              decoding="async"
-              fetchPriority="high"
-            />
-          </div>
-        </section>
+        <div className="order-2 hidden min-h-px lg:block" aria-hidden />
       </section>
     </main>
   );
