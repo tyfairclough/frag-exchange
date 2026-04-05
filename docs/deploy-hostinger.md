@@ -15,8 +15,12 @@ Add **at least**:
 | ---------------- | --------------------------------------------------------------------------- |
 | `DATABASE_URL`   | **MySQL only** — `mysql://USER:PASSWORD@HOST:3306/DATABASE`. Do not use PostgreSQL or `prisma+postgres://`. Never commit. The repo’s **`.env.development`** (Docker URL for local dev) is **ignored in production**; production must get `DATABASE_URL` from this panel. |
 | `NODE_ENV`       | Usually `production` (often set automatically).                            |
+| `DATABASE_POOL_CONNECTION_LIMIT` | Optional. Overrides the built-in **production** default of **`5`** connections (when `connectionLimit` is not already in `DATABASE_URL`). |
+| `DATABASE_POOL_MINIMUM_IDLE` | Optional. Overrides **`minimumIdle`**; production defaults to **`0`** (lazy pool) when not in the URL. |
 
 Optional Next defaults apply; add others only when you introduce features that need them.
+
+**MySQL pool errors:** If runtime logs show `pool timeout … active=0 idle=0`, the DB user or server is refusing new connections or the account hit **process limits** (SSH may show `fork: Resource temporarily unavailable`). After redeploying the app, errors should show `limit=5` if production pool defaults are active. If problems remain, lower further (`connectionLimit=3` on the URL), stop other sites using the same MySQL user, and reduce **max processes** load (Joomla/cron/duplicate Node apps).
 
 ## 3. Build and start commands
 

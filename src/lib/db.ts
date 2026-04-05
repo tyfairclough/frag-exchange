@@ -3,6 +3,48 @@ import { PrismaClient } from "@/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
+/**
+ * Shared MySQL (e.g. Hostinger): the `mariadb` driver defaults `connectionLimit` to 10 and
+ * `minimumIdle` to the same value, so it opens many connections eagerly. That often exceeds
+ * `max_user_connections` → `pool timeout … active=0 idle=0`.
+ *
+ * - **Production:** if the URL omits pool params, we default `connectionLimit=5` and
+ *   `minimumIdle=0` (lazy pool). Override with query params on `DATABASE_URL` or
+ *   `DATABASE_POOL_CONNECTION_LIMIT` / `DATABASE_POOL_MINIMUM_IDLE`.
+ * - **Development:** unchanged unless those env vars are set.
+ */
+function withMysqlPoolParams(url: string): string {
+  try {
+    const u = new URL(url);
+    const isProd = process.env.NODE_ENV === "production";
+    const limitEnv = process.env.DATABASE_POOL_CONNECTION_LIMIT?.trim();
+    const minIdleEnv = process.env.DATABASE_POOL_MINIMUM_IDLE?.trim() ?? "";
+    const minIdleSetInEnv = Object.prototype.hasOwnProperty.call(
+      process.env,
+      "DATABASE_POOL_MINIMUM_IDLE",
+    );
+
+    if (!u.searchParams.has("connectionLimit")) {
+      const limit = limitEnv ?? (isProd ? "5" : "");
+      if (limit) u.searchParams.set("connectionLimit", limit);
+    }
+
+    if (!u.searchParams.has("minimumIdle")) {
+      if (minIdleSetInEnv && minIdleEnv !== "") {
+        u.searchParams.set("minimumIdle", minIdleEnv);
+      } else if (isProd) {
+        u.searchParams.set("minimumIdle", "0");
+      } else if (limitEnv) {
+        u.searchParams.set("minimumIdle", "0");
+      }
+    }
+
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 function withMysqlAllowPublicKeyRetrieval(url: string) {
   try {
     const u = new URL(url);
@@ -47,7 +89,8 @@ function createPrismaClient(): PrismaClient {
 
   assertMysqlOnlyDatabaseUrl(url);
 
-  const rsaFix = withMysqlAllowPublicKeyRetrieval(url);
+  const poolUrl = withMysqlPoolParams(url);
+  const rsaFix = withMysqlAllowPublicKeyRetrieval(poolUrl);
 
   const adapter = new PrismaMariaDb(rsaFix.url);
 
@@ -71,16 +114,21 @@ export function getPrisma(): PrismaClient {
 }
 
 /**
- * MariaDB pool could not open any connection (wrong host/port, server stopped, firewall).
- * Surfaces a short actionable message instead of only "pool timeout … active=0 idle=0".
+ * MariaDB pool timed out with zero connections — the driver could not keep/create pool sockets.
+ * Common on shared hosting: `max_user_connections` / default eager pool (`minimumIdle` = `connectionLimit`).
+ * Check `error.cause` in logs for the underlying errno (e.g. 1040 too many connections).
  */
 export function assertMysqlReachable(err: unknown): void {
   const msg = err instanceof Error ? err.message : String(err);
   const emptyPool =
     msg.includes("pool timeout") && msg.includes("active=0") && msg.includes("idle=0");
   if (emptyPool) {
+    const cause =
+      err instanceof Error && err.cause instanceof Error
+        ? ` Underlying: ${err.cause.message}`
+        : "";
     throw new Error(
-      "MySQL is not reachable with your DATABASE_URL (no connection could be opened). Start MariaDB/MySQL or Docker on that host and port, set a real user/password/database in .env, then run migrations from the web folder: npm run db:migrate:dev",
+      `MySQL pool could not open connections (shared limits or wrong DATABASE_URL).${cause} Production defaults to a small lazy pool in code; if this persists, add connectionLimit=3&minimumIdle=0 to DATABASE_URL, reduce traffic, disable other apps using the same DB user, or upgrade hosting. Account "fork: Resource temporarily unavailable" means process limit is exhausted — restart Node from hPanel and reduce concurrent work (cron, Joomla in public_html, SSH scripts).`,
     );
   }
 }
