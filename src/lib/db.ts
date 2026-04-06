@@ -44,9 +44,9 @@ function withMysqlPoolParams(url: string): string {
     // #region agent log
     fetch("http://127.0.0.1:7372/ingest/8407dbed-5e8e-4bc5-9ee7-94c44eed562d", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2b931e" },
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "04b090" },
       body: JSON.stringify({
-        sessionId: "2b931e",
+        sessionId: "04b090",
         runId: "pre-fix",
         hypothesisId: "H1",
         location: "src/lib/db.ts:withMysqlPoolParams",
@@ -80,6 +80,23 @@ function withMysqlAllowPublicKeyRetrieval(url: string) {
   }
 }
 
+/**
+ * Some hosts resolve `localhost` to IPv6 first while MySQL listens only on IPv4.
+ * Normalizing to 127.0.0.1 avoids empty-pool timeouts caused by unreachable ::1.
+ */
+function withMysqlLoopbackIpv4(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "localhost") {
+      u.hostname = "127.0.0.1";
+      return u.toString();
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+
 /** Reject Postgres / Prisma Postgres URLs — this app targets MySQL only. */
 function assertMysqlOnlyDatabaseUrl(url: string) {
   const lower = url.trim().toLowerCase();
@@ -105,7 +122,8 @@ function createPrismaClient(): PrismaClient {
   assertMysqlOnlyDatabaseUrl(url);
 
   const poolUrl = withMysqlPoolParams(url);
-  const rsaFix = withMysqlAllowPublicKeyRetrieval(poolUrl);
+  const ipv4LoopbackUrl = withMysqlLoopbackIpv4(poolUrl);
+  const rsaFix = withMysqlAllowPublicKeyRetrieval(ipv4LoopbackUrl);
   let parsedHost = "";
   let parsedConnectionLimit = "";
   let parsedMinimumIdle = "";
@@ -118,12 +136,23 @@ function createPrismaClient(): PrismaClient {
     // ignore parse issues; logged separately in withMysqlPoolParams
   }
 
+  console.error(
+    "[reefx][db-config]",
+    JSON.stringify({
+      hypothesisId: "H8",
+      nodeEnv: process.env.NODE_ENV,
+      dbHost: parsedHost,
+      connectionLimit: parsedConnectionLimit,
+      minimumIdle: parsedMinimumIdle,
+    }),
+  );
+
   // #region agent log
   fetch("http://127.0.0.1:7372/ingest/8407dbed-5e8e-4bc5-9ee7-94c44eed562d", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2b931e" },
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "04b090" },
     body: JSON.stringify({
-      sessionId: "2b931e",
+      sessionId: "04b090",
       runId: "pre-fix",
       hypothesisId: "H1",
       location: "src/lib/db.ts:createPrismaClient",
@@ -161,9 +190,9 @@ export function getPrisma(): PrismaClient {
   // #region agent log
   fetch("http://127.0.0.1:7372/ingest/8407dbed-5e8e-4bc5-9ee7-94c44eed562d", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2b931e" },
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "04b090" },
     body: JSON.stringify({
-      sessionId: "2b931e",
+      sessionId: "04b090",
       runId: "pre-fix",
       hypothesisId: "H2",
       location: "src/lib/db.ts:getPrisma",
@@ -191,9 +220,9 @@ export function assertMysqlReachable(err: unknown): void {
     // #region agent log
     fetch("http://127.0.0.1:7372/ingest/8407dbed-5e8e-4bc5-9ee7-94c44eed562d", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2b931e" },
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "04b090" },
       body: JSON.stringify({
-        sessionId: "2b931e",
+        sessionId: "04b090",
         runId: "pre-fix",
         hypothesisId: "H3",
         location: "src/lib/db.ts:assertMysqlReachable",

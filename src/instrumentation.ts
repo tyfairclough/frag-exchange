@@ -17,9 +17,9 @@ export const onRequestError: Instrumentation.onRequestError = async (err, req, c
   // #region agent log
   fetch("http://127.0.0.1:7372/ingest/8407dbed-5e8e-4bc5-9ee7-94c44eed562d", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2b931e" },
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "04b090" },
     body: JSON.stringify({
-      sessionId: "2b931e",
+      sessionId: "04b090",
       runId: "pre-fix",
       hypothesisId: "H4",
       location: "src/instrumentation.ts:onRequestError",
