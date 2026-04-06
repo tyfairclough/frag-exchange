@@ -80,23 +80,6 @@ function withMysqlAllowPublicKeyRetrieval(url: string) {
   }
 }
 
-/**
- * Some hosts resolve `localhost` to IPv6 first while MySQL listens only on IPv4.
- * Normalizing to 127.0.0.1 avoids empty-pool timeouts caused by unreachable ::1.
- */
-function withMysqlLoopbackIpv4(url: string): string {
-  try {
-    const u = new URL(url);
-    if (u.hostname === "localhost") {
-      u.hostname = "127.0.0.1";
-      return u.toString();
-    }
-    return url;
-  } catch {
-    return url;
-  }
-}
-
 /** Reject Postgres / Prisma Postgres URLs — this app targets MySQL only. */
 function assertMysqlOnlyDatabaseUrl(url: string) {
   const lower = url.trim().toLowerCase();
@@ -122,8 +105,7 @@ function createPrismaClient(): PrismaClient {
   assertMysqlOnlyDatabaseUrl(url);
 
   const poolUrl = withMysqlPoolParams(url);
-  const ipv4LoopbackUrl = withMysqlLoopbackIpv4(poolUrl);
-  const rsaFix = withMysqlAllowPublicKeyRetrieval(ipv4LoopbackUrl);
+  const rsaFix = withMysqlAllowPublicKeyRetrieval(poolUrl);
   let parsedHost = "";
   let parsedConnectionLimit = "";
   let parsedMinimumIdle = "";
@@ -170,7 +152,27 @@ function createPrismaClient(): PrismaClient {
   }).catch(() => {});
   // #endregion
 
-  const adapter = new PrismaMariaDb(rsaFix.url);
+  const poolConfig = (() => {
+    const parsed = new URL(rsaFix.url);
+    const cfg: Record<string, unknown> = {
+      host: parsed.hostname,
+      port: parsed.port ? Number(parsed.port) : 3306,
+      user: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+      database: parsed.pathname.replace(/^\//, ""),
+    };
+    const connectionLimit = parsed.searchParams.get("connectionLimit");
+    const minimumIdle = parsed.searchParams.get("minimumIdle");
+    if (connectionLimit) cfg.connectionLimit = Number(connectionLimit);
+    if (minimumIdle) cfg.minimumIdle = Number(minimumIdle);
+    const allowPublicKeyRetrieval = parsed.searchParams.get("allowPublicKeyRetrieval");
+    if (allowPublicKeyRetrieval !== null) {
+      cfg.allowPublicKeyRetrieval = allowPublicKeyRetrieval === "true";
+    }
+    return cfg;
+  })();
+
+  const adapter = new PrismaMariaDb(poolConfig);
 
   return new PrismaClient({
     adapter,

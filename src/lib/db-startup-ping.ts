@@ -30,6 +30,31 @@ function probeTcp(host: string, port: number): Promise<{ ok: boolean; error?: st
   });
 }
 
+async function probeMariadbDirect() {
+  const raw = process.env.DATABASE_URL ?? "";
+  try {
+    const { default: mariadb } = await import("mariadb");
+    const u = new URL(raw);
+    const conn = await mariadb.createConnection({
+      host: u.hostname,
+      port: u.port ? Number(u.port) : 3306,
+      user: decodeURIComponent(u.username),
+      password: decodeURIComponent(u.password),
+      database: u.pathname.replace(/^\//, ""),
+      connectTimeout: 5000,
+    });
+    await conn.query("SELECT 1");
+    await conn.end();
+    return { ok: true as const };
+  } catch (e) {
+    return {
+      ok: false as const,
+      error: e instanceof Error ? e.message : String(e),
+      name: e instanceof Error ? e.name : "unknown",
+    };
+  }
+}
+
 /** Fire-and-forget: logs underlying errno/message if the pool cannot connect at boot. */
 export function pingMysqlOptional(): void {
   void (async () => {
@@ -88,6 +113,32 @@ export function pingMysqlOptional(): void {
         }),
       );
     }
+
+    const direct = await probeMariadbDirect();
+    // #region agent log
+    fetch("http://127.0.0.1:7372/ingest/8407dbed-5e8e-4bc5-9ee7-94c44eed562d", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "04b090" },
+      body: JSON.stringify({
+        sessionId: "04b090",
+        runId: "pre-fix",
+        hypothesisId: "H9",
+        location: "src/lib/db-startup-ping.ts:probeMariadbDirect",
+        message: "Direct mariadb driver probe result",
+        data: { ok: direct.ok, error: direct.ok ? undefined : direct.error, name: direct.ok ? undefined : direct.name },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    console.error(
+      "[reefx][db-direct-probe]",
+      JSON.stringify({
+        hypothesisId: "H9",
+        ok: direct.ok,
+        error: direct.ok ? undefined : direct.error,
+        name: direct.ok ? undefined : direct.name,
+      }),
+    );
 
     try {
       await getPrisma().$queryRaw`SELECT 1`;
