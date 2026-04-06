@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AppToaster } from "@/components/app-toaster";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -35,7 +36,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-theme="fraglight" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-dvh bg-white text-slate-600 font-sans">{children}</body>
+      <body className="min-h-dvh bg-white text-slate-600 font-sans">
+        {children}
+        <AppToaster />
+      </body>
     </html>
   );
 }

@@ -1,6 +1,7 @@
 import { ContactPreference } from "@/generated/prisma/client";
 import Link from "next/link";
 import { MeAddressSection } from "@/app/(main)/me/me-address-section";
+import { MePasswordSection } from "@/app/(main)/me/me-password-section";
 import { requireUser } from "@/lib/auth";
 import { isSuperAdmin } from "@/lib/super-admin";
 
@@ -12,6 +13,8 @@ const contactPreferenceLabel: Record<ContactPreference, string> = {
 export default async function MePage() {
   const user = await requireUser();
   const superUser = isSuperAdmin(user);
+  const hasPassword = Boolean(user.passwordHash);
+  const passwordZxcvbnInputs = [user.email, user.alias?.trim() ?? ""].filter((s) => s.length > 0);
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
@@ -75,6 +78,12 @@ export default async function MePage() {
                 </dd>
               </div>
             ) : null}
+            <div className="flex flex-col gap-0.5 border-t border-base-content/10 py-2 sm:flex-row sm:items-start sm:gap-4 sm:py-2.5">
+              <dt className="shrink-0 font-medium text-base-content sm:w-40 sm:pt-0.5">Password</dt>
+              <dd className="min-w-0">
+                <MePasswordSection hasPassword={hasPassword} userInputs={passwordZxcvbnInputs} />
+              </dd>
+            </div>
             <div className="flex flex-col gap-0.5 border-t border-base-content/10 py-2 sm:flex-row sm:items-start sm:gap-4 sm:py-2.5">
               <dt className="shrink-0 font-medium text-base-content sm:w-40 sm:pt-0.5">
                 Contact preference
