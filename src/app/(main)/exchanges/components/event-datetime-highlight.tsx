@@ -32,12 +32,9 @@ export function EventDateHighlight({
   eventDeskHref: string;
   showEventDeskLink: boolean;
 }) {
-  const [mounted, setMounted] = useState(false);
   const [nowMs, setNowMs] = useState(0);
 
   useEffect(() => {
-    setMounted(true);
-    setNowMs(Date.now());
     const id = window.setInterval(() => setNowMs(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
@@ -47,7 +44,7 @@ export function EventDateHighlight({
   const after24h = T + MS_DAY;
 
   const phase = useMemo(() => {
-    if (!mounted || Number.isNaN(T)) {
+    if (nowMs === 0 || Number.isNaN(T)) {
       return "hydrating" as const;
     }
     if (nowMs >= after24h) {
@@ -61,7 +58,7 @@ export function EventDateHighlight({
       return "countdown" as const;
     }
     return "wrapUp" as const;
-  }, [mounted, nowMs, T, after24h, eventAt]);
+  }, [nowMs, T, after24h, eventAt]);
 
   const countdownParts = useMemo(() => {
     if (phase !== "countdown") {

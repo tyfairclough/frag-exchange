@@ -62,12 +62,6 @@ export function MeAddressSection({ address }: { address: MeAddressInitial }) {
     }
   }, [open]);
 
-  useEffect(() => {
-    if (!open) {
-      setFormValues(toFormValues(address));
-    }
-  }, [address, open]);
-
   function openModal() {
     setError(null);
     setFormValues(toFormValues(address));
