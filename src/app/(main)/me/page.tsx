@@ -1,6 +1,5 @@
 import { ContactPreference } from "@/generated/prisma/client";
 import Link from "next/link";
-import { signOutAction } from "@/app/auth/actions";
 import { MeAddressSection } from "@/app/(main)/me/me-address-section";
 import { requireUser } from "@/lib/auth";
 import { isSuperAdmin } from "@/lib/super-admin";
@@ -106,12 +105,6 @@ export default async function MePage() {
               </dd>
             </div>
           </dl>
-
-          <form action={signOutAction} className="mt-4">
-            <button type="submit" className="btn btn-outline btn-sm">
-              Sign out
-            </button>
-          </form>
         </div>
       </section>
     </div>

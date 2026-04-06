@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
 import { ExploreHeaderChrome } from "@/components/explore-header-chrome";
+import { signOutAction } from "@/app/auth/actions";
 import { getExchangeIdFromPathname } from "@/lib/exchange-path";
 
 const DEFAULT_TITLE = "REEFX";
@@ -175,31 +176,6 @@ function profilePillClass(active: boolean) {
     : "border-[#e0e0e0] bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50";
 }
 
-function ShellProfileLink({
-  profile,
-  meActive,
-}: {
-  profile: AppShellProfile;
-  meActive: boolean;
-}) {
-  return (
-    <Link
-      href="/me"
-      aria-current={meActive ? "page" : undefined}
-      className={`inline-flex max-w-[120px] shrink-0 items-center gap-2 rounded-full border py-1 pl-3 pr-1 text-sm font-medium shadow-sm transition-colors active:bg-slate-100 ${profilePillClass(meActive)}`}
-      aria-label={`Profile: ${profile.aliasLabel}`}
-    >
-      <span className="min-w-0 flex-1 truncate text-left">{profile.aliasLabel}</span>
-      <span
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-lg leading-none text-white"
-        aria-hidden
-      >
-        {profile.avatarEmoji}
-      </span>
-    </Link>
-  );
-}
-
 function ShellProfileMenu({
   profile,
   showAdminLink,
@@ -320,6 +296,17 @@ function ShellProfileMenu({
               </Link>
             </li>
           ) : null}
+          <li role="none">
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                role="menuitem"
+                className="block w-full px-4 py-2.5 text-left text-sm text-slate-800 hover:bg-slate-50"
+              >
+                Sign out
+              </button>
+            </form>
+          </li>
         </ul>
       ) : null}
     </div>
@@ -335,19 +322,13 @@ function ShellProfileArea({
   showSuperAdminMenu: boolean;
   operatorManagedExchanges: OperatorManagedExchange[];
 }) {
-  const pathname = usePathname();
-  const meActive = pathname === "/me" || pathname.startsWith("/me/");
-  const showProfileMenu = showSuperAdminMenu || operatorManagedExchanges.length > 0;
-  if (showProfileMenu) {
-    return (
-      <ShellProfileMenu
-        profile={profile}
-        showAdminLink={showSuperAdminMenu}
-        operatorManagedExchanges={operatorManagedExchanges}
-      />
-    );
-  }
-  return <ShellProfileLink profile={profile} meActive={meActive} />;
+  return (
+    <ShellProfileMenu
+      profile={profile}
+      showAdminLink={showSuperAdminMenu}
+      operatorManagedExchanges={operatorManagedExchanges}
+    />
+  );
 }
 
 function HeaderExploreChrome() {
