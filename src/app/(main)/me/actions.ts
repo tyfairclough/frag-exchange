@@ -1,9 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import zxcvbn from "zxcvbn";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
+import { getRequestOrigin } from "@/lib/request-origin";
+import { sendPasswordChangedNoticeEmail } from "@/lib/send-password-changed-email";
+import { consumeRateLimitToken } from "@/lib/rate-limit";
 import { refreshTownCenterForUserAddress } from "@/lib/town-geocode";
+import { sliceForZxcvbn } from "@/lib/zxcvbn-password";
 
 function str(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -54,6 +60,61 @@ export async function updateUserAddressAction(
     await refreshTownCenterForUserAddress(user.id);
   } catch {
     // Geocoding is best-effort.
+  }
+
+  revalidatePath("/me");
+  return { ok: true };
+}
+
+function zxcvbnUserInputsForUser(user: { email: string; alias: string | null }): string[] {
+  const parts: string[] = [user.email.trim().toLowerCase()];
+  const alias = user.alias?.trim();
+  if (alias) {
+    parts.push(alias);
+  }
+  return parts.filter((s) => s.length > 0);
+}
+
+export async function setUserPasswordAction(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await requireUser();
+
+  const pwdRaw = formData.get("password");
+  const pwd = typeof pwdRaw === "string" ? pwdRaw : "";
+
+  if (!pwd) {
+    return { ok: false, error: "Enter a new password." };
+  }
+
+  if (!consumeRateLimitToken(`me:password:user:${user.id}`, 10, 15 * 60 * 1000)) {
+    return { ok: false, error: "Too many password changes. Try again in a few minutes." };
+  }
+
+  const sliced = sliceForZxcvbn(pwd);
+  const userInputs = zxcvbnUserInputsForUser(user);
+  const strength = zxcvbn(sliced, userInputs);
+  if (strength.score !== 4) {
+    return {
+      ok: false,
+      error: "Password must reach the strongest strength rating (4 of 4) before it can be saved.",
+    };
+  }
+
+  const passwordHash = await hashPassword(pwd);
+  await getPrisma().user.update({
+    where: { id: user.id },
+    data: { passwordHash },
+  });
+
+  const siteUrl = await getRequestOrigin();
+  try {
+    const sent = await sendPasswordChangedNoticeEmail({ to: user.email, siteUrl });
+    if (!sent.ok) {
+      console.error("[setUserPasswordAction] password notice email failed:", sent);
+    }
+  } catch (e) {
+    console.error("[setUserPasswordAction] password notice email threw:", e);
   }
 
   revalidatePath("/me");
