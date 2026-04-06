@@ -1,7 +1,7 @@
 "use client";
 
 import { CoralListingMode } from "@/generated/prisma/enums";
-import { CORAL_COLOURS, CORAL_TYPES } from "@/lib/coral-options";
+import { CORAL_COLOURS, CORAL_TYPES, isActiveCoralColour } from "@/lib/coral-options";
 
 export type CoralInventoryFieldsProps = {
   name: string;
@@ -136,6 +136,9 @@ export function CoralInventoryFields({
                 {c}
               </option>
             ))}
+            {colour.trim() && !isActiveCoralColour(colour) ? (
+              <option value={colour}>{colour} (deprecated)</option>
+            ) : null}
           </select>
         </label>
       </div>

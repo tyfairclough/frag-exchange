@@ -196,6 +196,12 @@ export default async function ExplorePage({
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 px-4 py-6">
       {shellModel ? <ExploreShellSync model={shellModel} /> : null}
 
+      {memberships.length > 0 ? (
+        <p className="text-sm font-semibold text-[#122B49]" aria-live="polite">
+          {rows.length} Coral{rows.length === 1 ? "" : "s"} found
+        </p>
+      ) : null}
+
       {memberships.length === 0 ? (
         <section className="card border border-slate-200/90 bg-white shadow-sm">
           <div className="card-body gap-2 p-5 text-sm text-slate-700">

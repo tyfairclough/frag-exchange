@@ -44,9 +44,9 @@ export default async function AdminExchangesPage() {
                   <Link href={`/exchanges/${ex.id}`} className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       {ex.logo40Url ? (
-                        <img src={ex.logo40Url} alt="" aria-hidden className="h-8 w-8 rounded-md object-cover" />
+                        <img src={ex.logo40Url} alt="" aria-hidden className="h-10 w-10 shrink-0 rounded-md object-cover" />
                       ) : (
-                        <img src="/reefx_logo.svg" alt="" aria-hidden className="h-8 w-8 object-contain" />
+                        <img src="/reefx_logo.svg" alt="" aria-hidden className="h-10 w-10 shrink-0 object-contain" />
                       )}
                       <p className="font-semibold hover:underline" style={{ color: MARKETING_NAVY }}>
                         {ex.name}

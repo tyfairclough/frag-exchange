@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useExploreShell } from "@/components/explore-shell-context";
+import { ExploreColourFilterRow } from "@/components/explore-colour-filter-row";
 import {
   buildExploreSearchHref,
   parseExploreFiltersFromSearchParams,
@@ -18,16 +19,33 @@ function labelKeyword(v: string) {
   return v.trim() ? v : "Any keyword";
 }
 
-function summaryTypes(types: string[]) {
-  if (types.length === 0) {
+function allTypesSelected(types: string[], allOptions: readonly string[]) {
+  if (allOptions.length === 0) {
+    return types.length === 0;
+  }
+  return (
+    types.length === 0 ||
+    (types.length === allOptions.length && allOptions.every((x) => types.includes(x)))
+  );
+}
+
+function summaryTypes(types: string[], allOptions: readonly string[]) {
+  if (allTypesSelected(types, allOptions)) {
     return "All types";
   }
-  return types.join(", ");
+  return allOptions.filter((x) => types.includes(x)).join(", ");
+}
+
+function typeCheckboxChecked(types: string[], allOptions: readonly string[], t: string) {
+  return allTypesSelected(types, allOptions) || types.includes(t);
 }
 
 function summaryColours(colours: string[]) {
   if (colours.length === 0) {
     return "All colours";
+  }
+  if (colours.length > 2) {
+    return `+${colours.length} colours selected`;
   }
   return colours.join(", ");
 }
@@ -42,6 +60,8 @@ function emptyExploreFilters(): ExploreFilterState {
     maxKm: "",
   };
 }
+
+const NO_CORAL_TYPE_OPTIONS: readonly string[] = [];
 
 export function ExploreHeaderChrome() {
   const pathname = usePathname();
@@ -245,17 +265,38 @@ export function ExploreHeaderChrome() {
     [pushModalHistory],
   );
 
-  const toggleDraftType = useCallback((t: string) => {
-    setDraft((d) => {
-      const next = new Set(d.coralTypes);
-      if (next.has(t)) {
-        next.delete(t);
-      } else {
-        next.add(t);
-      }
-      return { ...d, coralTypes: [...next] };
-    });
-  }, []);
+  const coralTypeOptions = model?.coralTypes ?? NO_CORAL_TYPE_OPTIONS;
+  const toggleDraftType = useCallback(
+    (t: string) => {
+      setDraft((d) => {
+        const all = coralTypeOptions;
+        if (all.length === 0) {
+          const next = new Set(d.coralTypes);
+          if (next.has(t)) {
+            next.delete(t);
+          } else {
+            next.add(t);
+          }
+          return { ...d, coralTypes: [...next] };
+        }
+        if (allTypesSelected(d.coralTypes, all)) {
+          return { ...d, coralTypes: all.filter((x) => x !== t) };
+        }
+        const set = new Set(d.coralTypes);
+        if (set.has(t)) {
+          set.delete(t);
+        } else {
+          set.add(t);
+        }
+        let nextTypes = [...set];
+        if (nextTypes.length === all.length && all.every((x) => nextTypes.includes(x))) {
+          nextTypes = [];
+        }
+        return { ...d, coralTypes: nextTypes };
+      });
+    },
+    [coralTypeOptions],
+  );
 
   const toggleDraftColour = useCallback((c: string) => {
     setDraft((d) => {
@@ -313,7 +354,6 @@ export function ExploreHeaderChrome() {
     scopedByQuery,
     exchangeKind,
     viewerHasCoords,
-    coralTypes: coralTypeOptions,
     coralColours: coralColourOptions,
   } = model;
   const isGroup = exchangeKind === "GROUP";
@@ -366,7 +406,7 @@ export function ExploreHeaderChrome() {
 
           <AccordionRow
             label="Type"
-            summary={summaryTypes(draft.coralTypes)}
+            summary={summaryTypes(draft.coralTypes, coralTypeOptions)}
             open={expanded === "type"}
             onToggle={() => toggleSection("type")}
           >
@@ -379,7 +419,7 @@ export function ExploreHeaderChrome() {
                   <input
                     type="checkbox"
                     className="checkbox checkbox-sm"
-                    checked={draft.coralTypes.includes(t)}
+                    checked={typeCheckboxChecked(draft.coralTypes, coralTypeOptions, t)}
                     onChange={() => toggleDraftType(t)}
                   />
                   {t}
@@ -396,18 +436,13 @@ export function ExploreHeaderChrome() {
           >
             <div className="flex max-h-56 flex-col gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3">
               {coralColourOptions.map((c) => (
-                <label
+                <ExploreColourFilterRow
                   key={c}
-                  className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
-                >
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-sm"
-                    checked={draft.colours.includes(c)}
-                    onChange={() => toggleDraftColour(c)}
-                  />
-                  {c}
-                </label>
+                  colour={c}
+                  checked={draft.colours.includes(c)}
+                  onToggle={() => toggleDraftColour(c)}
+                  variant="inset"
+                />
               ))}
             </div>
           </AccordionRow>
@@ -560,10 +595,10 @@ export function ExploreHeaderChrome() {
             className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-full border border-slate-200/90 bg-white px-3 py-2 shadow-sm"
             onClick={(e) => openMobileSearch(e.currentTarget)}
           >
-            <p className="truncate text-center text-sm font-semibold text-slate-900">{countLabel}</p>
+            <p className="truncate text-center text-sm font-semibold text-slate-900">Search listings</p>
             <div className="flex min-w-0 flex-row items-center justify-center gap-2">
               <p className="min-w-0 flex-1 truncate text-center text-xs text-slate-600">
-                {summaryTypes(draft.coralTypes)}
+                {summaryTypes(draft.coralTypes, coralTypeOptions)}
               </p>
               <p className="min-w-0 flex-1 truncate text-center text-xs text-slate-600">
                 {summaryColours(draft.colours)}
@@ -575,7 +610,7 @@ export function ExploreHeaderChrome() {
             className="btn btn-ghost btn-sm btn-square min-h-9 min-w-9 shrink-0 rounded-full px-0 text-[#122B49]"
             onClick={(e) => openMobileFilters(e.currentTarget)}
           >
-            <SlidersIcon className="h-5 w-5" aria-hidden />
+            <FilterIcon className="h-5 w-5" aria-hidden />
             <span className="sr-only">Filters</span>
           </button>
         </div>
@@ -583,10 +618,6 @@ export function ExploreHeaderChrome() {
         {/* Desktop pill */}
         <div className="hidden min-w-0 w-full flex-1 items-center justify-center md:flex">
           <div className="flex max-w-full items-stretch rounded-full border border-slate-200/90 bg-white shadow-sm">
-            <div className="flex min-w-0 items-center border-r border-slate-200/80 px-4 py-2">
-              <p className="truncate text-sm font-semibold text-[#122B49]">{countLabel}</p>
-            </div>
-
             <div className="relative">
               <button
                 type="button"
@@ -595,7 +626,9 @@ export function ExploreHeaderChrome() {
                 aria-expanded={openMenu === "type"}
               >
                 <span className="text-[0.65rem] font-medium uppercase tracking-wide text-slate-500">Type</span>
-                <span className="truncate text-sm text-slate-900">{summaryTypes(draft.coralTypes)}</span>
+                <span className="truncate text-sm text-slate-900">
+                  {summaryTypes(draft.coralTypes, coralTypeOptions)}
+                </span>
               </button>
               {openMenu === "type" ? (
                 <div className="absolute left-0 top-full z-30 mt-2 max-h-72 w-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white py-2 shadow-lg">
@@ -607,7 +640,7 @@ export function ExploreHeaderChrome() {
                       <input
                         type="checkbox"
                         className="checkbox checkbox-sm"
-                        checked={draft.coralTypes.includes(t)}
+                        checked={typeCheckboxChecked(draft.coralTypes, coralTypeOptions, t)}
                         onChange={() => toggleDraftType(t)}
                       />
                       {t}
@@ -630,32 +663,29 @@ export function ExploreHeaderChrome() {
               {openMenu === "colour" ? (
                 <div className="absolute left-0 top-full z-30 mt-2 max-h-72 w-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white py-2 shadow-lg">
                   {coralColourOptions.map((c) => (
-                    <label
+                    <ExploreColourFilterRow
                       key={c}
-                      className="flex cursor-pointer items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50"
-                    >
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox-sm"
-                        checked={draft.colours.includes(c)}
-                        onChange={() => toggleDraftColour(c)}
-                      />
-                      {c}
-                    </label>
+                      colour={c}
+                      checked={draft.colours.includes(c)}
+                      onToggle={() => toggleDraftColour(c)}
+                      variant="menu"
+                    />
                   ))}
                 </div>
               ) : null}
             </div>
 
-            <div className="relative border-l border-slate-200/80">
+            <div className="relative min-w-[8rem] max-w-[12rem] border-l border-slate-200/80">
               <button
                 type="button"
-                className="flex h-full min-w-[8rem] max-w-[12rem] flex-col items-start justify-center px-4 py-2 text-left hover:bg-slate-50"
+                className="flex h-full w-full min-w-0 flex-col items-start justify-center overflow-hidden px-4 py-2 text-left hover:bg-slate-50"
                 onClick={() => setOpenMenu((m) => (m === "keyword" ? null : "keyword"))}
                 aria-expanded={openMenu === "keyword"}
               >
                 <span className="text-[0.65rem] font-medium uppercase tracking-wide text-slate-500">Keyword</span>
-                <span className="truncate text-sm text-slate-900">{labelKeyword(draft.q)}</span>
+                <span className="min-w-0 w-full truncate text-sm text-slate-900">
+                  {labelKeyword(draft.q)}
+                </span>
               </button>
               {openMenu === "keyword" ? (
                 <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
@@ -683,14 +713,14 @@ export function ExploreHeaderChrome() {
               ) : null}
             </div>
 
-            <div className="flex items-center border-l border-slate-200/80 pl-1 pr-1">
+            <div className="flex items-center justify-center border-l border-slate-200/80 px-1">
               <button
                 type="button"
-                className="btn btn-circle btn-sm size-8 min-h-8 border-0 bg-emerald-500 text-white hover:bg-emerald-600"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--marketing-green)] text-white transition-colors hover:brightness-[0.93] active:brightness-[0.88] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--marketing-green)]"
                 aria-label="Search"
                 onClick={apply}
               >
-                <SearchIcon className="h-4 w-4" />
+                <SearchIcon className="h-4 w-4 shrink-0" />
               </button>
             </div>
           </div>
@@ -702,7 +732,7 @@ export function ExploreHeaderChrome() {
               onClick={() => setOpenMenu((m) => (m === "filters" ? null : "filters"))}
               aria-expanded={openMenu === "filters"}
             >
-              <SlidersIcon className="h-4 w-4" />
+              <FilterIcon className="h-4 w-4" />
               Filters
             </button>
             {openMenu === "filters" ? (
@@ -839,17 +869,16 @@ function SearchIcon({ className }: { className?: string }) {
   );
 }
 
-function SlidersIcon({ className }: { className?: string }) {
+function FilterIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M4 7h16M7 7a3 3 0 0 1 6 0M6 17h12M17 17a3 3 0 0 1-6 0"
+        d="M22 3H2l8 9.46V19l4 2v-8.54L22 3Z"
         stroke="currentColor"
         strokeWidth="1.75"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
-      <circle cx="9" cy="7" r="1.75" fill="currentColor" />
-      <circle cx="15" cy="17" r="1.75" fill="currentColor" />
     </svg>
   );
 }

@@ -3,6 +3,7 @@
 export const CORAL_TYPES = ["Soft", "LPS", "SPS"] as const;
 export type CoralTypeOption = (typeof CORAL_TYPES)[number];
 
+/** Colours shown in explore filters and the add/edit coral form. */
 export const CORAL_COLOURS = [
   "Rainbow",
   "Multi-colour",
@@ -10,6 +11,7 @@ export const CORAL_COLOURS = [
   "Blue",
   "Brown",
   "Cream",
+  "Gold",
   "Green",
   "Grey",
   "Orange",
@@ -19,6 +21,14 @@ export const CORAL_COLOURS = [
   "Tan",
   "White",
   "Yellow",
+] as const;
+export type CoralColourOption = (typeof CORAL_COLOURS)[number];
+
+/**
+ * Legacy palette values still accepted when reading stored listings / URLs.
+ * Do not add new UI for these.
+ */
+export const DEPRECATED_CORAL_COLOURS = [
   "Metallic blue",
   "Metallic bronze",
   "Metallic copper",
@@ -31,10 +41,15 @@ export const CORAL_COLOURS = [
   "Metallic silver",
   "Metallic yellow",
 ] as const;
-export type CoralColourOption = (typeof CORAL_COLOURS)[number];
+
+const KNOWN_CORAL_COLOURS = [...CORAL_COLOURS, ...DEPRECATED_CORAL_COLOURS] as const;
 
 const TYPE_BY_LOWER = new Map(CORAL_TYPES.map((t) => [t.toLowerCase(), t]));
-const COLOUR_BY_LOWER = new Map(CORAL_COLOURS.map((c) => [c.toLowerCase(), c]));
+const COLOUR_BY_LOWER = new Map(KNOWN_CORAL_COLOURS.map((c) => [c.toLowerCase(), c]));
+
+export function isActiveCoralColour(value: string): boolean {
+  return (CORAL_COLOURS as readonly string[]).includes(value);
+}
 
 /** Strict parse for form/API: empty → null, unknown → null. */
 export function parseCoralTypeFromForm(raw: string): string | null {
@@ -86,7 +101,7 @@ function fuzzyColour(text: string | null | undefined): string {
   ) {
     return "Multi-colour";
   }
-  const sorted = [...CORAL_COLOURS].sort((a, b) => b.length - a.length);
+  const sorted = [...KNOWN_CORAL_COLOURS].sort((a, b) => b.length - a.length);
   for (const c of sorted) {
     if (lower.includes(c.toLowerCase())) return c;
   }

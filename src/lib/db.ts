@@ -40,7 +40,22 @@ function withMysqlPoolParams(url: string): string {
     }
 
     return u.toString();
-  } catch {
+  } catch (err) {
+    // #region agent log
+    fetch("http://127.0.0.1:7372/ingest/8407dbed-5e8e-4bc5-9ee7-94c44eed562d", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2b931e" },
+      body: JSON.stringify({
+        sessionId: "2b931e",
+        runId: "pre-fix",
+        hypothesisId: "H1",
+        location: "src/lib/db.ts:withMysqlPoolParams",
+        message: "Failed to parse DATABASE_URL for pool defaults",
+        data: { nodeEnv: process.env.NODE_ENV, error: err instanceof Error ? err.message : String(err) },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     return url;
   }
 }
@@ -91,6 +106,40 @@ function createPrismaClient(): PrismaClient {
 
   const poolUrl = withMysqlPoolParams(url);
   const rsaFix = withMysqlAllowPublicKeyRetrieval(poolUrl);
+  let parsedHost = "";
+  let parsedConnectionLimit = "";
+  let parsedMinimumIdle = "";
+  try {
+    const parsed = new URL(rsaFix.url);
+    parsedHost = parsed.host;
+    parsedConnectionLimit = parsed.searchParams.get("connectionLimit") ?? "";
+    parsedMinimumIdle = parsed.searchParams.get("minimumIdle") ?? "";
+  } catch {
+    // ignore parse issues; logged separately in withMysqlPoolParams
+  }
+
+  // #region agent log
+  fetch("http://127.0.0.1:7372/ingest/8407dbed-5e8e-4bc5-9ee7-94c44eed562d", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2b931e" },
+    body: JSON.stringify({
+      sessionId: "2b931e",
+      runId: "pre-fix",
+      hypothesisId: "H1",
+      location: "src/lib/db.ts:createPrismaClient",
+      message: "Creating Prisma client with computed pool settings",
+      data: {
+        nodeEnv: process.env.NODE_ENV,
+        dbHost: parsedHost,
+        connectionLimit: parsedConnectionLimit,
+        minimumIdle: parsedMinimumIdle,
+        hasPoolLimitEnv: Boolean(process.env.DATABASE_POOL_CONNECTION_LIMIT),
+        hasMinIdleEnv: Object.prototype.hasOwnProperty.call(process.env, "DATABASE_POOL_MINIMUM_IDLE"),
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   const adapter = new PrismaMariaDb(rsaFix.url);
 
@@ -109,6 +158,22 @@ export function getPrisma(): PrismaClient {
     return globalForPrisma.prisma;
   }
 
+  // #region agent log
+  fetch("http://127.0.0.1:7372/ingest/8407dbed-5e8e-4bc5-9ee7-94c44eed562d", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2b931e" },
+    body: JSON.stringify({
+      sessionId: "2b931e",
+      runId: "pre-fix",
+      hypothesisId: "H2",
+      location: "src/lib/db.ts:getPrisma",
+      message: "Initializing global Prisma singleton",
+      data: { nodeEnv: process.env.NODE_ENV, pid: process.pid },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+
   globalForPrisma.prisma = createPrismaClient();
   return globalForPrisma.prisma;
 }
@@ -123,6 +188,26 @@ export function assertMysqlReachable(err: unknown): void {
   const emptyPool =
     msg.includes("pool timeout") && msg.includes("active=0") && msg.includes("idle=0");
   if (emptyPool) {
+    // #region agent log
+    fetch("http://127.0.0.1:7372/ingest/8407dbed-5e8e-4bc5-9ee7-94c44eed562d", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2b931e" },
+      body: JSON.stringify({
+        sessionId: "2b931e",
+        runId: "pre-fix",
+        hypothesisId: "H3",
+        location: "src/lib/db.ts:assertMysqlReachable",
+        message: "Observed empty MySQL connection pool timeout",
+        data: {
+          message: msg,
+          cause:
+            err instanceof Error && err.cause instanceof Error ? err.cause.message : undefined,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+
     const cause =
       err instanceof Error && err.cause instanceof Error
         ? ` Underlying: ${err.cause.message}`

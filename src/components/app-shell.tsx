@@ -149,9 +149,9 @@ function ShellBrandLink() {
         <img
           src={shellLogoUrl}
           alt=""
-          width={32}
-          height={32}
-          className="h-8 w-8 shrink-0 rounded-md object-cover"
+          width={40}
+          height={40}
+          className="h-10 w-10 shrink-0 rounded-md object-cover"
           aria-hidden
         />
       ) : (
@@ -422,7 +422,7 @@ export function AppShell({
 
       <main className="relative flex flex-1 flex-col px-0 sm:px-2">{children}</main>
 
-      {hideBottomNav ? null : <BottomNav />}
+      {hideBottomNav ? null : <BottomNav profile={profile} />}
     </div>
   );
 }

@@ -193,9 +193,9 @@ export default async function ExchangesPage({
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
                     <div className="flex flex-row flex-wrap items-center justify-between gap-3">
                       {m.exchange.logo40Url ? (
-                        <img src={m.exchange.logo40Url} alt="" aria-hidden className="h-8 w-8 shrink-0 rounded-md object-cover" />
+                        <img src={m.exchange.logo40Url} alt="" aria-hidden className="h-10 w-10 shrink-0 rounded-md object-cover" />
                       ) : (
-                        <img src="/reefx_logo.svg" alt="" aria-hidden className="h-8 w-8 shrink-0 object-contain" />
+                        <img src="/reefx_logo.svg" alt="" aria-hidden className="h-10 w-10 shrink-0 object-contain" />
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-col items-start justify-start gap-0">
@@ -245,9 +245,9 @@ export default async function ExchangesPage({
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
                   <div className="flex flex-row flex-wrap items-center justify-between gap-3">
                     {ex.logo40Url ? (
-                      <img src={ex.logo40Url} alt="" aria-hidden className="h-8 w-8 rounded-md object-cover" />
+                      <img src={ex.logo40Url} alt="" aria-hidden className="h-10 w-10 shrink-0 rounded-md object-cover" />
                     ) : (
-                      <img src="/reefx_logo.svg" alt="" aria-hidden className="h-8 w-8 object-contain" />
+                      <img src="/reefx_logo.svg" alt="" aria-hidden className="h-10 w-10 shrink-0 object-contain" />
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-col items-start justify-start gap-0">
