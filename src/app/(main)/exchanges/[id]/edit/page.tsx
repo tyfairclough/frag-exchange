@@ -86,11 +86,7 @@ export default async function EditExchangePage({
         </div>
       ) : null}
 
-      <form
-        action={updateExchangeAction}
-        encType="multipart/form-data"
-        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-      >
+      <form action={updateExchangeAction} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <input type="hidden" name="exchangeId" value={exchange.id} />
         <div className="space-y-4">
           <label className="block w-full">
