@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { CoralListingMode, CoralProfileStatus } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { enrichCoralFields, enrichCoralFromImage } from "@/lib/coral-ai";
+import { enrichCoralFields } from "@/lib/coral-ai";
 import {
   CORAL_UPLOAD_MAX_BYTES,
   saveCoralImageToPublic,
@@ -31,21 +31,6 @@ function parseListingMode(raw: string): CoralListingMode {
 export async function enrichCoralPreviewAction(name: string, imageUrl?: string | null) {
   await requireUser();
   return enrichCoralFields({ name, imageUrl: imageUrl ?? null });
-}
-
-export async function enrichCoralFromImageAction(imageBase64: string, mimeType: string) {
-  await requireUser();
-  const mime = mimeType.trim().toLowerCase();
-  if (!validateImageMime(mime)) {
-    throw new Error("Invalid image type. Use JPEG, PNG, or WebP.");
-  }
-
-  const buf = Buffer.from(imageBase64, "base64");
-  if (!buf.length || buf.length > CORAL_UPLOAD_MAX_BYTES) {
-    throw new Error("Image is missing or too large (max 6 MB).");
-  }
-
-  return enrichCoralFromImage({ imageBase64, mimeType: mime });
 }
 
 export async function createCoralAction(formData: FormData) {

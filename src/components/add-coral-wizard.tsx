@@ -1,17 +1,33 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { CoralListingMode } from "@/generated/prisma/enums";
-import { createCoralAction, enrichCoralFromImageAction } from "@/app/(main)/my-corals/actions";
+import { createCoralAction } from "@/app/(main)/my-corals/actions";
 import { AddCoralImageBar } from "@/components/add-coral-image-bar";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
 
-function assignFileToInput(input: HTMLInputElement | null, file: File | null) {
-  if (!input) return;
-  const dt = new DataTransfer();
-  if (file) dt.items.add(file);
-  input.files = dt.files;
+type VisionApiResult = {
+  name: string | null;
+  description: string;
+  coralType: string | null;
+  colour: string | null;
+  source: "openai" | "stub";
+};
+
+function messageForApiError(code: string | undefined): string {
+  switch (code) {
+    case "unauthorized":
+      return "You need to be signed in.";
+    case "image-too-large":
+      return "Photo is too large (max 6 MB). Choose a smaller image.";
+    case "invalid-image-type":
+      return "Use a JPEG, PNG, or WebP photo.";
+    case "enrichment-failed":
+      return "Could not analyze the photo. Try again or fill the form manually.";
+    default:
+      return "Something went wrong. Try again.";
+  }
 }
 
 function readFileAsBase64(file: File): Promise<{ base64: string; mimeType: string }> {
@@ -30,7 +46,6 @@ function readFileAsBase64(file: File): Promise<{ base64: string; mimeType: strin
 }
 
 export function AddCoralWizard() {
-  const formFileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [photoStepDone, setPhotoStepDone] = useState(false);
@@ -46,10 +61,9 @@ export function AddCoralWizard() {
   const [verifyBanner, setVerifyBanner] = useState(false);
   const [visionError, setVisionError] = useState<string | null>(null);
   const [visionPending, startVision] = useTransition();
-
-  useEffect(() => {
-    assignFileToInput(formFileRef.current, file);
-  }, [file]);
+  const [savePending, startSave] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -81,7 +95,17 @@ export function AddCoralWizard() {
     startVision(async () => {
       try {
         const { base64, mimeType } = await readFileAsBase64(file);
-        const result = await enrichCoralFromImageAction(base64, mimeType);
+        const res = await fetch("/api/my-corals/vision", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ imageBase64: base64, mimeType }),
+        });
+        if (!res.ok) {
+          const j = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(messageForApiError(j.error));
+        }
+        const result = (await res.json()) as VisionApiResult;
         if (result.source === "openai") {
           if (result.name) setName(result.name);
           setDescription(result.description);
@@ -101,8 +125,58 @@ export function AddCoralWizard() {
     });
   }
 
+  async function handleSaveForm(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSaveError(null);
+    setIsSaving(true);
+
+    let uploadedImageUrl = "";
+    try {
+      if (file && file.size > 0) {
+        const up = new FormData();
+        up.append("imageFile", file);
+        const upRes = await fetch("/api/my-corals/upload-image", {
+          method: "POST",
+          body: up,
+          credentials: "include",
+        });
+        if (!upRes.ok) {
+          const j = (await upRes.json().catch(() => ({}))) as { error?: string };
+          setSaveError(messageForApiError(j.error));
+          setIsSaving(false);
+          return;
+        }
+        const upData = (await upRes.json()) as { imageUrl: string };
+        uploadedImageUrl = upData.imageUrl;
+      }
+
+      const fd = new FormData();
+      fd.append("name", name.trim());
+      fd.append("description", description);
+      fd.append("imageUrl", uploadedImageUrl);
+      fd.append("listingMode", listingMode);
+      if (freeToGoodHome) {
+        fd.append("freeToGoodHome", "on");
+      }
+      fd.append("coralType", coralType);
+      fd.append("colour", colour);
+
+      startSave(() => {
+        createCoralAction(fd)
+          .catch((err: unknown) => {
+            setSaveError(err instanceof Error ? err.message : "Save failed");
+            setIsSaving(false);
+          });
+      });
+    } catch {
+      setSaveError("Something went wrong. Try again.");
+      setIsSaving(false);
+    }
+  }
+
   const hasImage = Boolean(previewUrl && file);
   const imageBarPhase = photoStepDone ? "done" : hasImage ? "analyze" : "pick";
+  const saveBusy = isSaving || savePending;
 
   return (
     <div className="relative flex flex-1 flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))]">
@@ -164,9 +238,7 @@ export function AddCoralWizard() {
         </div>
       ) : null}
 
-      <form action={createCoralAction} encType="multipart/form-data" className="flex flex-col gap-4">
-        <input ref={formFileRef} type="file" name="imageFile" accept="image/jpeg,image/png,image/webp" className="hidden" tabIndex={-1} />
-
+      <form onSubmit={(e) => void handleSaveForm(e)} className="flex flex-col gap-4">
         {photoStepDone ? (
           <>
             {verifyBanner ? (
@@ -176,6 +248,7 @@ export function AddCoralWizard() {
             ) : null}
 
             {visionError ? <p className="text-sm text-error">{visionError}</p> : null}
+            {saveError ? <p className="text-sm text-error">{saveError}</p> : null}
 
             <CoralInventoryFields
               name={name}
@@ -199,7 +272,8 @@ export function AddCoralWizard() {
               aiError={null}
             />
 
-            <button type="submit" className="btn btn-primary min-h-11 rounded-xl">
+            <button type="submit" className="btn btn-primary min-h-11 rounded-xl" disabled={saveBusy}>
+              {saveBusy ? <span className="loading loading-spinner loading-sm" /> : null}
               Save coral
             </button>
           </>
