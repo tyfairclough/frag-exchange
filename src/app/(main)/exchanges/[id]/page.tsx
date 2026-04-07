@@ -6,6 +6,7 @@ import {
   ExchangeKind,
   ExchangeMembershipRole,
   ExchangeVisibility,
+  InventoryKind,
 } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -20,6 +21,17 @@ import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/comp
 
 function reefersLabel(count: number): string {
   return count === 1 ? "1 reefer" : `${count} reefers`;
+}
+
+function kindLabel(kind: InventoryKind) {
+  switch (kind) {
+    case InventoryKind.CORAL:
+      return "Coral";
+    case InventoryKind.FISH:
+      return "Fish";
+    default:
+      return "Equipment";
+  }
 }
 
 function listingModeLabel(mode: CoralListingMode) {
@@ -83,9 +95,9 @@ export default async function ExchangeDetailPage({
   const errorMessage = sp.error ? detailErrors[sp.error] ?? "Something went wrong." : null;
 
   const now = new Date();
-  const myListableCorals =
+  const myListableItems =
     membership && canView
-      ? await getPrisma().coral.findMany({
+      ? await getPrisma().inventoryItem.findMany({
           where: { userId: user.id, profileStatus: CoralProfileStatus.UNLISTED },
           orderBy: { updatedAt: "desc" },
         })
@@ -95,16 +107,16 @@ export default async function ExchangeDetailPage({
       ? await getPrisma().exchangeListing.findMany({
           where: {
             exchangeId: exchange.id,
-            coral: { userId: user.id },
+            inventoryItem: { userId: user.id },
           },
-          include: { coral: true },
+          include: { inventoryItem: true },
           orderBy: { listedAt: "desc" },
         })
       : [];
-  const activeListingByCoralId = new Map(
-    myListingsHere.filter((l) => l.expiresAt > now).map((l) => [l.coralId, l]),
+  const activeListingByItemId = new Map(
+    myListingsHere.filter((l) => l.expiresAt > now).map((l) => [l.inventoryItemId, l]),
   );
-  const myUnlistedCoralsForExchange = myListableCorals.filter((c) => !activeListingByCoralId.has(c.id));
+  const myUnlistedItemsForExchange = myListableItems.filter((c) => !activeListingByItemId.has(c.id));
 
   if (!canView) {
     return (
@@ -275,37 +287,40 @@ export default async function ExchangeDetailPage({
               again).
             </p>
 
-            {activeListingByCoralId.size === 0 ? (
+            {activeListingByItemId.size === 0 ? (
               <p className="text-sm text-slate-600">No active listings on this exchange yet.</p>
             ) : (
               <ul className="flex flex-col gap-3">
-                {[...activeListingByCoralId.values()].map((l) => (
+                {[...activeListingByItemId.values()].map((l) => (
                   <li key={l.id}>
                     <article className="card border border-base-content/10 bg-base-100 shadow-sm">
                       <div className="card-body gap-3 p-4">
                         <div className="flex gap-3">
                           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-base-200 text-2xl text-base-content/40">
-                            {l.coral.imageUrl ? (
+                            {l.inventoryItem.imageUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element -- arbitrary hobbyist image URLs
-                              <img src={l.coral.imageUrl} alt="" className="h-full w-full object-cover" />
+                              <img src={l.inventoryItem.imageUrl} alt="" className="h-full w-full object-cover" />
                             ) : (
                               <span aria-hidden>🪸</span>
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="font-semibold text-base-content">{l.coral.name}</h3>
-                              {l.coral.freeToGoodHome ? (
+                              <span className="badge badge-ghost badge-sm">{kindLabel(l.inventoryItem.kind)}</span>
+                              <h3 className="font-semibold text-base-content">{l.inventoryItem.name}</h3>
+                              {l.inventoryItem.freeToGoodHome ? (
                                 <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
                               ) : null}
                             </div>
                             <p className="mt-1 line-clamp-2 text-sm text-base-content/70">
-                              {l.coral.description || "No description yet."}
+                              {l.inventoryItem.description || "No description yet."}
                             </p>
                             <p className="mt-2 text-xs text-base-content/60">
-                              {listingModeLabel(l.coral.listingMode)}
-                              {l.coral.coralType ? ` · ${l.coral.coralType}` : ""}
-                              {l.coral.colour ? ` · ${l.coral.colour}` : ""}
+                              {listingModeLabel(l.inventoryItem.listingMode)}
+                              {l.inventoryItem.kind === InventoryKind.CORAL && l.inventoryItem.coralType
+                                ? ` · ${l.inventoryItem.coralType}`
+                                : ""}
+                              {l.inventoryItem.colour ? ` · ${l.inventoryItem.colour}` : ""}
                             </p>
                             <p className="mt-2 text-xs text-slate-500">
                               Listed until{" "}
@@ -318,7 +333,7 @@ export default async function ExchangeDetailPage({
                         <div className="flex flex-wrap gap-2 border-t border-base-content/10 pt-3">
                           <form action={removeExchangeListingFormAction}>
                             <input type="hidden" name="exchangeId" value={exchange.id} />
-                            <input type="hidden" name="coralId" value={l.coralId} />
+                            <input type="hidden" name="inventoryItemId" value={l.inventoryItemId} />
                             <button
                               type="submit"
                               className="inline-flex min-h-9 items-center rounded-full border border-rose-300 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
@@ -335,20 +350,20 @@ export default async function ExchangeDetailPage({
             )}
 
             <div className="border-t border-slate-200 pt-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your unlisted corals</h3>
-              {myListableCorals.length === 0 ? (
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your unlisted items</h3>
+              {myListableItems.length === 0 ? (
                 <p className="mt-2 text-sm text-slate-600">
-                  Add corals under{" "}
-                  <Link href="/my-corals" className="font-semibold hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
-                    My corals
+                  Add items under{" "}
+                  <Link href="/my-items" className="font-semibold hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
+                    My items
                   </Link>{" "}
                   first.
                 </p>
-              ) : myUnlistedCoralsForExchange.length === 0 ? (
-                <p className="mt-2 text-sm text-slate-600">All of your available corals are already listed on this exchange.</p>
+              ) : myUnlistedItemsForExchange.length === 0 ? (
+                <p className="mt-2 text-sm text-slate-600">All of your available items are already listed on this exchange.</p>
               ) : (
                 <ul className="mt-2 flex flex-col gap-3">
-                  {myUnlistedCoralsForExchange.map((c) => (
+                  {myUnlistedItemsForExchange.map((c) => (
                     <li key={c.id}>
                       <article className="card border border-base-content/10 bg-base-100 shadow-sm">
                         <div className="card-body gap-3 p-4">
@@ -363,6 +378,7 @@ export default async function ExchangeDetailPage({
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
+                                <span className="badge badge-ghost badge-sm">{kindLabel(c.kind)}</span>
                                 <h3 className="font-semibold text-base-content">{c.name}</h3>
                                 {c.freeToGoodHome ? (
                                   <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
@@ -373,7 +389,7 @@ export default async function ExchangeDetailPage({
                               </p>
                               <p className="mt-2 text-xs text-base-content/60">
                                 {listingModeLabel(c.listingMode)}
-                                {c.coralType ? ` · ${c.coralType}` : ""}
+                                {c.kind === InventoryKind.CORAL && c.coralType ? ` · ${c.coralType}` : ""}
                                 {c.colour ? ` · ${c.colour}` : ""}
                               </p>
                               <p className="mt-2 text-xs text-slate-500">
@@ -384,7 +400,7 @@ export default async function ExchangeDetailPage({
                           <div className="flex flex-wrap gap-2 border-t border-base-content/10 pt-3">
                             <form action={addExchangeListingFormAction}>
                               <input type="hidden" name="exchangeId" value={exchange.id} />
-                              <input type="hidden" name="coralId" value={c.id} />
+                              <input type="hidden" name="inventoryItemId" value={c.id} />
                               <button
                                 type="submit"
                                 className="inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold text-white transition hover:opacity-95"

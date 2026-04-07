@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 import {
   CoralProfileStatus,
   ExchangeKind,
-  TradeCoralEventHandoffStatus,
-  TradeCoralSide,
+  TradeLineEventHandoffStatus,
+  TradeLineSide,
   TradeStatus,
 } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
@@ -68,7 +68,7 @@ async function loadTradeForMember(
     },
     include: {
       exchange: true,
-      corals: { include: { coral: true } },
+      inventoryLines: { include: { inventoryItem: true } },
     },
   });
   return trade;
@@ -82,10 +82,15 @@ export async function submitTradeInitiationAction(formData: FormData) {
   enforceTradeMutationRateLimit(user.id);
   const exchangeId = str(formData.get("exchangeId"));
   const peerUserId = str(formData.get("peerUserId"));
+  const initiatorItemIds = collectIds(formData, "initiatorItemIds");
+  const peerItemIds = collectIds(formData, "peerItemIds");
   const initiatorCoralIds = collectIds(formData, "initiatorCoralIds");
   const peerCoralIds = collectIds(formData, "peerCoralIds");
+  const initiatorIds =
+    initiatorItemIds.length > 0 ? initiatorItemIds : initiatorCoralIds;
+  const peerIds = peerItemIds.length > 0 ? peerItemIds : peerCoralIds;
 
-  if (!exchangeId || !peerUserId || initiatorCoralIds.length === 0 || peerCoralIds.length === 0) {
+  if (!exchangeId || !peerUserId || initiatorIds.length === 0 || peerIds.length === 0) {
     redirect(`/exchanges/${exchangeId || "unknown"}/trade?error=selection&with=${encodeURIComponent(peerUserId)}`);
   }
 
@@ -110,26 +115,26 @@ export async function submitTradeInitiationAction(formData: FormData) {
 
   const now = new Date();
 
-  const initiatorCorals = await db.coral.findMany({
-    where: { id: { in: initiatorCoralIds }, userId: user.id, profileStatus: CoralProfileStatus.UNLISTED },
+  const initiatorItems = await db.inventoryItem.findMany({
+    where: { id: { in: initiatorIds }, userId: user.id, profileStatus: CoralProfileStatus.UNLISTED },
   });
-  const peerCorals = await db.coral.findMany({
-    where: { id: { in: peerCoralIds }, userId: peerUserId, profileStatus: CoralProfileStatus.UNLISTED },
+  const peerItems = await db.inventoryItem.findMany({
+    where: { id: { in: peerIds }, userId: peerUserId, profileStatus: CoralProfileStatus.UNLISTED },
   });
 
-  if (initiatorCorals.length !== initiatorCoralIds.length || peerCorals.length !== peerCoralIds.length) {
+  if (initiatorItems.length !== initiatorIds.length || peerItems.length !== peerIds.length) {
     redirect(`/exchanges/${exchangeId}/trade?error=coral&with=${encodeURIComponent(peerUserId)}`);
   }
 
   const listings = await db.exchangeListing.findMany({
     where: {
       exchangeId,
-      coralId: { in: [...initiatorCoralIds, ...peerCoralIds] },
+      inventoryItemId: { in: [...initiatorIds, ...peerIds] },
       expiresAt: { gt: now },
     },
   });
-  const listed = new Set(listings.map((l) => l.coralId));
-  for (const id of [...initiatorCoralIds, ...peerCoralIds]) {
+  const listed = new Set(listings.map((l) => l.inventoryItemId));
+  for (const id of [...initiatorIds, ...peerIds]) {
     if (!listed.has(id)) {
       redirect(`/exchanges/${exchangeId}/trade?error=listing&with=${encodeURIComponent(peerUserId)}`);
     }
@@ -144,15 +149,15 @@ export async function submitTradeInitiationAction(formData: FormData) {
       peerUserId,
       status: TradeStatus.OFFER,
       expiresAt,
-      corals: {
+      inventoryLines: {
         create: [
-          ...initiatorCoralIds.map((coralId) => ({
-            coralId,
-            side: TradeCoralSide.INITIATOR,
+          ...initiatorIds.map((inventoryItemId) => ({
+            inventoryItemId,
+            side: TradeLineSide.INITIATOR,
           })),
-          ...peerCoralIds.map((coralId) => ({
-            coralId,
-            side: TradeCoralSide.PEER,
+          ...peerIds.map((inventoryItemId) => ({
+            inventoryItemId,
+            side: TradeLineSide.PEER,
           })),
         ],
       },
@@ -205,7 +210,7 @@ export async function acceptTradeAction(formData: FormData) {
   const result = await db.$transaction(async (tx) => {
     const trade = await tx.trade.findFirst({
       where: { id: tradeId, exchangeId },
-      include: { corals: { include: { coral: true } }, exchange: true },
+      include: { inventoryLines: { include: { inventoryItem: true } }, exchange: true },
     });
 
     if (!trade) {
@@ -229,18 +234,22 @@ export async function acceptTradeAction(formData: FormData) {
       return { ok: false as const, code: "not-your-turn" as const };
     }
 
-    const coralIds = trade.corals.map((c) => c.coralId);
-    const initiatorIds = trade.corals.filter((c) => c.side === TradeCoralSide.INITIATOR).map((c) => c.coralId);
-    const peerIds = trade.corals.filter((c) => c.side === TradeCoralSide.PEER).map((c) => c.coralId);
+    const itemIds = trade.inventoryLines.map((c) => c.inventoryItemId);
+    const initiatorIds = trade.inventoryLines
+      .filter((c) => c.side === TradeLineSide.INITIATOR)
+      .map((c) => c.inventoryItemId);
+    const peerIds = trade.inventoryLines
+      .filter((c) => c.side === TradeLineSide.PEER)
+      .map((c) => c.inventoryItemId);
 
-    const corals = await tx.coral.findMany({
-      where: { id: { in: coralIds } },
+    const items = await tx.inventoryItem.findMany({
+      where: { id: { in: itemIds } },
     });
-    if (corals.length !== coralIds.length) {
+    if (items.length !== itemIds.length) {
       return { ok: false as const, code: "coral-missing" as const };
     }
 
-    const byId = new Map(corals.map((c) => [c.id, c]));
+    const byId = new Map(items.map((c) => [c.id, c]));
     for (const id of initiatorIds) {
       const c = byId.get(id);
       if (!c || c.userId !== trade.initiatorUserId || c.profileStatus !== CoralProfileStatus.UNLISTED) {
@@ -257,11 +266,11 @@ export async function acceptTradeAction(formData: FormData) {
     const listings = await tx.exchangeListing.findMany({
       where: {
         exchangeId: trade.exchangeId,
-        coralId: { in: coralIds },
+        inventoryItemId: { in: itemIds },
         expiresAt: { gt: now },
       },
     });
-    if (listings.length !== coralIds.length) {
+    if (listings.length !== itemIds.length) {
       return { ok: false as const, code: "listing-gone" as const };
     }
 
@@ -282,16 +291,16 @@ export async function acceptTradeAction(formData: FormData) {
       return { ok: false as const, code: "race" as const };
     }
 
-    await tx.exchangeListing.deleteMany({ where: { coralId: { in: coralIds } } });
-    await tx.coral.updateMany({
-      where: { id: { in: coralIds } },
+    await tx.exchangeListing.deleteMany({ where: { inventoryItemId: { in: itemIds } } });
+    await tx.inventoryItem.updateMany({
+      where: { id: { in: itemIds } },
       data: { profileStatus: CoralProfileStatus.TRADED },
     });
 
     if (trade.exchange.kind === ExchangeKind.EVENT) {
-      await tx.tradeCoral.updateMany({
+      await tx.tradeInventoryLine.updateMany({
         where: { tradeId },
-        data: { eventHandoffStatus: TradeCoralEventHandoffStatus.AWAITING_CHECKIN },
+        data: { eventHandoffStatus: TradeLineEventHandoffStatus.AWAITING_CHECKIN },
       });
     }
 
@@ -304,7 +313,7 @@ export async function acceptTradeAction(formData: FormData) {
   revalidatePath(`/exchanges/${exchangeId}/event-ops`);
   revalidatePath(`/exchanges/${exchangeId}/event-pickup`);
   revalidatePath("/explore");
-  revalidatePath("/my-corals");
+  revalidatePath("/my-items");
 
   if (!result.ok) {
     if (result.code === "expired") {
@@ -426,10 +435,15 @@ export async function counterTradeAction(formData: FormData) {
   const exchangeId = str(formData.get("exchangeId"));
   const tradeId = str(formData.get("tradeId"));
   const versionRaw = str(formData.get("version"));
+  const initiatorItemIds = collectIds(formData, "initiatorItemIds");
+  const peerItemIds = collectIds(formData, "peerItemIds");
   const initiatorCoralIds = collectIds(formData, "initiatorCoralIds");
   const peerCoralIds = collectIds(formData, "peerCoralIds");
+  const initiatorIds =
+    initiatorItemIds.length > 0 ? initiatorItemIds : initiatorCoralIds;
+  const peerIds = peerItemIds.length > 0 ? peerItemIds : peerCoralIds;
 
-  if (!exchangeId || !tradeId || initiatorCoralIds.length === 0 || peerCoralIds.length === 0) {
+  if (!exchangeId || !tradeId || initiatorIds.length === 0 || peerIds.length === 0) {
     if (exchangeId && tradeId) {
       redirect(tradeDetailPath(exchangeId, tradeId, "counter-invalid"));
     }
@@ -472,34 +486,34 @@ export async function counterTradeAction(formData: FormData) {
 
   const previousStatus = trade.status;
 
-  const initiatorCorals = await db.coral.findMany({
+  const initiatorItems = await db.inventoryItem.findMany({
     where: {
-      id: { in: initiatorCoralIds },
+      id: { in: initiatorIds },
       userId: trade.initiatorUserId,
       profileStatus: CoralProfileStatus.UNLISTED,
     },
   });
-  const peerCorals = await db.coral.findMany({
+  const peerItems = await db.inventoryItem.findMany({
     where: {
-      id: { in: peerCoralIds },
+      id: { in: peerIds },
       userId: trade.peerUserId,
       profileStatus: CoralProfileStatus.UNLISTED,
     },
   });
 
-  if (initiatorCorals.length !== initiatorCoralIds.length || peerCorals.length !== peerCoralIds.length) {
+  if (initiatorItems.length !== initiatorIds.length || peerItems.length !== peerIds.length) {
     redirect(tradeDetailPath(exchangeId, tradeId, "coral"));
   }
 
   const listings = await db.exchangeListing.findMany({
     where: {
       exchangeId,
-      coralId: { in: [...initiatorCoralIds, ...peerCoralIds] },
+      inventoryItemId: { in: [...initiatorIds, ...peerIds] },
       expiresAt: { gt: now },
     },
   });
-  const listed = new Set(listings.map((l) => l.coralId));
-  for (const id of [...initiatorCoralIds, ...peerCoralIds]) {
+  const listed = new Set(listings.map((l) => l.inventoryItemId));
+  for (const id of [...initiatorIds, ...peerIds]) {
     if (!listed.has(id)) {
       redirect(tradeDetailPath(exchangeId, tradeId, "listing"));
     }
@@ -527,18 +541,18 @@ export async function counterTradeAction(formData: FormData) {
       return false;
     }
 
-    await tx.tradeCoral.deleteMany({ where: { tradeId } });
-    await tx.tradeCoral.createMany({
+    await tx.tradeInventoryLine.deleteMany({ where: { tradeId } });
+    await tx.tradeInventoryLine.createMany({
       data: [
-        ...initiatorCoralIds.map((coralId) => ({
+        ...initiatorIds.map((inventoryItemId) => ({
           tradeId,
-          coralId,
-          side: TradeCoralSide.INITIATOR,
+          inventoryItemId,
+          side: TradeLineSide.INITIATOR,
         })),
-        ...peerCoralIds.map((coralId) => ({
+        ...peerIds.map((inventoryItemId) => ({
           tradeId,
-          coralId,
-          side: TradeCoralSide.PEER,
+          inventoryItemId,
+          side: TradeLineSide.PEER,
         })),
       ],
     });

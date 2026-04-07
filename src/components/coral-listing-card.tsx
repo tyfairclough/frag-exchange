@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { InventoryKind } from "@/generated/prisma/enums";
 import type { DiscoverRow } from "@/lib/discover-listings";
+import { EQUIPMENT_CATEGORY_LABELS } from "@/lib/equipment-options";
 
 export type CoralListingCardProps = {
   row: DiscoverRow;
@@ -19,7 +21,7 @@ export function CoralListingCard({
   tradeEnabled = true,
   sellerLinkEnabled = true,
 }: CoralListingCardProps) {
-  const tradeHref = `/exchanges/${encodeURIComponent(exchangeId)}/trade?with=${encodeURIComponent(row.owner.id)}&focus=${encodeURIComponent(row.coralId)}`;
+  const tradeHref = `/exchanges/${encodeURIComponent(exchangeId)}/trade?with=${encodeURIComponent(row.owner.id)}&focus=${encodeURIComponent(row.itemId)}`;
   const sellerHref = `/exchanges/${encodeURIComponent(exchangeId)}/member/${encodeURIComponent(row.owner.id)}`;
   const descId = `${idPrefix}-desc-${row.listingId}`;
   const hasDescription = Boolean(row.description?.trim());
@@ -69,11 +71,15 @@ export function CoralListingCard({
               🪸
             </div>
           )}
-          {row.coralType ? (
-            <span className="absolute right-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-sm backdrop-blur-sm">
-              {row.coralType}
-            </span>
-          ) : null}
+          <span className="absolute right-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-sm backdrop-blur-sm">
+            {row.kind === InventoryKind.CORAL
+              ? row.coralType?.trim() || "Coral"
+              : row.kind === InventoryKind.FISH
+                ? row.species?.trim() || "Fish"
+                : row.equipmentCategory
+                  ? EQUIPMENT_CATEGORY_LABELS[row.equipmentCategory]
+                  : "Equipment"}
+          </span>
           {row.freeToGoodHome ? (
             <span className="absolute bottom-2 left-2 rounded-lg bg-emerald-500 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
               Free to a good home

@@ -352,7 +352,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const isExplore = pathname === "/explore";
-  const hideBottomNav = pathname === "/my-corals/new";
+  const hideBottomNav = pathname === "/my-items/new" || pathname === "/my-corals/new";
 
   return (
     <div

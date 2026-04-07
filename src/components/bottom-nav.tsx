@@ -84,7 +84,7 @@ function NavLinks({
         kind: "icon",
         icon: CompassIcon,
       },
-      { key: "add-coral", href: "/my-corals/new", label: "Add coral", kind: "icon", icon: AddCoralIcon },
+      { key: "add-item", href: "/my-items/new", label: "Add item", kind: "icon", icon: AddCoralIcon },
     ];
     let next = items;
     if (pathname === "/exchanges") {
@@ -106,8 +106,8 @@ function NavLinks({
       pathname.startsWith("/explore/") ||
       pathname === "/me" ||
       pathname.startsWith("/me/") ||
-      pathname === "/my-corals" ||
-      pathname.startsWith("/my-corals/");
+      pathname === "/my-items" ||
+      pathname.startsWith("/my-items/");
     if (hideExplore) {
       return next.filter((i) => i.key !== "explore");
     }

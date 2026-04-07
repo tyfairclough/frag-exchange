@@ -1,12 +1,19 @@
 /** URL builder for /explore — must stay aligned with explore page searchParams handling. */
 
+import type { DiscoverItemTab } from "@/lib/discover-listings";
+
 export type ExploreFilterState = {
   q: string;
+  itemTab: DiscoverItemTab;
   coralTypes: string[];
   colours: string[];
   freeOnly: boolean;
   fulfilment: "" | "POST" | "MEET";
   maxKm: string;
+  species: string;
+  reefSafeOnly: boolean;
+  equipmentCategories: string[];
+  equipmentConditions: string[];
 };
 
 function uniqueTrimmed(values: string[]): string[] {
@@ -21,23 +28,38 @@ function uniqueTrimmed(values: string[]): string[] {
   return out;
 }
 
-/** Read repeated coralType / colour params; supports legacy single-value URLs. */
-export function parseExploreFiltersFromSearchParams(
-  sp: URLSearchParams,
-): ExploreFilterState {
+function parseItemTab(sp: URLSearchParams): DiscoverItemTab {
+  const v = sp.get("itemTab")?.trim().toLowerCase();
+  if (v === "fish" || v === "equipment") return v;
+  return "coral";
+}
+
+/** Read repeated coralType / colour / equipment params; supports legacy single-value URLs. */
+export function parseExploreFiltersFromSearchParams(sp: URLSearchParams): ExploreFilterState {
   const fulfilment = sp.get("fulfilment");
   const coralFromAll = sp.getAll("coralType").flatMap((s) => s.split(",").map((x) => x.trim()).filter(Boolean));
   const colourFromAll = sp.getAll("colour").flatMap((s) => s.split(",").map((x) => x.trim()).filter(Boolean));
   const coralTypes = uniqueTrimmed(coralFromAll.length > 0 ? coralFromAll : sp.get("coralType") ? [sp.get("coralType")!] : []);
   const colours = uniqueTrimmed(colourFromAll.length > 0 ? colourFromAll : sp.get("colour") ? [sp.get("colour")!] : []);
+  const equipCatAll = sp
+    .getAll("equipmentCategory")
+    .flatMap((s) => s.split(",").map((x) => x.trim()).filter(Boolean));
+  const equipCondAll = sp
+    .getAll("equipmentCondition")
+    .flatMap((s) => s.split(",").map((x) => x.trim()).filter(Boolean));
 
   return {
     q: sp.get("q")?.trim() ?? "",
+    itemTab: parseItemTab(sp),
     coralTypes,
     colours,
     freeOnly: sp.get("free") === "1",
     fulfilment: fulfilment === "POST" || fulfilment === "MEET" ? fulfilment : "",
     maxKm: sp.get("maxKm")?.trim() ?? "",
+    species: sp.get("species")?.trim() ?? "",
+    reefSafeOnly: sp.get("reefSafe") === "1",
+    equipmentCategories: uniqueTrimmed(equipCatAll),
+    equipmentConditions: uniqueTrimmed(equipCondAll),
   };
 }
 
@@ -45,6 +67,8 @@ export function buildExploreSearchHref(args: {
   exchangeId: string;
   ownerUserId: string | null;
   filters: ExploreFilterState;
+  /** When true, marks that a scoped search was explicitly applied (mixed feed until then). */
+  markSearched?: boolean;
 }): string {
   const p = new URLSearchParams();
   if (args.exchangeId) {
@@ -54,6 +78,12 @@ export function buildExploreSearchHref(args: {
     p.set("owner", args.ownerUserId);
   }
   const f = args.filters;
+  if (f.itemTab && f.itemTab !== "coral") {
+    p.set("itemTab", f.itemTab);
+  }
+  if (args.markSearched) {
+    p.set("searched", "1");
+  }
   if (f.q.trim()) {
     p.set("q", f.q.trim());
   }
@@ -71,6 +101,18 @@ export function buildExploreSearchHref(args: {
   }
   if (f.maxKm.trim()) {
     p.set("maxKm", f.maxKm.trim());
+  }
+  if (f.species.trim()) {
+    p.set("species", f.species.trim());
+  }
+  if (f.reefSafeOnly) {
+    p.set("reefSafe", "1");
+  }
+  for (const c of f.equipmentCategories) {
+    p.append("equipmentCategory", c);
+  }
+  for (const c of f.equipmentConditions) {
+    p.append("equipmentCondition", c);
   }
   const qs = p.toString();
   return qs ? `/explore?${qs}` : "/explore";

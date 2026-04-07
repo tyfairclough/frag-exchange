@@ -12,15 +12,20 @@ import type { PublicMarketingListingRow } from "@/lib/marketing-listings";
 type ListingRow = PublicMarketingListingRow;
 
 function ListingCard({ row }: { row: ListingRow }) {
-  const { coral, exchange } = row;
-  const typeLabel = coral.coralType?.trim() || "Coral";
+  const { inventoryItem: item, exchange } = row;
+  const typeLabel =
+    item.kind === "CORAL"
+      ? item.coralType?.trim() || "Coral"
+      : item.kind === "FISH"
+        ? "Fish"
+        : "Equipment";
 
   return (
     <article className="flex w-[min(100%,280px)] shrink-0 snap-start overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 sm:w-auto sm:min-w-0 sm:flex-1 sm:snap-none">
       <div className="relative aspect-square w-[42%] min-w-[120px] bg-slate-200 sm:w-2/5">
-        {coral.imageUrl ? (
+        {item.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote hobbyist URLs
-          <img src={coral.imageUrl} alt="" className="h-full w-full object-cover" />
+          <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-3xl text-slate-400" aria-hidden>
             🪸
@@ -29,7 +34,7 @@ function ListingCard({ row }: { row: ListingRow }) {
       </div>
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 px-3 py-3 sm:px-4">
         <h3 className="truncate text-sm font-bold leading-tight" style={{ color: MARKETING_NAVY }}>
-          {coral.name}
+          {item.name}
         </h3>
         <span
           className="w-fit rounded-md px-2 py-0.5 text-xs font-medium"

@@ -12,10 +12,11 @@ export async function getRecentPublicExchangeListings(limit = 8) {
     orderBy: { listedAt: "desc" },
     take: limit,
     include: {
-      coral: {
+      inventoryItem: {
         select: {
           id: true,
           name: true,
+          kind: true,
           coralType: true,
           imageUrl: true,
           colour: true,

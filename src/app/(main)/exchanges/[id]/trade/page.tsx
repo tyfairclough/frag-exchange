@@ -25,7 +25,7 @@ export default async function ExchangeTradeInitiationPage({
   const { id: exchangeId } = await params;
   const sp = await searchParams;
   const peerUserId = sp.with?.trim();
-  const focusCoralId = sp.focus?.trim();
+  const focusItemId = sp.focus?.trim();
 
   if (!peerUserId) {
     return (
@@ -74,18 +74,18 @@ export default async function ExchangeTradeInitiationPage({
       where: {
         exchangeId,
         expiresAt: { gt: now },
-        coral: { userId: viewer.id, profileStatus: CoralProfileStatus.UNLISTED },
+        inventoryItem: { userId: viewer.id, profileStatus: CoralProfileStatus.UNLISTED },
       },
-      include: { coral: true },
+      include: { inventoryItem: true },
       orderBy: { listedAt: "desc" },
     }),
     getPrisma().exchangeListing.findMany({
       where: {
         exchangeId,
         expiresAt: { gt: now },
-        coral: { userId: peerUserId, profileStatus: CoralProfileStatus.UNLISTED },
+        inventoryItem: { userId: peerUserId, profileStatus: CoralProfileStatus.UNLISTED },
       },
-      include: { coral: true },
+      include: { inventoryItem: true },
       orderBy: { listedAt: "desc" },
     }),
   ]);
@@ -121,7 +121,7 @@ export default async function ExchangeTradeInitiationPage({
         <div className="card border border-base-content/10 bg-base-200/40 shadow-sm">
           <div className="card-body gap-2 p-5 text-sm text-base-content/80">
             {myRows.length === 0 ? (
-              <p>List at least one coral on this exchange before you can propose a swap.</p>
+              <p>List at least one item on this exchange before you can propose a swap.</p>
             ) : (
               <p>They do not have any active listings on this exchange right now.</p>
             )}
@@ -144,13 +144,13 @@ export default async function ExchangeTradeInitiationPage({
                     <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-base-content/10 bg-base-200/20 p-3">
                       <input
                         type="checkbox"
-                        name="initiatorCoralIds"
-                        value={row.coralId}
+                        name="initiatorItemIds"
+                        value={row.inventoryItemId}
                         className="checkbox checkbox-sm mt-0.5"
                       />
                       <span className="min-w-0">
-                        <span className="font-medium text-base-content">{row.coral.name}</span>
-                        <span className="mt-0.5 block text-xs text-base-content/60 line-clamp-2">{row.coral.description}</span>
+                        <span className="font-medium text-base-content">{row.inventoryItem.name}</span>
+                        <span className="mt-0.5 block text-xs text-base-content/60 line-clamp-2">{row.inventoryItem.description}</span>
                       </span>
                     </label>
                   </li>
@@ -162,20 +162,20 @@ export default async function ExchangeTradeInitiationPage({
               <h2 className="text-sm font-semibold text-base-content">You receive</h2>
               <ul className="space-y-2">
                 {theirRows.map((row) => {
-                  const defaultChecked = focusCoralId === row.coralId;
+                  const defaultChecked = focusItemId === row.inventoryItemId;
                   return (
                     <li key={row.id}>
                       <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-base-content/10 bg-base-200/20 p-3">
                         <input
                           type="checkbox"
-                          name="peerCoralIds"
-                          value={row.coralId}
+                          name="peerItemIds"
+                          value={row.inventoryItemId}
                           defaultChecked={defaultChecked}
                           className="checkbox checkbox-sm mt-0.5"
                         />
                         <span className="min-w-0">
-                          <span className="font-medium text-base-content">{row.coral.name}</span>
-                          <span className="mt-0.5 block text-xs text-base-content/60 line-clamp-2">{row.coral.description}</span>
+                          <span className="font-medium text-base-content">{row.inventoryItem.name}</span>
+                          <span className="mt-0.5 block text-xs text-base-content/60 line-clamp-2">{row.inventoryItem.description}</span>
                         </span>
                       </label>
                     </li>

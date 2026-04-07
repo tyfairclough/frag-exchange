@@ -8,6 +8,7 @@ import {
   DISCOVER_CORAL_TYPES,
   discoverExchangeListings,
 } from "@/lib/discover-listings";
+import { buildExploreSearchHref, parseExploreFiltersFromSearchParams } from "@/lib/explore-search-href";
 import { ExploreOwnerScopeNote, ExploreResultsGrid } from "./_components/explore-results-grid";
 import { ExploreShellSync } from "./_components/explore-shell-sync";
 
@@ -15,27 +16,17 @@ function str(v: string | string[] | undefined) {
   return typeof v === "string" ? v.trim() : "";
 }
 
-function paramStringList(
-  key: string,
-  sp: Record<string, string | string[] | undefined>,
-): string[] {
-  const v = sp[key];
-  if (v == null) {
-    return [];
-  }
-  const parts = Array.isArray(v) ? v : [v];
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const p of parts) {
-    for (const piece of p.split(",")) {
-      const t = piece.trim();
-      if (t && !seen.has(t)) {
-        seen.add(t);
-        out.push(t);
-      }
+function recordToURLSearchParams(sp: Record<string, string | string[] | undefined>): URLSearchParams {
+  const u = new URLSearchParams();
+  for (const [k, val] of Object.entries(sp)) {
+    if (val === undefined) continue;
+    if (Array.isArray(val)) {
+      for (const v of val) u.append(k, String(v));
+    } else {
+      u.append(k, String(val));
     }
   }
-  return out;
+  return u;
 }
 
 export default async function ExplorePage({
@@ -45,6 +36,7 @@ export default async function ExplorePage({
 }) {
   const user = await requireUser();
   const sp = await searchParams;
+  const filters = parseExploreFiltersFromSearchParams(recordToURLSearchParams(sp));
 
   const memberships = await getPrisma().exchangeMembership.findMany({
     where: { userId: user.id },
@@ -61,16 +53,26 @@ export default async function ExplorePage({
   const exchangeId = exchangeIdFromTrustedParam ?? (memberships[0]?.exchangeId ?? "");
 
   const selected = memberships.find((m) => m.exchangeId === exchangeId);
-  const q = str(sp.q);
-  const coralTypes = paramStringList("coralType", sp);
-  const colours = paramStringList("colour", sp);
-  const freeOnly = str(sp.free) === "1";
-  const fulfilment = str(sp.fulfilment);
-  const fulfilmentParsed =
-    fulfilment === "POST" || fulfilment === "MEET" ? fulfilment : undefined;
-  const maxKmRaw = str(sp.maxKm);
-  const maxKm = maxKmRaw ? Number(maxKmRaw) : undefined;
   const ownerParam = str(sp.owner);
+  const fulfilmentParsed =
+    filters.fulfilment === "POST" || filters.fulfilment === "MEET"
+      ? filters.fulfilment
+      : undefined;
+  const maxKmRaw = filters.maxKm;
+  const maxKm = maxKmRaw ? Number(maxKmRaw) : undefined;
+
+  const searchActive =
+    str(sp.searched) === "1" ||
+    Boolean(filters.q.trim()) ||
+    filters.coralTypes.length > 0 ||
+    filters.colours.length > 0 ||
+    filters.freeOnly ||
+    fulfilmentParsed != null ||
+    (maxKm != null && Number.isFinite(maxKm)) ||
+    Boolean(filters.species.trim()) ||
+    filters.reefSafeOnly ||
+    filters.equipmentCategories.length > 0 ||
+    filters.equipmentConditions.length > 0;
 
   let validatedOwnerUserId: string | null = null;
   if (ownerParam && exchangeId) {
@@ -104,64 +106,31 @@ export default async function ExplorePage({
           viewerUserId: user.id,
           viewerLat,
           viewerLon,
-          q: q || undefined,
-          coralTypes: coralTypes.length ? coralTypes : undefined,
-          colours: colours.length ? colours : undefined,
-          freeOnly: freeOnly || undefined,
+          searchActive,
+          itemTab: filters.itemTab,
+          q: filters.q.trim() || undefined,
+          coralTypes: filters.coralTypes.length ? filters.coralTypes : undefined,
+          colours: filters.colours.length ? filters.colours : undefined,
+          freeOnly: filters.freeOnly || undefined,
           fulfilment: fulfilmentParsed,
           maxKm: maxKm != null && Number.isFinite(maxKm) ? maxKm : undefined,
           ownerUserId: validatedOwnerUserId ?? undefined,
+          speciesContains: filters.species.trim() || undefined,
+          reefSafeOnly: filters.reefSafeOnly || undefined,
+          equipmentCategories: filters.equipmentCategories.length ? filters.equipmentCategories : undefined,
+          equipmentConditions: filters.equipmentConditions.length ? filters.equipmentConditions : undefined,
         })
       : [];
 
-  const buildHref = (overrides: {
-    exchangeId?: string;
-    q?: string;
-    coralTypes?: string[];
-    colours?: string[];
-    free?: string;
-    fulfilment?: string;
-    maxKm?: string;
-    owner?: string;
-  }) => {
-    const p = new URLSearchParams();
-    const next = {
-      exchangeId: exchangeId || undefined,
-      q: q || undefined,
-      coralTypes: coralTypes.length ? coralTypes : undefined,
-      colours: colours.length ? colours : undefined,
-      free: freeOnly ? "1" : undefined,
-      fulfilment: fulfilmentParsed,
-      maxKm: maxKmRaw || undefined,
-      owner: validatedOwnerUserId ?? undefined,
-      ...overrides,
-    };
-    if (next.exchangeId) {
-      p.set("exchangeId", next.exchangeId);
-    }
-    if (next.owner) {
-      p.set("owner", next.owner);
-    }
-    if (next.q) {
-      p.set("q", next.q);
-    }
-    for (const t of next.coralTypes ?? []) {
-      p.append("coralType", t);
-    }
-    for (const c of next.colours ?? []) {
-      p.append("colour", c);
-    }
-    if (next.free) {
-      p.set("free", next.free);
-    }
-    if (next.fulfilment) {
-      p.set("fulfilment", next.fulfilment);
-    }
-    if (next.maxKm) {
-      p.set("maxKm", next.maxKm);
-    }
-    const qs = p.toString();
-    return qs ? `/explore?${qs}` : "/explore";
+  const buildHref = (overrides: { exchangeId?: string; owner?: string | null }) => {
+    const nextExchangeId = overrides.exchangeId ?? exchangeId;
+    const owner = overrides.owner !== undefined ? overrides.owner : validatedOwnerUserId;
+    return buildExploreSearchHref({
+      exchangeId: nextExchangeId,
+      ownerUserId: owner,
+      filters,
+      markSearched: searchActive ? true : undefined,
+    });
   };
 
   const shellModel: ExploreShellModel | null =
@@ -180,14 +149,7 @@ export default async function ExplorePage({
           viewerHasCoords: viewerLat != null && viewerLon != null,
           coralTypes: DISCOVER_CORAL_TYPES,
           coralColours: DISCOVER_CORAL_COLOURS,
-          filters: {
-            q,
-            coralTypes,
-            colours,
-            freeOnly,
-            fulfilment: fulfilmentParsed ?? "",
-            maxKm: maxKmRaw,
-          },
+          filters,
           ownerUserId: validatedOwnerUserId,
         }
       : null;
@@ -198,7 +160,7 @@ export default async function ExplorePage({
 
       {memberships.length > 0 ? (
         <p className="text-sm font-semibold text-[#122B49]" aria-live="polite">
-          {rows.length} Coral{rows.length === 1 ? "" : "s"} found
+          {rows.length} listing{rows.length === 1 ? "" : "s"} found
         </p>
       ) : null}
 
@@ -216,7 +178,7 @@ export default async function ExplorePage({
           {validatedOwnerUserId ? (
             <ExploreOwnerScopeNote
               ownerAlias={ownerAlias}
-              showAllReefersHref={buildHref({ owner: undefined })}
+              showAllReefersHref={buildHref({ owner: null })}
             />
           ) : null}
 

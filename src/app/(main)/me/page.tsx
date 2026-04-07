@@ -23,8 +23,8 @@ export default async function MePage() {
         <Link href="/exchanges" className="btn btn-outline min-h-11 rounded-xl">
           Exchanges
         </Link>
-        <Link href="/my-corals" className="btn btn-outline min-h-11 rounded-xl">
-          My corals
+        <Link href="/my-items" className="btn btn-outline min-h-11 rounded-xl">
+          My items
         </Link>
       </div>
       <section className="card border border-base-content/10 bg-base-100 shadow-sm">
