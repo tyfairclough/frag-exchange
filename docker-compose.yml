@@ -1,4 +1,5 @@
-# Local development only — MySQL 8 for REEFX (Prisma).
+# Local development only — MariaDB 11.8 (LTS) for REEFX (Prisma mysql provider).
+# Wire-compatible with mysql:// DATABASE_URL; matches typical production MariaDB.
 # From this folder: npm run db:up
 # Stop: npm run db:down
 #
@@ -6,7 +7,7 @@
 
 services:
   mysql:
-    image: mysql:8.0
+    image: mariadb:11.8.6
     container_name: frag-exchange-mysql
     restart: unless-stopped
     environment:
@@ -20,11 +21,11 @@ services:
       - frag_exchange_mysql_data:/var/lib/mysql
       - ./docker/mysql/99-prisma-migrate-grants.sql:/docker-entrypoint-initdb.d/99-prisma-migrate-grants.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-pfragrootlocaldev"]
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 20s
+      start_period: 30s
 
 volumes:
   frag_exchange_mysql_data:

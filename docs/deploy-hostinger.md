@@ -13,14 +13,14 @@ Add **at least**:
 
 | Variable         | Description                                                                 |
 | ---------------- | --------------------------------------------------------------------------- |
-| `DATABASE_URL`   | **MySQL only** — `mysql://USER:PASSWORD@HOST:3306/DATABASE`. Do not use PostgreSQL or `prisma+postgres://`. Never commit. Local **`.env.development`** (Docker URL) is **ignored in production**; production must get `DATABASE_URL` from this panel. |
+| `DATABASE_URL`   | **MySQL-compatible only** (MySQL or MariaDB) — `mysql://USER:PASSWORD@HOST:3306/DATABASE`. Do not use PostgreSQL or `prisma+postgres://`. Never commit. Local **`.env.development`** (Docker URL) is **ignored in production**; production must get `DATABASE_URL` from this panel. |
 | `NODE_ENV`       | Usually `production` (often set automatically).                            |
 | `DATABASE_POOL_CONNECTION_LIMIT` | Optional. Overrides the built-in **production** default of **`5`** connections (when `connectionLimit` is not already in `DATABASE_URL`). |
 | `DATABASE_POOL_MINIMUM_IDLE` | Optional. Overrides **`minimumIdle`**; production defaults to **`0`** (lazy pool) when not in the URL. |
 
 Optional Next defaults apply; add others only when you introduce features that need them.
 
-**MySQL pool errors:** If runtime logs show `pool timeout … active=0 idle=0`, the DB user or server is refusing new connections or the account hit **process limits** (SSH may show `fork: Resource temporarily unavailable`). After redeploying the app, errors should show `limit=5` if production pool defaults are active. If problems remain, lower further (`connectionLimit=3` on the URL), stop other sites using the same MySQL user, and reduce **max processes** load (Joomla/cron/duplicate Node apps).
+**Database pool errors:** If runtime logs show `pool timeout … active=0 idle=0`, the DB user or server is refusing new connections or the account hit **process limits** (SSH may show `fork: Resource temporarily unavailable`). After redeploying the app, errors should show `limit=5` if production pool defaults are active. If problems remain, lower further (`connectionLimit=3` on the URL), stop other sites using the same database user, and reduce **max processes** load (Joomla/cron/duplicate Node apps).
 
 ## 3. Build and start commands
 
@@ -34,7 +34,7 @@ If the panel offers a **custom start** field, align it exactly with your `packag
 
 ## 4. Database migrations
 
-After the first deploy (or whenever migrations change), apply the schema to MySQL:
+After the first deploy (or whenever migrations change), apply the schema to the production database:
 
 ```bash
 npx prisma migrate deploy
@@ -47,9 +47,9 @@ Run this from the same directory as `package.json`, with `DATABASE_URL` set to t
 
 Do **not** commit `.env`; store secrets only in the panel or your secret manager.
 
-## 5. MySQL source
+## 5. Database source
 
-Use **Hostinger managed MySQL** or any MySQL instance reachable from the Node process. The Prisma schema provider is **`mysql`**; Prisma 7 connects at runtime through **`@prisma/adapter-mariadb`** and the **`mariadb`** npm package (works with standard MySQL servers using your existing `mysql://…` URL).
+Use **Hostinger managed MySQL or MariaDB**, or any MySQL-compatible instance reachable from the Node process. The Prisma schema provider is **`mysql`** (valid for both engines); Prisma 7 connects at runtime through **`@prisma/adapter-mariadb`** and the **`mariadb`** npm package using your existing `mysql://…` URL.
 
 ## 6. Scheduled housekeeping (Chunk 10)
 
@@ -69,7 +69,7 @@ The endpoint returns JSON counts (`listingsRemoved`, `tradesExpired`). Without `
 
 - [ ] `DATABASE_URL` set in the Node.js app environment  
 - [ ] `npm run build` succeeds on the server  
-- [ ] `npx prisma migrate deploy` applied against production MySQL  
+- [ ] `npx prisma migrate deploy` applied against production database  
 - [ ] `npm run start` matches panel port / proxy settings  
 - [ ] `/api/health` returns `{ "ok": true, "database": "up" }` when DB is reachable  
 - [ ] Optional: `CRON_SECRET` + cron hitting `/api/cron/housekeeping` for listing/trade expiry  

@@ -1,6 +1,7 @@
 /**
- * Applies docker/mysql SQL for existing volumes (init scripts run only on first MySQL data dir).
+ * Applies docker/mysql SQL for existing volumes (init scripts run only on first DB data dir).
  * Creates `prisma_shadow` and grants `frag` CREATE/DROP for optional fallback.
+ * Works with local Docker MariaDB (Compose service `mysql`).
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
