@@ -81,7 +81,7 @@ export default async function OperatorExchangeDashboardPage({
       where: {
         exchangeId: exchange.id,
         expiresAt: { gt: now },
-        coral: { profileStatus: CoralProfileStatus.UNLISTED },
+        inventoryItem: { profileStatus: CoralProfileStatus.UNLISTED },
       },
     }),
     // Row count: each list action creates a row; renewals add rows — "total ever listed" per plan.

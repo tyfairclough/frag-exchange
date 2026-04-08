@@ -69,7 +69,7 @@ function messageForKind(
       return {
         subject: `Counter-offer — ${ex}`,
         title: "Trade counter-offer",
-        lines: [`${params.actorDisplay} sent a counter-offer on ${ex}.`, "Review the corals and respond when you can."],
+        lines: [`${params.actorDisplay} sent a counter-offer on ${ex}.`, "Review the items and respond when you can."],
         actionLabel: "View trade",
       };
     case "approved":
@@ -78,7 +78,7 @@ function messageForKind(
         title: "Trade approved",
         lines: [
           `${params.actorDisplay} completed the approval step on ${ex}.`,
-          "Corals are marked traded and removed from listings.",
+          "Items are marked traded and removed from listings.",
         ],
         actionLabel: "View trade",
       };

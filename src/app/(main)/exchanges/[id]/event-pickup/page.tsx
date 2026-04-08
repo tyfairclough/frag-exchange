@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ExchangeKind, TradeCoralEventHandoffStatus, TradeStatus } from "@/generated/prisma/enums";
+import { ExchangeKind, TradeLineEventHandoffStatus, TradeStatus } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import {
@@ -58,7 +58,7 @@ export default async function EventPickupPage({
       />
     ) : null;
 
-  const lines = await db.tradeCoral.findMany({
+  const lines = await db.tradeInventoryLine.findMany({
     where: {
       eventHandoffStatus: { not: null },
       trade: {
@@ -68,7 +68,7 @@ export default async function EventPickupPage({
       },
     },
     include: {
-      coral: true,
+      inventoryItem: true,
       trade: {
         include: {
           initiator: { select: { id: true, alias: true } },
@@ -82,7 +82,7 @@ export default async function EventPickupPage({
   const myBring = lines.filter(
     (l) =>
       bringsCoralUserId(l.side, l.trade) === user.id &&
-      l.eventHandoffStatus === TradeCoralEventHandoffStatus.AWAITING_CHECKIN,
+      l.eventHandoffStatus === TradeLineEventHandoffStatus.AWAITING_CHECKIN,
   );
 
   const myCollect = lines.filter((l) => recipientUserIdForHandoff(l.side, l.trade) === user.id);
@@ -123,7 +123,7 @@ export default async function EventPickupPage({
             <ul className="space-y-2">
               {myBring.map((row) => (
                 <li key={row.id} className="rounded-xl border border-base-content/10 bg-base-200/30 p-3 text-sm">
-                  <span className="font-medium text-base-content">{row.coral.name}</span>
+                  <span className="font-medium text-base-content">{row.inventoryItem.name}</span>
                   <p className="text-xs text-base-content/60">Take this coral to the event manager check-in desk.</p>
                   <Link href={`/exchanges/${exchangeId}/trades/${row.tradeId}`} className="link link-primary text-xs">
                     View trade
@@ -151,22 +151,22 @@ export default async function EventPickupPage({
                     ? displayName(row.trade.peer.alias, "Trading partner")
                     : displayName(row.trade.initiator.alias, "Trading partner");
                 const status = row.eventHandoffStatus;
-                const canCheckOut = status === TradeCoralEventHandoffStatus.CHECKED_IN;
+                const canCheckOut = status === TradeLineEventHandoffStatus.CHECKED_IN;
                 return (
                   <li
                     key={row.id}
                     className="flex flex-col gap-2 rounded-xl border border-base-content/10 bg-base-200/20 p-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium text-base-content">{row.coral.name}</p>
+                      <p className="font-medium text-base-content">{row.inventoryItem.name}</p>
                       <p className="text-xs text-base-content/60">From {other}</p>
-                      {status === TradeCoralEventHandoffStatus.AWAITING_CHECKIN ? (
+                      {status === TradeLineEventHandoffStatus.AWAITING_CHECKIN ? (
                         <p className="mt-1 text-xs text-warning">Waiting for check-in at the desk</p>
                       ) : null}
-                      {status === TradeCoralEventHandoffStatus.CHECKED_IN ? (
+                      {status === TradeLineEventHandoffStatus.CHECKED_IN ? (
                         <p className="mt-1 text-xs text-success">Checked in — pick up from the desk, then confirm below</p>
                       ) : null}
-                      {status === TradeCoralEventHandoffStatus.CHECKED_OUT ? (
+                      {status === TradeLineEventHandoffStatus.CHECKED_OUT ? (
                         <p className="mt-1 text-xs text-base-content/55">You checked out — collected</p>
                       ) : null}
                       <Link href={`/exchanges/${exchangeId}/trades/${row.tradeId}`} className="link link-primary text-xs">
@@ -176,7 +176,7 @@ export default async function EventPickupPage({
                     {canCheckOut ? (
                       <form action={checkOutTradeCoralFormAction}>
                         <input type="hidden" name="exchangeId" value={exchangeId} />
-                        <input type="hidden" name="tradeCoralId" value={row.id} />
+                        <input type="hidden" name="tradeLineId" value={row.id} />
                         <button type="submit" className="btn btn-primary btn-sm min-h-10 rounded-xl">
                           Check out collected
                         </button>

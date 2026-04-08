@@ -20,10 +20,10 @@ export function scheduleCoralCheckedInNotifications(params: {
     const users = await loadNotifyUsers(params.recipientUserIds);
     const pickupUrl = eventPickupUrl(params.baseUrl, params.exchangeId);
     const n = params.count;
-    const title = n === 1 ? "Your coral is checked in" : `${n} of your corals are checked in`;
+    const title = n === 1 ? "Your item is checked in" : `${n} of your items are checked in`;
     const subject = `${title} — ${params.exchangeName}`;
     const lines = [
-      `Event desk checked in ${n === 1 ? "a coral" : `${n} corals`} for you at ${params.exchangeName}.`,
+      `Event desk checked in ${n === 1 ? "an item" : `${n} items`} for you at ${params.exchangeName}.`,
       "You can collect them from the event pickup page when ready.",
     ];
     const { text, html } = buildBodies({

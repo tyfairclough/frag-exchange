@@ -120,3 +120,25 @@ export async function setUserPasswordAction(
   revalidatePath("/me");
   return { ok: true };
 }
+
+const AVATAR_CHOICES = ["🐠", "🪸", "🐙", "🦀", "🐡", "🐟", "🦐", "🪼"] as const;
+
+export async function setUserAvatarAction(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await requireUser();
+  const avatarRaw = formData.get("avatarEmoji");
+  const avatar = typeof avatarRaw === "string" ? avatarRaw.trim() : "";
+
+  if (!avatar || !AVATAR_CHOICES.includes(avatar as (typeof AVATAR_CHOICES)[number])) {
+    return { ok: false, error: "Choose one of the available avatars." };
+  }
+
+  await getPrisma().user.update({
+    where: { id: user.id },
+    data: { avatarEmoji: avatar },
+  });
+
+  revalidatePath("/me");
+  return { ok: true };
+}

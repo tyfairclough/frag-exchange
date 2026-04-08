@@ -13,7 +13,7 @@ Add **at least**:
 
 | Variable         | Description                                                                 |
 | ---------------- | --------------------------------------------------------------------------- |
-| `DATABASE_URL`   | **MySQL only** — `mysql://USER:PASSWORD@HOST:3306/DATABASE`. Do not use PostgreSQL or `prisma+postgres://`. Never commit. The repo’s **`.env.development`** (Docker URL for local dev) is **ignored in production**; production must get `DATABASE_URL` from this panel. |
+| `DATABASE_URL`   | **MySQL only** — `mysql://USER:PASSWORD@HOST:3306/DATABASE`. Do not use PostgreSQL or `prisma+postgres://`. Never commit. Local **`.env.development`** (Docker URL) is **ignored in production**; production must get `DATABASE_URL` from this panel. |
 | `NODE_ENV`       | Usually `production` (often set automatically).                            |
 | `DATABASE_POOL_CONNECTION_LIMIT` | Optional. Overrides the built-in **production** default of **`5`** connections (when `connectionLimit` is not already in `DATABASE_URL`). |
 | `DATABASE_POOL_MINIMUM_IDLE` | Optional. Overrides **`minimumIdle`**; production defaults to **`0`** (lazy pool) when not in the URL. |

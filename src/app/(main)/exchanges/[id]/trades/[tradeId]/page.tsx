@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import {
   CoralProfileStatus,
   ExchangeKind,
-  TradeCoralSide,
+  TradeLineSide,
   TradeStatus,
 } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
@@ -25,7 +25,7 @@ import { expireDueTradesAndNotify } from "@/lib/trade-expire-notify";
 import { isTradePending, tradeResponderUserId } from "@/lib/trade-state";
 import {
   formatUserAddressLines,
-  groupTradeMeetEligibleCoralNames,
+  groupTradeMeetEligibleItemNames,
   groupTradePostEligibleCoralNamesForViewer,
   groupTradeRevealCounterpartyPostalAddress,
 } from "@/lib/trade-logistics";
@@ -106,7 +106,7 @@ export default async function ExchangeTradeDetailPage({
     include: {
       initiator: { select: { id: true, alias: true, avatarEmoji: true } },
       peer: { select: { id: true, alias: true, avatarEmoji: true } },
-      corals: { include: { coral: true } },
+      inventoryLines: { include: { inventoryItem: true } },
     },
   });
 
@@ -117,7 +117,7 @@ export default async function ExchangeTradeDetailPage({
   const counterpartyIdForPostal =
     trade.status === TradeStatus.APPROVED &&
     exchange.kind === ExchangeKind.GROUP &&
-    groupTradeRevealCounterpartyPostalAddress(viewer.id, trade, trade.corals)
+    groupTradeRevealCounterpartyPostalAddress(viewer.id, trade, trade.inventoryLines)
       ? viewer.id === trade.initiatorUserId
         ? trade.peerUserId
         : trade.initiatorUserId
@@ -131,8 +131,12 @@ export default async function ExchangeTradeDetailPage({
         })
       : null;
 
-  const initiatorCorals = trade.corals.filter((c) => c.side === TradeCoralSide.INITIATOR).map((c) => c.coral);
-  const peerCorals = trade.corals.filter((c) => c.side === TradeCoralSide.PEER).map((c) => c.coral);
+  const initiatorItems = trade.inventoryLines
+    .filter((c) => c.side === TradeLineSide.INITIATOR)
+    .map((c) => c.inventoryItem);
+  const peerItems = trade.inventoryLines
+    .filter((c) => c.side === TradeLineSide.PEER)
+    .map((c) => c.inventoryItem);
 
   const pending = isTradePending(trade);
   const responder = pending ? tradeResponderUserId(trade) : null;
@@ -144,9 +148,9 @@ export default async function ExchangeTradeDetailPage({
 
   const showGroupLogistics =
     trade.status === TradeStatus.APPROVED && exchange.kind === ExchangeKind.GROUP;
-  const meetCoralNames = showGroupLogistics ? groupTradeMeetEligibleCoralNames(trade.corals) : [];
+  const meetCoralNames = showGroupLogistics ? groupTradeMeetEligibleItemNames(trade.inventoryLines) : [];
   const viewerPostCoralNames = showGroupLogistics
-    ? groupTradePostEligibleCoralNamesForViewer(viewer.id, trade, trade.corals)
+    ? groupTradePostEligibleCoralNamesForViewer(viewer.id, trade, trade.inventoryLines)
     : [];
   const counterpartyLabel =
     viewer.id === trade.initiatorUserId
@@ -159,18 +163,18 @@ export default async function ExchangeTradeDetailPage({
           where: {
             exchangeId,
             expiresAt: { gt: now },
-            coral: { userId: trade.initiatorUserId, profileStatus: CoralProfileStatus.UNLISTED },
+            inventoryItem: { userId: trade.initiatorUserId, profileStatus: CoralProfileStatus.UNLISTED },
           },
-          include: { coral: true },
+          include: { inventoryItem: true },
           orderBy: { listedAt: "desc" },
         }),
         getPrisma().exchangeListing.findMany({
           where: {
             exchangeId,
             expiresAt: { gt: now },
-            coral: { userId: trade.peerUserId, profileStatus: CoralProfileStatus.UNLISTED },
+            inventoryItem: { userId: trade.peerUserId, profileStatus: CoralProfileStatus.UNLISTED },
           },
-          include: { coral: true },
+          include: { inventoryItem: true },
           orderBy: { listedAt: "desc" },
         }),
       ])
@@ -221,7 +225,7 @@ export default async function ExchangeTradeDetailPage({
                 {trade.initiator.alias ?? "Initiator"} gives
               </h2>
               <ul className="mt-2 space-y-1 text-sm text-base-content/85">
-                {initiatorCorals.map((c) => (
+                {initiatorItems.map((c) => (
                   <li key={c.id}>{c.name}</li>
                 ))}
               </ul>
@@ -232,7 +236,7 @@ export default async function ExchangeTradeDetailPage({
                 {trade.peer.alias ?? "Member"} gives
               </h2>
               <ul className="mt-2 space-y-1 text-sm text-base-content/85">
-                {peerCorals.map((c) => (
+                {peerItems.map((c) => (
                   <li key={c.id}>{c.name}</li>
                 ))}
               </ul>
@@ -363,12 +367,12 @@ export default async function ExchangeTradeDetailPage({
                         <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-base-content/10 bg-base-100 p-3">
                           <input
                             type="checkbox"
-                            name="initiatorCoralIds"
-                            value={row.coralId}
+                            name="initiatorItemIds"
+                            value={row.inventoryItemId}
                             className="checkbox checkbox-sm mt-0.5"
                           />
                           <span className="min-w-0 text-sm">
-                            <span className="font-medium text-base-content">{row.coral.name}</span>
+                            <span className="font-medium text-base-content">{row.inventoryItem.name}</span>
                           </span>
                         </label>
                       </li>
@@ -384,12 +388,12 @@ export default async function ExchangeTradeDetailPage({
                         <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-base-content/10 bg-base-100 p-3">
                           <input
                             type="checkbox"
-                            name="peerCoralIds"
-                            value={row.coralId}
+                            name="peerItemIds"
+                            value={row.inventoryItemId}
                             className="checkbox checkbox-sm mt-0.5"
                           />
                           <span className="min-w-0 text-sm">
-                            <span className="font-medium text-base-content">{row.coral.name}</span>
+                            <span className="font-medium text-base-content">{row.inventoryItem.name}</span>
                           </span>
                         </label>
                       </li>

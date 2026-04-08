@@ -88,6 +88,13 @@ export default async function ExchangeTradesListPage({ params }: { params: Promi
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       {operatorTabs}
 
+      <Link
+        href={`/exchanges/${encodeURIComponent(exchangeId)}`}
+        className="btn btn-ghost btn-sm w-fit px-0 text-primary hover:bg-transparent hover:underline"
+      >
+        ← Back to Exchange
+      </Link>
+
       <header className="space-y-1">
         <h1 className="text-xl font-semibold text-base-content">Trades</h1>
         <p className="text-sm text-base-content/70">

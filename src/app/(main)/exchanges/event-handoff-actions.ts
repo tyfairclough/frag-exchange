@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   ExchangeKind,
-  TradeCoralEventHandoffStatus,
+  TradeLineEventHandoffStatus,
   TradeStatus,
 } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
@@ -40,7 +40,9 @@ function eventPickupPath(exchangeId: string, err?: string) {
 export async function checkInTradeCoralsFormAction(formData: FormData) {
   const user = await requireUser();
   const exchangeId = str(formData.get("exchangeId"));
+  const tradeLineIds = collectIds(formData, "tradeLineId");
   const tradeCoralIds = collectIds(formData, "tradeCoralId");
+  const ids = tradeLineIds.length > 0 ? tradeLineIds : tradeCoralIds;
 
   if (!exchangeId) {
     redirect("/exchanges?error=forbidden");
@@ -56,14 +58,14 @@ export async function checkInTradeCoralsFormAction(formData: FormData) {
     redirect(eventOpsPath(exchangeId, "forbidden"));
   }
 
-  if (tradeCoralIds.length === 0) {
+  if (ids.length === 0) {
     redirect(eventOpsPath(exchangeId, "invalid-selection"));
   }
 
-  const lines = await db.tradeCoral.findMany({
+  const lines = await db.tradeInventoryLine.findMany({
     where: {
-      id: { in: tradeCoralIds },
-      eventHandoffStatus: TradeCoralEventHandoffStatus.AWAITING_CHECKIN,
+      id: { in: ids },
+      eventHandoffStatus: TradeLineEventHandoffStatus.AWAITING_CHECKIN,
       trade: {
         exchangeId,
         status: TradeStatus.APPROVED,
@@ -80,9 +82,9 @@ export async function checkInTradeCoralsFormAction(formData: FormData) {
     redirect(eventOpsPath(exchangeId, "nothing-to-do"));
   }
 
-  await db.tradeCoral.updateMany({
+  await db.tradeInventoryLine.updateMany({
     where: { id: { in: lines.map((l) => l.id) } },
-    data: { eventHandoffStatus: TradeCoralEventHandoffStatus.CHECKED_IN },
+    data: { eventHandoffStatus: TradeLineEventHandoffStatus.CHECKED_IN },
   });
 
   const recipientUserIds = [
@@ -107,9 +109,9 @@ export async function checkInTradeCoralsFormAction(formData: FormData) {
 export async function checkOutTradeCoralFormAction(formData: FormData) {
   const user = await requireUser();
   const exchangeId = str(formData.get("exchangeId"));
-  const tradeCoralId = str(formData.get("tradeCoralId"));
+  const tradeLineId = str(formData.get("tradeLineId")) || str(formData.get("tradeCoralId"));
 
-  if (!exchangeId || !tradeCoralId) {
+  if (!exchangeId || !tradeLineId) {
     redirect("/exchanges?error=forbidden");
   }
 
@@ -121,10 +123,10 @@ export async function checkOutTradeCoralFormAction(formData: FormData) {
     redirect(eventPickupPath(exchangeId, "forbidden"));
   }
 
-  const line = await db.tradeCoral.findFirst({
+  const line = await db.tradeInventoryLine.findFirst({
     where: {
-      id: tradeCoralId,
-      eventHandoffStatus: TradeCoralEventHandoffStatus.CHECKED_IN,
+      id: tradeLineId,
+      eventHandoffStatus: TradeLineEventHandoffStatus.CHECKED_IN,
       trade: {
         exchangeId,
         status: TradeStatus.APPROVED,
@@ -141,12 +143,12 @@ export async function checkOutTradeCoralFormAction(formData: FormData) {
     redirect(eventPickupPath(exchangeId, "not-recipient"));
   }
 
-  const updated = await db.tradeCoral.updateMany({
+  const updated = await db.tradeInventoryLine.updateMany({
     where: {
-      id: tradeCoralId,
-      eventHandoffStatus: TradeCoralEventHandoffStatus.CHECKED_IN,
+      id: tradeLineId,
+      eventHandoffStatus: TradeLineEventHandoffStatus.CHECKED_IN,
     },
-    data: { eventHandoffStatus: TradeCoralEventHandoffStatus.CHECKED_OUT },
+    data: { eventHandoffStatus: TradeLineEventHandoffStatus.CHECKED_OUT },
   });
 
   if (updated.count !== 1) {

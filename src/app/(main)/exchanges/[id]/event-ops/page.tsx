@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ExchangeKind, TradeCoralEventHandoffStatus, TradeStatus } from "@/generated/prisma/enums";
+import { ExchangeKind, TradeLineEventHandoffStatus, TradeStatus } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canIssuePrivateInvite, canManageEventDesk } from "@/lib/super-admin";
@@ -53,13 +53,13 @@ export default async function EventOpsPage({
     />
   );
 
-  const lines = await db.tradeCoral.findMany({
+  const lines = await db.tradeInventoryLine.findMany({
     where: {
       eventHandoffStatus: { not: null },
       trade: { exchangeId, status: TradeStatus.APPROVED },
     },
     include: {
-      coral: { include: { user: { select: { id: true, alias: true, email: true } } } },
+      inventoryItem: { include: { user: { select: { id: true, alias: true, email: true } } } },
       trade: {
         include: {
           initiator: { select: { id: true, alias: true } },
@@ -70,14 +70,14 @@ export default async function EventOpsPage({
     orderBy: { id: "asc" },
   });
 
-  const awaiting = lines.filter((l) => l.eventHandoffStatus === TradeCoralEventHandoffStatus.AWAITING_CHECKIN);
-  const checkedIn = lines.filter((l) => l.eventHandoffStatus === TradeCoralEventHandoffStatus.CHECKED_IN);
-  const done = lines.filter((l) => l.eventHandoffStatus === TradeCoralEventHandoffStatus.CHECKED_OUT);
+  const awaiting = lines.filter((l) => l.eventHandoffStatus === TradeLineEventHandoffStatus.AWAITING_CHECKIN);
+  const checkedIn = lines.filter((l) => l.eventHandoffStatus === TradeLineEventHandoffStatus.CHECKED_IN);
+  const done = lines.filter((l) => l.eventHandoffStatus === TradeLineEventHandoffStatus.CHECKED_OUT);
 
   const orphans = lines.filter(
     (l) =>
-      l.eventHandoffStatus === TradeCoralEventHandoffStatus.AWAITING_CHECKIN ||
-      l.eventHandoffStatus === TradeCoralEventHandoffStatus.CHECKED_IN,
+      l.eventHandoffStatus === TradeLineEventHandoffStatus.AWAITING_CHECKIN ||
+      l.eventHandoffStatus === TradeLineEventHandoffStatus.CHECKED_IN,
   );
 
   const err = sp.error ? handoffErrors[sp.error] ?? "Something went wrong." : null;
@@ -141,9 +141,9 @@ export default async function EventOpsPage({
                       className="flex flex-wrap items-start gap-3 rounded-xl border border-base-content/10 bg-base-200/30 p-3"
                     >
                       <label className="flex cursor-pointer items-start gap-2">
-                        <input type="checkbox" name="tradeCoralId" value={row.id} className="checkbox checkbox-sm mt-0.5" />
+                        <input type="checkbox" name="tradeLineId" value={row.id} className="checkbox checkbox-sm mt-0.5" />
                         <span className="min-w-0">
-                          <span className="font-medium text-base-content">{row.coral.name}</span>
+                          <span className="font-medium text-base-content">{row.inventoryItem.name}</span>
                           <span className="mt-0.5 block text-xs text-base-content/60">
                             Brought by {bringerName} · Collecting: {recipientName}
                           </span>
@@ -190,12 +190,12 @@ export default async function EventOpsPage({
                     ? displayName(row.trade.initiator.alias, "Member")
                     : displayName(row.trade.peer.alias, "Member");
                 const stuck =
-                  row.eventHandoffStatus === TradeCoralEventHandoffStatus.AWAITING_CHECKIN
+                  row.eventHandoffStatus === TradeLineEventHandoffStatus.AWAITING_CHECKIN
                     ? "Not checked in yet (bringer / desk)"
                     : "Checked in — collector has not checked out";
                 return (
                   <li key={row.id} className="rounded-xl border border-base-content/10 bg-base-200/20 p-3 text-sm">
-                    <p className="font-medium text-base-content">{row.coral.name}</p>
+                    <p className="font-medium text-base-content">{row.inventoryItem.name}</p>
                     <p className="text-xs text-base-content/65">{stuck}</p>
                     <p className="text-xs text-base-content/55">
                       Bring: {bringerName} · Collect: {recipientName}
@@ -225,7 +225,7 @@ export default async function EventOpsPage({
                   : displayName(row.trade.peer.alias, "Member");
               return (
                 <li key={row.id} className="rounded-xl border border-base-content/10 bg-base-100 p-3 text-sm">
-                  <span className="font-medium text-base-content">{row.coral.name}</span>
+                  <span className="font-medium text-base-content">{row.inventoryItem.name}</span>
                   <span className="mt-0.5 block text-xs text-base-content/60">Waiting for {recipientName} to check out</span>
                 </li>
               );
@@ -242,7 +242,7 @@ export default async function EventOpsPage({
           <ul className="space-y-1">
             {done.map((row) => (
               <li key={row.id} className="text-sm text-base-content/80">
-                {row.coral.name} — checked out
+                {row.inventoryItem.name} — checked out
               </li>
             ))}
           </ul>

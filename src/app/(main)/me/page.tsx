@@ -1,6 +1,7 @@
 import { ContactPreference } from "@/generated/prisma/client";
 import Link from "next/link";
 import { MeAddressSection } from "@/app/(main)/me/me-address-section";
+import { MeAvatarSection } from "@/app/(main)/me/me-avatar-section";
 import { MePasswordSection } from "@/app/(main)/me/me-password-section";
 import { requireUser } from "@/lib/auth";
 import { isSuperAdmin } from "@/lib/super-admin";
@@ -23,16 +24,14 @@ export default async function MePage() {
         <Link href="/exchanges" className="btn btn-outline min-h-11 rounded-xl">
           Exchanges
         </Link>
-        <Link href="/my-corals" className="btn btn-outline min-h-11 rounded-xl">
-          My corals
+        <Link href="/my-items" className="btn btn-outline min-h-11 rounded-xl">
+          My items
         </Link>
       </div>
       <section className="card border border-base-content/10 bg-base-100 shadow-sm">
         <div className="card-body p-5 text-sm">
           <div className="flex items-center gap-3">
-            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-2xl">
-              {user.avatarEmoji ?? "🐠"}
-            </span>
+            <MeAvatarSection avatarEmoji={user.avatarEmoji} />
             <div>
               <p className="text-base font-semibold">{user.alias ?? "No alias yet"}</p>
               <p className="text-base-content/70">{user.email}</p>

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { CoralListingMode } from "@/generated/prisma/enums";
-import { enrichCoralPreviewAction } from "@/app/(main)/my-corals/actions";
+import { enrichCoralPreviewAction } from "@/app/(main)/my-items/actions";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
 
 export type CoralInventoryFormDefaults = {

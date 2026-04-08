@@ -32,7 +32,7 @@ model User {
   address                   UserAddress?
   sessions                  Session[]
   magicLinkRequests         MagicLinkToken[]
-  corals                    Coral[]
+  inventoryItems            InventoryItem[]
   exchangesCreated          Exchange[]           @relation("ExchangeCreatedBy")
   exchangeMemberships       ExchangeMembership[]
   exchangeInvitesSent       ExchangeInvite[]     @relation("ExchangeInviteInvitedBy")
@@ -126,18 +126,17 @@ model ExchangeInvite {
   @@map("exchange_invites")
 }
 
-/// A profile coral listed on a specific exchange (Chunk 5). Same coral may appear on multiple exchanges until traded.
-/// `expiresAt` enforces the 90-day listing window (also filterable in queries; Chunk 10 may mark rows explicitly).
+/// A profile item (coral, fish, equipment) listed on a specific exchange.
 model ExchangeListing {
-  id         String   @id @default(cuid())
-  exchangeId String
-  coralId    String
-  listedAt   DateTime @default(now())
-  expiresAt  DateTime
-  exchange   Exchange @relation(fields: [exchangeId], references: [id], onDelete: Cascade)
-  coral      Coral    @relation(fields: [coralId], references: [id], onDelete: Cascade)
+  id               String         @id @default(cuid())
+  exchangeId       String
+  inventoryItemId  String
+  listedAt         DateTime       @default(now())
+  expiresAt        DateTime
+  exchange         Exchange       @relation(fields: [exchangeId], references: [id], onDelete: Cascade)
+  inventoryItem    InventoryItem  @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
 
-  @@unique([exchangeId, coralId])
+  @@unique([exchangeId, inventoryItemId])
   @@index([exchangeId, expiresAt])
   @@map("exchange_listings")
 }
@@ -162,27 +161,58 @@ enum ExchangeMembershipRole {
   EVENT_MANAGER
 }
 
-/// Profile-level coral inventory (Chunk 3). Attach to exchanges in Chunk 5; `TRADED` set when a trade completes (Chunk 6).
-model Coral {
+enum InventoryKind {
+  CORAL
+  FISH
+  EQUIPMENT
+}
+
+enum EquipmentCategory {
+  LIGHTS
+  PUMPS
+  MONITORS_CONTROLLERS
+  FILTRATION
+  DOSING
+  OTHER
+}
+
+enum EquipmentCondition {
+  LIKE_NEW
+  GOOD_CONDITION
+  WORKING
+  SPARES_REPAIRS
+}
+
+/// Profile-level inventory: corals, fish, and equipment. Listed on exchanges until traded.
+model InventoryItem {
   id             String             @id @default(cuid())
   userId         String
+  kind           InventoryKind
   name           String             @db.VarChar(120)
   description    String             @db.Text
   imageUrl       String?            @db.VarChar(2048)
   listingMode    CoralListingMode   @default(BOTH)
   freeToGoodHome Boolean            @default(false)
   profileStatus  CoralProfileStatus @default(UNLISTED)
-  /// User-editable traits; may be pre-filled by the coral AI enrichment service.
+  /// Coral taxonomy (when kind = CORAL).
   coralType      String?            @db.VarChar(120)
+  /// Coral + fish colour palette (when kind = CORAL or FISH).
   colour         String?            @db.VarChar(120)
+  /// Fish (when kind = FISH).
+  species        String?            @db.VarChar(200)
+  reefSafe       Boolean?
+  /// Equipment (when kind = EQUIPMENT).
+  equipmentCategory   EquipmentCategory?
+  equipmentCondition EquipmentCondition?
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   exchangeListings ExchangeListing[]
-  tradeLines     TradeCoral[]
+  tradeLines     TradeInventoryLine[]
 
   @@index([userId])
-  @@map("corals")
+  @@index([kind])
+  @@map("inventory_items")
 }
 
 enum CoralListingMode {
@@ -196,7 +226,7 @@ enum CoralProfileStatus {
   TRADED
 }
 
-/// Chunk 6 — multi-coral trade between two members on one exchange.
+/// Multi-item trade between two members on one exchange (any inventory kinds).
 model Trade {
   id              String      @id @default(cuid())
   exchangeId      String
@@ -213,7 +243,7 @@ model Trade {
   exchange        Exchange    @relation(fields: [exchangeId], references: [id], onDelete: Cascade)
   initiator       User        @relation("TradeInitiator", fields: [initiatorUserId], references: [id], onDelete: Restrict)
   peer            User        @relation("TradePeer", fields: [peerUserId], references: [id], onDelete: Restrict)
-  corals          TradeCoral[]
+  inventoryLines  TradeInventoryLine[]
 
   @@index([exchangeId, status])
   @@index([initiatorUserId])
@@ -221,20 +251,20 @@ model Trade {
   @@map("trades")
 }
 
-model TradeCoral {
+model TradeInventoryLine {
   id                  String                       @id @default(cuid())
   tradeId             String
-  coralId             String
-  side                TradeCoralSide
-  /// Event-day desk flow (Chunk 7): set when an approved trade is on an EVENT exchange; null for group swaps.
-  eventHandoffStatus  TradeCoralEventHandoffStatus?
+  inventoryItemId     String
+  side                TradeLineSide
+  /// Event-day desk flow: set when an approved trade is on an EVENT exchange; null for group swaps.
+  eventHandoffStatus  TradeLineEventHandoffStatus?
   trade               Trade                        @relation(fields: [tradeId], references: [id], onDelete: Cascade)
-  coral               Coral                        @relation(fields: [coralId], references: [id], onDelete: Restrict)
+  inventoryItem       InventoryItem                @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
 
-  @@unique([tradeId, coralId])
-  @@index([coralId])
+  @@unique([tradeId, inventoryItemId])
+  @@index([inventoryItemId])
   @@index([eventHandoffStatus])
-  @@map("trade_corals")
+  @@map("trade_inventory_lines")
 }
 
 enum TradeStatus {
@@ -245,13 +275,13 @@ enum TradeStatus {
   EXPIRED
 }
 
-enum TradeCoralSide {
+enum TradeLineSide {
   INITIATOR
   PEER
 }
 
 /// Physical handoff at an event exchange after trade approval (Available → checked-in → checked-out).
-enum TradeCoralEventHandoffStatus {
+enum TradeLineEventHandoffStatus {
   AWAITING_CHECKIN
   CHECKED_IN
   CHECKED_OUT

@@ -10,7 +10,7 @@ export function ExploreResultsGrid({ rows, exchangeId }: { rows: DiscoverRow[]; 
   return (
     <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
       {rows.map((row) => (
-        <li key={row.listingId}>
+        <li key={row.listingId} className="h-full min-h-0">
           <CoralListingCard row={row} exchangeId={exchangeId} idPrefix="explore" />
         </li>
       ))}

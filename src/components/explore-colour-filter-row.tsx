@@ -8,20 +8,26 @@ export function ExploreColourFilterRow({
   colour,
   checked,
   onToggle,
+  onOnly,
   variant,
 }: {
   colour: string;
   checked: boolean;
   onToggle: () => void;
+  onOnly?: () => void;
   variant: Variant;
 }) {
   const rowClass =
     variant === "menu"
       ? "flex cursor-pointer items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50"
       : "flex cursor-pointer items-center gap-2 text-sm text-slate-700";
+  const rowWithOnlyClass =
+    variant === "menu"
+      ? "flex items-center justify-between gap-2 px-4 py-2 text-sm hover:bg-slate-50"
+      : "flex items-center justify-between gap-2 text-sm text-slate-700";
 
-  return (
-    <label className={rowClass}>
+  const checkboxLabel = (
+    <>
       <span className="relative flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center">
         <input type="checkbox" className="peer sr-only" checked={checked} onChange={onToggle} />
         <span
@@ -40,7 +46,32 @@ export function ExploreColourFilterRow({
           <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
-      <span>{colour}</span>
+      <span className="truncate">{colour}</span>
+    </>
+  );
+
+  if (onOnly) {
+    return (
+      <div className={rowWithOnlyClass}>
+        <label className="flex min-w-0 cursor-pointer items-center gap-2">{checkboxLabel}</label>
+        <button
+          type="button"
+          className="shrink-0 cursor-pointer rounded px-1.5 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOnly();
+          }}
+          aria-label={`Only ${colour}`}
+        >
+          Only
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <label className={rowClass}>
+      {checkboxLabel}
     </label>
   );
 }

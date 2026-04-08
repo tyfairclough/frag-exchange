@@ -21,7 +21,7 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
    cp .env.example .env
    ```
 
-   **Database URL:** committed **`.env.development`** points Prisma/Next at the local Docker MySQL (`frag` / `fraglocaldev` / `frag_exchange` on `127.0.0.1:3306`). It is loaded only when you run **`npm run dev`** (`NODE_ENV=development`). Add optional keys (Mailtrap, etc.) to `.env` or `.env.local`. App-specific secrets use the **`REEFX_*`** prefix (see `.env.example`).
+   **Database URL:** create **`.env.development`** from `.env.example` (dev block) so Prisma/Next use local Docker MySQL (`frag` / `fraglocaldev` / `frag_exchange` on `127.0.0.1:3306`). It is loaded only when you run **`npm run dev`** (`NODE_ENV=development`). Add optional keys (Mailtrap, etc.) to `.env` or `.env.local`. App-specific secrets use the **`REEFX_*`** prefix (see `.env.example`).
 
    **Production** on Hostinger: set **`DATABASE_URL`** in the Node.js app environment — `.env.development` is not used when `NODE_ENV=production`.
 

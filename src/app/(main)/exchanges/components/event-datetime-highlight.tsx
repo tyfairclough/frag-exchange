@@ -25,12 +25,14 @@ export function EventDateHighlight({
   formattedDate,
   eventDeskHref,
   showEventDeskLink,
+  eventPickupHref,
 }: {
   eventAtIso: string;
   /** Server-rendered label so the date line is stable before hydration. */
   formattedDate: string;
   eventDeskHref: string;
   showEventDeskLink: boolean;
+  eventPickupHref?: string;
 }) {
   const [nowMs, setNowMs] = useState(0);
 
@@ -106,6 +108,14 @@ export function EventDateHighlight({
                 </span>
               </div>
             ))}
+            {eventPickupHref ? (
+              <Link
+                href={eventPickupHref}
+                className="ml-auto inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+              >
+                Event pickup
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : null}

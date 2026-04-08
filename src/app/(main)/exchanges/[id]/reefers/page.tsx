@@ -79,14 +79,14 @@ export default async function ExchangeReefersPage({
     where: {
       exchangeId,
       expiresAt: { gt: now },
-      coral: { profileStatus: CoralProfileStatus.UNLISTED },
+      inventoryItem: { profileStatus: CoralProfileStatus.UNLISTED },
     },
-    select: { coral: { select: { userId: true } } },
+    select: { inventoryItem: { select: { userId: true } } },
   });
 
   const countByUserId = new Map<string, number>();
   for (const row of listingRows) {
-    const uid = row.coral.userId;
+    const uid = row.inventoryItem.userId;
     countByUserId.set(uid, (countByUserId.get(uid) ?? 0) + 1);
   }
 

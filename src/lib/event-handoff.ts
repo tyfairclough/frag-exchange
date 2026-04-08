@@ -1,16 +1,19 @@
-import { TradeCoralSide } from "@/generated/prisma/enums";
+import { TradeLineSide } from "@/generated/prisma/enums";
 
 export function recipientUserIdForHandoff(
-  side: TradeCoralSide,
+  side: TradeLineSide,
   trade: { initiatorUserId: string; peerUserId: string },
 ): string {
-  return side === TradeCoralSide.INITIATOR ? trade.peerUserId : trade.initiatorUserId;
+  return side === TradeLineSide.INITIATOR ? trade.peerUserId : trade.initiatorUserId;
 }
 
-/** Member who physically brings this coral to the event desk (pre handoff). */
-export function bringsCoralUserId(
-  side: TradeCoralSide,
+/** Member who physically brings this item to the event desk (pre handoff). */
+export function bringsItemUserId(
+  side: TradeLineSide,
   trade: { initiatorUserId: string; peerUserId: string },
 ): string {
-  return side === TradeCoralSide.INITIATOR ? trade.initiatorUserId : trade.peerUserId;
+  return side === TradeLineSide.INITIATOR ? trade.initiatorUserId : trade.peerUserId;
 }
+
+/** @deprecated use bringsItemUserId */
+export const bringsCoralUserId = bringsItemUserId;

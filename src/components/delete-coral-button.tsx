@@ -1,9 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
-import { deleteCoralAction } from "@/app/(main)/my-corals/actions";
+import { deleteInventoryItemAction } from "@/app/(main)/my-items/actions";
 
-export function DeleteCoralButton({ coralId }: { coralId: string }) {
+export function DeleteCoralButton({ itemId }: { itemId: string }) {
   const [pending, startTransition] = useTransition();
 
   return (
@@ -12,9 +12,9 @@ export function DeleteCoralButton({ coralId }: { coralId: string }) {
       className="btn btn-outline btn-error btn-sm min-h-10 rounded-xl"
       disabled={pending}
       onClick={() => {
-        if (typeof window !== "undefined" && window.confirm("Delete this coral from your inventory?")) {
+        if (typeof window !== "undefined" && window.confirm("Delete this item from your inventory?")) {
           startTransition(() => {
-            void deleteCoralAction(coralId);
+            void deleteInventoryItemAction(itemId);
           });
         }
       }}

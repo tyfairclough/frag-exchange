@@ -228,15 +228,15 @@ function ShellProfileMenu({
         aria-expanded={open}
         aria-label={`Profile menu: ${profile.aliasLabel}`}
         onClick={() => setOpen((v) => !v)}
-        className={`inline-flex max-w-[140px] items-center gap-1 rounded-full border py-1 pl-3 pr-1.5 text-sm font-medium shadow-sm transition-colors active:bg-slate-100 ${profilePillClass(sectionActive)}`}
+        className={`inline-flex max-w-[140px] items-center gap-1 rounded-full border py-1 pl-1.5 pr-3 text-sm font-medium shadow-sm transition-colors active:bg-slate-100 ${profilePillClass(sectionActive)}`}
       >
-        <span className="min-w-0 flex-1 truncate text-left">{profile.aliasLabel}</span>
         <span
           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-lg leading-none text-white"
           aria-hidden
         >
           {profile.avatarEmoji}
         </span>
+        <span className="min-w-0 flex-1 truncate text-left">{profile.aliasLabel}</span>
         <svg
           width="14"
           height="14"
@@ -352,7 +352,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const isExplore = pathname === "/explore";
-  const hideBottomNav = pathname === "/my-corals/new";
+  const hideBottomNav = pathname === "/my-items/new" || pathname === "/my-corals/new";
 
   return (
     <div

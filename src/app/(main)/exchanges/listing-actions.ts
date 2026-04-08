@@ -21,8 +21,9 @@ async function requireMember(exchangeId: string, userId: string) {
 export async function addExchangeListingFormAction(formData: FormData) {
   const user = await requireUser();
   const exchangeId = str(formData.get("exchangeId"));
-  const coralId = str(formData.get("coralId"));
-  if (!exchangeId || !coralId) {
+  const inventoryItemId =
+    str(formData.get("inventoryItemId")) || str(formData.get("coralId"));
+  if (!exchangeId || !inventoryItemId) {
     redirect("/exchanges?error=listing-invalid");
   }
 
@@ -35,10 +36,10 @@ export async function addExchangeListingFormAction(formData: FormData) {
     redirect(addressGate.redirectPath ?? `/exchanges/${exchangeId}?error=address-required-group`);
   }
 
-  const coral = await getPrisma().coral.findFirst({
-    where: { id: coralId, userId: user.id },
+  const item = await getPrisma().inventoryItem.findFirst({
+    where: { id: inventoryItemId, userId: user.id },
   });
-  if (!coral || coral.profileStatus !== CoralProfileStatus.UNLISTED) {
+  if (!item || item.profileStatus !== CoralProfileStatus.UNLISTED) {
     redirect(`/exchanges/${exchangeId}?error=listing-coral`);
   }
 
@@ -47,11 +48,11 @@ export async function addExchangeListingFormAction(formData: FormData) {
 
   await getPrisma().exchangeListing.upsert({
     where: {
-      exchangeId_coralId: { exchangeId, coralId },
+      exchangeId_inventoryItemId: { exchangeId, inventoryItemId },
     },
     create: {
       exchangeId,
-      coralId,
+      inventoryItemId,
       listedAt: now,
       expiresAt,
     },
@@ -71,15 +72,16 @@ export async function addExchangeListingFormAction(formData: FormData) {
 export async function removeExchangeListingFormAction(formData: FormData) {
   const user = await requireUser();
   const exchangeId = str(formData.get("exchangeId"));
-  const coralId = str(formData.get("coralId"));
-  if (!exchangeId || !coralId) {
+  const inventoryItemId =
+    str(formData.get("inventoryItemId")) || str(formData.get("coralId"));
+  if (!exchangeId || !inventoryItemId) {
     redirect("/exchanges?error=listing-invalid");
   }
 
-  const coral = await getPrisma().coral.findFirst({
-    where: { id: coralId, userId: user.id },
+  const item = await getPrisma().inventoryItem.findFirst({
+    where: { id: inventoryItemId, userId: user.id },
   });
-  if (!coral) {
+  if (!item) {
     redirect(`/exchanges/${exchangeId}?error=listing-coral`);
   }
   const addressGate = await getGroupAddressGate(exchangeId, user.id, `/exchanges/${exchangeId}`);
@@ -88,7 +90,7 @@ export async function removeExchangeListingFormAction(formData: FormData) {
   }
 
   await getPrisma().exchangeListing.deleteMany({
-    where: { exchangeId, coralId },
+    where: { exchangeId, inventoryItemId },
   });
 
   revalidatePath(`/exchanges/${exchangeId}`);
