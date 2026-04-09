@@ -25,6 +25,9 @@ export function getSafeInternalNextPath(raw: string | null | undefined): string 
   if (pathOnly === "/onboarding") {
     return pathOnly;
   }
+  if (pathOnly.startsWith("/shared/exchanges/")) {
+    return pathOnly;
+  }
   return null;
 }
 

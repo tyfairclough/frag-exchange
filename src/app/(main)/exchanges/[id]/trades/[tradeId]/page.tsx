@@ -36,15 +36,16 @@ const detailErrors: Record<string, string> = {
   "not-your-turn": "It is not your turn to respond to this trade.",
   "not-pending": "This trade is no longer open.",
   stale: "This page was out of date — try again.",
-  "coral-missing": "A coral in this trade no longer exists.",
-  "coral-unavailable": "A coral is no longer available for trade.",
+  "coral-missing": "An item in this trade no longer exists.",
+  "coral-unavailable": "An item is no longer available for trade.",
   "listing-gone": "Something in this offer is no longer listed — ask them to refresh or counter.",
-  approved: "Trade approved. Corals are marked traded and removed from all exchanges.",
+  approved: "Trade approved. Items are marked traded and removed from all exchanges.",
   rejected: "You declined this trade.",
   countered: "Counter-offer sent.",
-  "counter-invalid": "Pick at least one coral on each side.",
-  coral: "One or more corals are not available.",
-  listing: "Those corals are not actively listed on this exchange.",
+  "counter-invalid": "Pick at least one item on each side.",
+  coral: "One or more items are not available.",
+  listing: "Those items are not actively listed on this exchange.",
+  "trade-kind": "One or more items are not enabled for this exchange.",
 };
 
 export default async function ExchangeTradeDetailPage({

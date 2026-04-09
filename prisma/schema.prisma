@@ -73,6 +73,9 @@ model Exchange {
   id          String             @id @default(cuid())
   name        String             @db.VarChar(160)
   description String?            @db.Text
+  allowCoral  Boolean            @default(true)
+  allowFish   Boolean            @default(true)
+  allowEquipment Boolean         @default(true)
   logo40Url   String?            @db.VarChar(2048)
   logo80Url   String?            @db.VarChar(2048)
   logo512Url  String?            @db.VarChar(2048)

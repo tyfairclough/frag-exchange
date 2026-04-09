@@ -18,6 +18,9 @@ import {
   removeExchangeListingFormAction,
 } from "@/app/(main)/exchanges/listing-actions";
 import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { getRequestOrigin } from "@/lib/request-origin";
+import { buildShareLinks, buildShareMessage, buildSharedItemPath } from "@/lib/item-share";
+import { ItemShareActions } from "@/components/item-share-actions";
 
 function reefersLabel(count: number): string {
   return count === 1 ? "1 reefer" : `${count} reefers`;
@@ -49,8 +52,9 @@ const detailErrors: Record<string, string> = {
   forbidden: "You do not have permission for that action.",
   "promote-invalid": "That member cannot be promoted right now.",
   "demote-invalid": "That manager cannot be demoted right now.",
-  "listing-forbidden": "Join this exchange before listing corals here.",
-  "listing-coral": "That coral cannot be listed on this exchange.",
+  "listing-forbidden": "Join this exchange before listing items here.",
+  "listing-coral": "That item cannot be listed on this exchange.",
+  "listing-kind": "That item type is not enabled on this exchange.",
   "listing-invalid": "That listing request was incomplete.",
 };
 
@@ -65,6 +69,7 @@ export default async function ExchangeDetailPage({
     error?: string;
     listed?: string;
     unlisted?: string;
+    item?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -116,7 +121,27 @@ export default async function ExchangeDetailPage({
   const activeListingByItemId = new Map(
     myListingsHere.filter((l) => l.expiresAt > now).map((l) => [l.inventoryItemId, l]),
   );
-  const myUnlistedItemsForExchange = myListableItems.filter((c) => !activeListingByItemId.has(c.id));
+  const listedItemId = sp.item?.trim() || "";
+  const justListed = sp.listed === "1" && listedItemId ? activeListingByItemId.get(listedItemId) ?? null : null;
+  const hasShareableListings = justListed !== null || activeListingByItemId.size > 0;
+  const shareOrigin = hasShareableListings ? await getRequestOrigin() : null;
+  const sharePath = justListed ? buildSharedItemPath(exchange.id, justListed.inventoryItemId) : null;
+  const shareUrl = sharePath && shareOrigin ? `${shareOrigin}${sharePath}` : null;
+  const shareMessage =
+    justListed && shareUrl ? buildShareMessage(justListed.inventoryItem.name, exchange.name) : null;
+  const shareLinks = shareMessage && shareUrl ? buildShareLinks({ message: shareMessage, absoluteUrl: shareUrl }) : null;
+  const myUnlistedItemsForExchange = myListableItems.filter((c) => {
+    if (activeListingByItemId.has(c.id)) {
+      return false;
+    }
+    if (c.kind === InventoryKind.CORAL) {
+      return exchange.allowCoral;
+    }
+    if (c.kind === InventoryKind.FISH) {
+      return exchange.allowFish;
+    }
+    return exchange.allowEquipment;
+  });
 
   if (!canView) {
     return (
@@ -155,7 +180,18 @@ export default async function ExchangeDetailPage({
 
       {sp.listed === "1" ? (
         <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Coral listed on this exchange (90-day window). Others can find it in Explore.
+          <p>Item listed on this exchange (90-day window). Others can find it in Explore.</p>
+          {shareLinks && shareUrl ? (
+            <>
+              <p className="mt-2 text-xs text-emerald-900/80">Share this listing with friends:</p>
+              <ItemShareActions
+                whatsappUrl={shareLinks.whatsapp}
+                facebookUrl={shareLinks.facebook}
+                bandUrl={shareLinks.band}
+                copyUrl={shareUrl}
+              />
+            </>
+          ) : null}
         </div>
       ) : null}
 
@@ -241,7 +277,7 @@ export default async function ExchangeDetailPage({
       {!membership && exchange.visibility === ExchangeVisibility.PUBLIC ? (
         <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
           <div className="flex flex-row flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-slate-700">Join this public exchange to list corals and browse other reefers.</p>
+            <p className="text-sm text-slate-700">Join this public exchange to list items and browse other reefers.</p>
             <form action={joinPublicExchangeFormAction}>
               <input type="hidden" name="exchangeId" value={exchange.id} />
               <button
@@ -280,7 +316,7 @@ export default async function ExchangeDetailPage({
               Your listings here
             </h2>
             <p className="text-xs text-slate-500">
-              Profile corals can sit on multiple exchanges until a trade completes. Each listing expires after 90 days (renew by listing
+              Profile items can sit on multiple exchanges until a trade completes. Each listing expires after 90 days (renew by listing
               again).
             </p>
 
@@ -290,7 +326,18 @@ export default async function ExchangeDetailPage({
               <ul className="flex flex-col gap-3">
                 {[...activeListingByItemId.values()].map((l) => (
                   <li key={l.id}>
-                    <article className="card border border-base-content/10 bg-base-100 shadow-sm">
+                    {(() => {
+                      const cardSharePath = buildSharedItemPath(exchange.id, l.inventoryItemId);
+                      const cardShareUrl = shareOrigin ? `${shareOrigin}${cardSharePath}` : null;
+                      const cardShareMessage = cardShareUrl
+                        ? buildShareMessage(l.inventoryItem.name, exchange.name)
+                        : null;
+                      const cardShareLinks =
+                        cardShareMessage && cardShareUrl
+                          ? buildShareLinks({ message: cardShareMessage, absoluteUrl: cardShareUrl })
+                          : null;
+                      return (
+                        <article className="card border border-base-content/10 bg-base-100 shadow-sm">
                       <div className="card-body gap-3 p-4">
                         <div className="flex gap-3">
                           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-base-200 text-2xl text-base-content/40">
@@ -327,8 +374,8 @@ export default async function ExchangeDetailPage({
                             </p>
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-2 border-t border-base-content/10 pt-3">
-                          <form action={removeExchangeListingFormAction}>
+                        <div className="flex h-fit flex-nowrap items-end justify-between gap-0 border-t border-base-content/10 pt-3">
+                          <form action={removeExchangeListingFormAction} className="flex h-9 items-start justify-end">
                             <input type="hidden" name="exchangeId" value={exchange.id} />
                             <input type="hidden" name="inventoryItemId" value={l.inventoryItemId} />
                             <button
@@ -338,9 +385,19 @@ export default async function ExchangeDetailPage({
                               Remove
                             </button>
                           </form>
+                          {cardShareLinks && cardShareUrl ? (
+                            <ItemShareActions
+                              whatsappUrl={cardShareLinks.whatsapp}
+                              facebookUrl={cardShareLinks.facebook}
+                              bandUrl={cardShareLinks.band}
+                              copyUrl={cardShareUrl}
+                            />
+                          ) : null}
                         </div>
                       </div>
-                    </article>
+                        </article>
+                      );
+                    })()}
                   </li>
                 ))}
               </ul>
@@ -394,13 +451,13 @@ export default async function ExchangeDetailPage({
                               </p>
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-2 border-t border-base-content/10 pt-3">
-                            <form action={addExchangeListingFormAction}>
+                          <div className="flex h-fit flex-nowrap items-end justify-between gap-0 border-t border-base-content/10 pt-3">
+                            <form action={addExchangeListingFormAction} className="flex h-9 items-start justify-end">
                               <input type="hidden" name="exchangeId" value={exchange.id} />
                               <input type="hidden" name="inventoryItemId" value={c.id} />
                               <button
                                 type="submit"
-                                className="inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold text-white transition hover:opacity-95"
+                                className="inline-flex min-h-9 items-center rounded-full px-4 text-sm font-semibold text-white transition hover:opacity-95"
                                 style={{ backgroundColor: MARKETING_CTA_GREEN }}
                               >
                                 List here

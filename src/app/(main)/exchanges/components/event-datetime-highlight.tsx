@@ -20,6 +20,10 @@ function deskButtonClass() {
   return "inline-flex min-h-10 items-center justify-center rounded-full px-5 text-sm font-semibold text-white transition hover:opacity-95";
 }
 
+function pickupButtonClass() {
+  return "inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100";
+}
+
 export function EventDateHighlight({
   eventAtIso,
   formattedDate,
@@ -109,10 +113,7 @@ export function EventDateHighlight({
               </div>
             ))}
             {eventPickupHref ? (
-              <Link
-                href={eventPickupHref}
-                className="ml-auto inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-              >
+              <Link href={eventPickupHref} className={`ml-auto ${pickupButtonClass()}`}>
                 Event pickup
               </Link>
             ) : null}
@@ -122,7 +123,14 @@ export function EventDateHighlight({
 
       {phase === "eventDay" ? (
         <div className="mt-4 space-y-3">
-          <p className="text-base font-semibold text-emerald-900">The big day is finally here</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-base font-semibold text-emerald-900">The big day is finally here</p>
+            {eventPickupHref ? (
+              <Link href={eventPickupHref} className={`ml-auto ${pickupButtonClass()}`}>
+                Event pickup
+              </Link>
+            ) : null}
+          </div>
           {showEventDeskLink ? (
             <Link href={eventDeskHref} className={deskButtonClass()} style={{ backgroundColor: MARKETING_LINK_BLUE }}>
               Event desk
@@ -134,22 +142,36 @@ export function EventDateHighlight({
       {phase === "wrapUp" ? (
         <div className="mt-4 space-y-3">
           <p className="text-sm font-medium text-slate-700">The swap day has ended — desk stays open for handoffs.</p>
-          {showEventDeskLink ? (
-            <Link href={eventDeskHref} className={deskButtonClass()} style={{ backgroundColor: MARKETING_LINK_BLUE }}>
-              Event desk
-            </Link>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {showEventDeskLink ? (
+              <Link href={eventDeskHref} className={deskButtonClass()} style={{ backgroundColor: MARKETING_LINK_BLUE }}>
+                Event desk
+              </Link>
+            ) : null}
+            {eventPickupHref ? (
+              <Link href={eventPickupHref} className={`ml-auto ${pickupButtonClass()}`}>
+                Event pickup
+              </Link>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
       {phase === "finished" ? (
         <div className="mt-4 space-y-3">
           <p className="text-base font-semibold text-slate-800">This event is finished</p>
-          {showEventDeskLink ? (
-            <Link href={eventDeskHref} className={deskButtonClass()} style={{ backgroundColor: MARKETING_LINK_BLUE }}>
-              Reconciliation — follow up
-            </Link>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {showEventDeskLink ? (
+              <Link href={eventDeskHref} className={deskButtonClass()} style={{ backgroundColor: MARKETING_LINK_BLUE }}>
+                Reconciliation — follow up
+              </Link>
+            ) : null}
+            {eventPickupHref ? (
+              <Link href={eventPickupHref} className={`ml-auto ${pickupButtonClass()}`}>
+                Event pickup
+              </Link>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>

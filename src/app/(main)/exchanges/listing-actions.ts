@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { CoralProfileStatus } from "@/generated/prisma/enums";
+import { CoralProfileStatus, InventoryKind } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { listingExpiresAtFrom } from "@/lib/listing-duration";
@@ -16,6 +16,15 @@ async function requireMember(exchangeId: string, userId: string) {
   return getPrisma().exchangeMembership.findFirst({
     where: { exchangeId, userId },
   });
+}
+
+function isKindAllowedOnExchange(
+  kind: InventoryKind,
+  allowed: { allowCoral: boolean; allowFish: boolean; allowEquipment: boolean },
+) {
+  if (kind === InventoryKind.CORAL) return allowed.allowCoral;
+  if (kind === InventoryKind.FISH) return allowed.allowFish;
+  return allowed.allowEquipment;
 }
 
 export async function addExchangeListingFormAction(formData: FormData) {
@@ -36,11 +45,20 @@ export async function addExchangeListingFormAction(formData: FormData) {
     redirect(addressGate.redirectPath ?? `/exchanges/${exchangeId}?error=address-required-group`);
   }
 
-  const item = await getPrisma().inventoryItem.findFirst({
-    where: { id: inventoryItemId, userId: user.id },
-  });
+  const [item, exchange] = await Promise.all([
+    getPrisma().inventoryItem.findFirst({
+      where: { id: inventoryItemId, userId: user.id },
+    }),
+    getPrisma().exchange.findUnique({
+      where: { id: exchangeId },
+      select: { allowCoral: true, allowFish: true, allowEquipment: true },
+    }),
+  ]);
   if (!item || item.profileStatus !== CoralProfileStatus.UNLISTED) {
     redirect(`/exchanges/${exchangeId}?error=listing-coral`);
+  }
+  if (!exchange || !isKindAllowedOnExchange(item.kind, exchange)) {
+    redirect(`/exchanges/${exchangeId}?error=listing-kind`);
   }
 
   const now = new Date();
@@ -66,7 +84,7 @@ export async function addExchangeListingFormAction(formData: FormData) {
   revalidatePath(`/exchanges/${exchangeId}/trade`);
   revalidatePath(`/exchanges/${exchangeId}/trades`);
   revalidatePath("/explore");
-  redirect(`/exchanges/${exchangeId}?listed=1`);
+  redirect(`/exchanges/${exchangeId}?listed=1&item=${encodeURIComponent(inventoryItemId)}`);
 }
 
 export async function removeExchangeListingFormAction(formData: FormData) {

@@ -11,8 +11,8 @@ function reefersLabel(count: number): string {
   return count === 1 ? "1 reefer" : `${count} reefers`;
 }
 
-function coralsAvailableLabel(count: number): string {
-  return count === 1 ? "1 coral available" : `${count} corals available`;
+function itemsAvailableLabel(count: number): string {
+  return count === 1 ? "1 item available" : `${count} items available`;
 }
 
 function normalizeEmail(email: string) {
@@ -24,8 +24,9 @@ const exchangeErrors: Record<string, string> = {
   "join-not-found": "That public exchange was not found.",
   "invite-invalid": "This invite link is invalid or has expired.",
   "listing-invalid": "That listing request was incomplete.",
-  "listing-forbidden": "Join this exchange before listing corals here.",
-  "listing-coral": "That coral cannot be listed right now.",
+  "listing-forbidden": "Join this exchange before listing items here.",
+  "listing-coral": "That item cannot be listed right now.",
+  "listing-kind": "That item type is not enabled for this exchange.",
   "trade-rate-limit": "Too many trade actions in a short time. Please wait a minute and try again.",
 };
 
@@ -210,7 +211,7 @@ export default async function ExchangesPage({
                             {m.exchange.kind === ExchangeKind.EVENT ? "Event" : "Group"} ·{" "}
                             {m.exchange.visibility === ExchangeVisibility.PUBLIC ? "Public" : "Private"} · Role:{" "}
                             {m.role === "EVENT_MANAGER" ? "Event manager" : "Member"} · {reefersLabel(m.exchange._count.memberships)}{" "}
-                            · {coralsAvailableLabel(activeListingsByExchange.get(m.exchange.id) ?? 0)}
+                            · {itemsAvailableLabel(activeListingsByExchange.get(m.exchange.id) ?? 0)}
                           </p>
                         </div>
                       </div>
@@ -260,7 +261,7 @@ export default async function ExchangesPage({
                         </Link>
                         <p className="text-xs text-slate-600">
                           {ex.kind === ExchangeKind.EVENT ? "Event" : "Group"} · Public · {reefersLabel(ex._count.memberships)} ·{" "}
-                          {coralsAvailableLabel(activeListingsByExchange.get(ex.id) ?? 0)}
+                          {itemsAvailableLabel(activeListingsByExchange.get(ex.id) ?? 0)}
                         </p>
                       </div>
                     </div>

@@ -183,7 +183,7 @@ export default async function OperatorExchangeDashboardPage({
             </p>
           </div>
           <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-            <p className="text-xs font-medium text-slate-500">Corals listed</p>
+            <p className="text-xs font-medium text-slate-500">Items listed</p>
             <p className="mt-1 text-2xl font-bold tabular-nums" style={{ color: MARKETING_NAVY }}>
               <span>{activeListingsCount}</span>
               <span className="text-base font-semibold text-slate-400"> / </span>

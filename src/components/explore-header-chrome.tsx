@@ -78,8 +78,8 @@ function summarySpecies(species: string) {
   return t ? t : "Any species";
 }
 
-function itemTabLabel(tab: DiscoverItemTab) {
-  return ITEM_TAB_OPTIONS.find(([id]) => id === tab)?.[1] ?? "Corals";
+function itemTabLabel(tab: DiscoverItemTab, options: readonly [DiscoverItemTab, string][]) {
+  return options.find(([id]) => id === tab)?.[1] ?? "Corals";
 }
 
 function labelEquipmentCategory(k: string) {
@@ -123,11 +123,16 @@ function emptyExploreFilters(): ExploreFilterState {
 }
 
 const NO_CORAL_TYPE_OPTIONS: readonly string[] = [];
-const ITEM_TAB_OPTIONS = [
-  ["coral", "Corals"],
-  ["fish", "Fish"],
-  ["equipment", "Gear"],
-] as const;
+const ITEM_TAB_LABELS: Record<DiscoverItemTab, string> = {
+  coral: "Corals",
+  fish: "Fish",
+  equipment: "Gear",
+};
+
+function itemTabOptionsFor(allowedTabs: readonly DiscoverItemTab[]) {
+  const source = allowedTabs.length > 0 ? allowedTabs : (["coral", "fish", "equipment"] as const);
+  return source.map((tab) => [tab, ITEM_TAB_LABELS[tab]] as [DiscoverItemTab, string]);
+}
 
 export function ExploreHeaderChrome() {
   const pathname = usePathname();
@@ -484,10 +489,15 @@ export function ExploreHeaderChrome() {
     if (!model) {
       return;
     }
+    const allowedTabs = itemTabOptionsFor(model.allowedItemTabs);
+    const firstAllowed = allowedTabs[0]?.[0] ?? "coral";
+    const normalizedTab = allowedTabs.some(([id]) => id === draft.itemTab)
+      ? draft.itemTab
+      : firstAllowed;
     const href = buildExploreSearchHref({
       exchangeId: draftExchangeId || model.exchangeId,
       ownerUserId: model.ownerUserId,
-      filters: draft,
+      filters: { ...draft, itemTab: normalizedTab },
       markSearched: true,
     });
     navigateAfterClosingOverlay(href);
@@ -535,9 +545,11 @@ export function ExploreHeaderChrome() {
     viewerHasCoords,
     coralColours: coralColourOptions,
   } = model;
+  const itemTabOptions = itemTabOptionsFor(model.allowedItemTabs);
+  const fallbackTab = itemTabOptions[0]?.[0] ?? "coral";
+  const tab = itemTabOptions.some(([id]) => id === draft.itemTab) ? draft.itemTab : fallbackTab;
   const isGroup = exchangeKind === "GROUP";
   const countLabel = `${resultCount} listing${resultCount === 1 ? "" : "s"} found`;
-  const tab = draft.itemTab;
 
   const mobileSearchSummaryLine =
     tab === "coral"
@@ -583,7 +595,7 @@ export function ExploreHeaderChrome() {
 
       <div className="border-b border-slate-100 bg-white px-3 py-2 sm:px-4">
         <div className="mx-auto flex w-full max-w-lg gap-1 rounded-full bg-slate-100 p-1">
-          {ITEM_TAB_OPTIONS.map(([id, label]) => (
+          {itemTabOptions.map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -946,23 +958,24 @@ export function ExploreHeaderChrome() {
 
   const itemTabRow = (
     <div
-      className={`hidden w-fit max-w-full gap-1 overflow-hidden rounded-full bg-slate-100 p-1 transition-all duration-300 motion-reduce:transition-none md:flex ${
+      className={`tabs tabs-border hidden w-fit max-w-full items-center gap-1 overflow-hidden rounded-2xl px-1 transition-all duration-300 motion-reduce:transition-none md:flex ${
         isDesktopCompact
           ? "max-h-0 -translate-y-1 scale-[0.98] opacity-0 pointer-events-none"
           : "max-h-20 translate-y-0 scale-100 opacity-100"
       }`}
       aria-hidden={isDesktopCompact}
     >
-      {ITEM_TAB_OPTIONS.map(([id, label]) => (
+      {itemTabOptions.map(([id, label]) => (
         <button
           key={id}
           type="button"
-          className={`inline-flex items-center justify-start gap-2 rounded-full px-3 py-1.5 text-left text-[0.65rem] font-semibold leading-tight ${
-            tab === id ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+          role="tab"
+          className={`tab cursor-pointer !h-auto items-center justify-start gap-2 rounded-full px-3 py-1.5 text-left text-[0.65rem] font-semibold leading-tight ${
+            tab === id ? "tab-active text-slate-900" : "text-slate-600"
           }`}
           onClick={() => switchItemTab(id)}
         >
-          <ItemTabIcon tab={id} className="h-10 w-10 shrink-0" />
+          <ItemTabIcon tab={id} className="h-9 w-9 shrink-0" />
           {label}
         </button>
       ))}
@@ -976,13 +989,13 @@ export function ExploreHeaderChrome() {
         className="flex h-full min-w-[3.25rem] items-center justify-center px-3 py-2 hover:bg-slate-50"
         onClick={() => setOpenMenu((m) => (m === "itemTab" ? null : "itemTab"))}
         aria-expanded={openMenu === "itemTab"}
-        aria-label={`Item type: ${itemTabLabel(tab)}. Open item type menu`}
+        aria-label={`Item type: ${itemTabLabel(tab, itemTabOptions)}. Open item type menu`}
       >
         <ItemTabIcon tab={tab} className="h-4 w-4 text-slate-900" />
       </button>
       {openMenu === "itemTab" ? (
         <div className="absolute left-0 top-full z-30 mt-2 w-40 rounded-2xl border border-slate-200 bg-white py-1 shadow-lg">
-          {ITEM_TAB_OPTIONS.map(([id, label]) => (
+          {itemTabOptions.map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -1627,54 +1640,6 @@ function ChevronDownIcon({ className }: { className?: string }) {
 }
 
 function ItemTabIcon({ tab, className }: { tab: DiscoverItemTab; className?: string }) {
-  if (tab === "coral") {
-    return <CoralIcon className={className} />;
-  }
-  if (tab === "fish") {
-    return <FishIcon className={className} />;
-  }
-  return <GearIcon className={className} />;
-}
-
-function CoralIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 20V8M12 12C9.5 12 8 10.5 8 8.4 8 6.2 9.7 4.5 12 4.5M12 12c2.5 0 4-1.5 4-3.6 0-2.2-1.7-3.9-4-3.9M12 16c-2.2 0-3.8-1.2-3.8-3M12 16c2.2 0 3.8-1.2 3.8-3"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function FishIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M19.5 12c-2.2-2.8-5-4.2-8.2-4.2-2.3 0-4.4.7-6.3 2.1L2.5 8.5v7l2.5-1.4c1.9 1.4 4 2.1 6.3 2.1 3.2 0 6-1.4 8.2-4.2Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="9.3" cy="11" r="1" fill="currentColor" />
-    </svg>
-  );
-}
-
-function GearIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="m12 3.5 1.1 2.2 2.4.4.7 2.3 2 .9-.2 2.5 1.7 1.7-1.7 1.7.2 2.5-2 .9-.7 2.3-2.4.4L12 20.5l-1.1-2.2-2.4-.4-.7-2.3-2-.9.2-2.5-1.7-1.7 1.7-1.7-.2-2.5 2-.9.7-2.3 2.4-.4L12 3.5Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
+  const src = tab === "coral" ? "/tab-icons/coral.png" : tab === "fish" ? "/tab-icons/fish.png" : "/tab-icons/gear.png";
+  return <img src={src} alt="" aria-hidden className={className} />;
 }

@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import type { ExploreFilterState } from "@/lib/explore-search-href";
+import type { DiscoverItemTab } from "@/lib/discover-listings";
 
 export type ExploreShellMembership = {
   id: string;
@@ -19,6 +20,7 @@ export type ExploreShellModel = {
   viewerHasCoords: boolean;
   coralTypes: readonly string[];
   coralColours: readonly string[];
+  allowedItemTabs: readonly DiscoverItemTab[];
   filters: ExploreFilterState;
   ownerUserId: string | null;
 };

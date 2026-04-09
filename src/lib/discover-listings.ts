@@ -70,6 +70,7 @@ export type DiscoverParams = {
   /** Equipment tab */
   equipmentCategories?: string[];
   equipmentConditions?: string[];
+  allowedKinds?: InventoryKind[];
 };
 
 function listingModeFilter(
@@ -149,6 +150,10 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
   const searchActive = params.searchActive ?? false;
   const itemTab = params.itemTab ?? "coral";
   const kindScope = searchActive ? tabToKind(itemTab) : undefined;
+  const allowedKinds = params.allowedKinds;
+  if (allowedKinds && allowedKinds.length < 1) {
+    return [];
+  }
 
   const speciesTrim = params.speciesContains?.trim();
 
@@ -166,7 +171,12 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
     itemParts.push(listingModeFilter(fulfilment));
   }
   if (kindScope) {
+    if (allowedKinds && !allowedKinds.includes(kindScope)) {
+      return [];
+    }
     itemParts.push({ kind: kindScope });
+  } else if (allowedKinds) {
+    itemParts.push({ kind: { in: allowedKinds } });
   }
 
   if (searchActive) {

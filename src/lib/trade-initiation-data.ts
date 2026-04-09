@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { CoralProfileStatus } from "@/generated/prisma/enums";
+import { CoralProfileStatus, InventoryKind } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { canViewExchangeDirectory } from "@/lib/super-admin";
 
@@ -10,6 +10,7 @@ export const tradeInitiationErrors: Record<string, string> = {
   membership: "Both people must be members of this exchange.",
   coral: "One or more items are no longer available.",
   listing: "One or more items are no longer actively listed.",
+  "trade-kind": "One or more items are not enabled for this exchange.",
 };
 
 export async function loadTradeInitiationContext(
@@ -64,5 +65,14 @@ export async function loadTradeInitiationContext(
     }),
   ]);
 
-  return { exchange, peer, myRows, theirRows };
+  const allowKind = (kind: (typeof myRows)[number]["inventoryItem"]["kind"]) => {
+    if (kind === InventoryKind.CORAL) return exchange.allowCoral;
+    if (kind === InventoryKind.FISH) return exchange.allowFish;
+    return exchange.allowEquipment;
+  };
+
+  const filteredMyRows = myRows.filter((row) => allowKind(row.inventoryItem.kind));
+  const filteredTheirRows = theirRows.filter((row) => allowKind(row.inventoryItem.kind));
+
+  return { exchange, peer, myRows: filteredMyRows, theirRows: filteredTheirRows };
 }

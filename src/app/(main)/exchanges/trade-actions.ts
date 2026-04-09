@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   CoralProfileStatus,
   ExchangeKind,
+  InventoryKind,
   TradeLineEventHandoffStatus,
   TradeLineSide,
   TradeStatus,
@@ -77,6 +78,15 @@ function tradeStepPath(
 
 function freeToGoodHomeSet(items: { id: string; freeToGoodHome: boolean }[]) {
   return new Set(items.filter((item) => item.freeToGoodHome).map((item) => item.id));
+}
+
+function isKindAllowedOnExchange(
+  kind: InventoryKind,
+  exchange: { allowCoral: boolean; allowFish: boolean; allowEquipment: boolean },
+) {
+  if (kind === InventoryKind.CORAL) return exchange.allowCoral;
+  if (kind === InventoryKind.FISH) return exchange.allowFish;
+  return exchange.allowEquipment;
 }
 
 async function loadTradeForMember(
@@ -208,6 +218,11 @@ export async function submitTradeInitiationAction(formData: FormData) {
   }
   if (initiatorItems.length !== initiatorIds.length) {
     redirect(tradeStepPath(exchangeId, peerUserId, "offer", "coral"));
+  }
+  for (const item of [...initiatorItems, ...peerItems]) {
+    if (!isKindAllowedOnExchange(item.kind, exchange)) {
+      redirect(tradeStepPath(exchangeId, peerUserId, "confirm", "trade-kind"));
+    }
   }
 
   const receiveFreeSet = freeToGoodHomeSet(peerItems);
@@ -603,6 +618,11 @@ export async function counterTradeAction(formData: FormData) {
 
   if (initiatorItems.length !== initiatorIds.length || peerItems.length !== peerIds.length) {
     redirect(tradeDetailPath(exchangeId, tradeId, "coral"));
+  }
+  for (const item of [...initiatorItems, ...peerItems]) {
+    if (!isKindAllowedOnExchange(item.kind, trade.exchange)) {
+      redirect(tradeDetailPath(exchangeId, tradeId, "trade-kind"));
+    }
   }
 
   const listings = await db.exchangeListing.findMany({

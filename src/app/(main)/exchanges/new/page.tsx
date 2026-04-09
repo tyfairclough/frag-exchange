@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createExchangeAction } from "@/app/(main)/exchanges/actions";
 import { ExchangeLogoField } from "@/app/(main)/exchanges/components/exchange-logo-field";
+import { NewExchangeEventDatePicker } from "@/app/(main)/exchanges/components/new-exchange-event-date-picker";
 import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
 
@@ -13,6 +14,8 @@ export default async function NewExchangePage({
   const params = await searchParams;
   const nameError = params.error === "name";
   const logoError = params.error === "logo";
+  const eventDateError = params.error === "event-date";
+  const itemTypesError = params.error === "item-types";
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -46,6 +49,16 @@ export default async function NewExchangePage({
           Upload a valid logo image (JPG, PNG, or WebP up to 6MB).
         </div>
       ) : null}
+      {eventDateError ? (
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Select an event date when creating an event exchange.
+        </div>
+      ) : null}
+      {itemTypesError ? (
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Select at least one item type.
+        </div>
+      ) : null}
 
       <form
         action={createExchangeAction}
@@ -76,18 +89,6 @@ export default async function NewExchangePage({
           </label>
 
           <fieldset className="space-y-2">
-            <legend className="text-sm font-semibold text-slate-700">Type</legend>
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-              <input type="radio" name="kind" value="EVENT" className="mt-0.5" defaultChecked />
-              <span className="text-sm text-slate-700">Event (swap day, event managers, check-in later)</span>
-            </label>
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-              <input type="radio" name="kind" value="GROUP" className="mt-0.5" />
-              <span className="text-sm text-slate-700">Group (ongoing club or region)</span>
-            </label>
-          </fieldset>
-
-          <fieldset className="space-y-2">
             <legend className="text-sm font-semibold text-slate-700">Visibility</legend>
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
               <input type="radio" name="visibility" value="PUBLIC" className="mt-0.5" defaultChecked />
@@ -99,15 +100,23 @@ export default async function NewExchangePage({
             </label>
           </fieldset>
 
-          <label className="block w-full">
-            <span className="mb-1 block text-sm font-semibold text-slate-700">Event date (optional)</span>
-            <input
-              name="eventDate"
-              type="datetime-local"
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-            />
-            <span className="mt-1 block text-xs text-slate-500">Used later for trade expiry on event exchanges.</span>
-          </label>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-semibold text-slate-700">Allowed item types</legend>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input type="checkbox" name="allowCoral" className="mt-0.5" defaultChecked />
+              <span className="text-sm text-slate-700">Coral</span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input type="checkbox" name="allowFish" className="mt-0.5" defaultChecked />
+              <span className="text-sm text-slate-700">Fish</span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input type="checkbox" name="allowEquipment" className="mt-0.5" defaultChecked />
+              <span className="text-sm text-slate-700">Gear</span>
+            </label>
+          </fieldset>
+
+          <NewExchangeEventDatePicker />
 
           <ExchangeLogoField />
 

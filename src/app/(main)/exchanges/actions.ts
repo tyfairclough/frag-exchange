@@ -56,6 +56,21 @@ function parseVisibility(raw: string): ExchangeVisibility {
   return ExchangeVisibility.PUBLIC;
 }
 
+function parseAllowedItemTypes(formData: FormData) {
+  const allowCoral = formData.get("allowCoral") === "on";
+  const allowFish = formData.get("allowFish") === "on";
+  const allowEquipment = formData.get("allowEquipment") === "on";
+  return { allowCoral, allowFish, allowEquipment };
+}
+
+function hasAtLeastOneAllowedItemType(allowed: {
+  allowCoral: boolean;
+  allowFish: boolean;
+  allowEquipment: boolean;
+}) {
+  return allowed.allowCoral || allowed.allowFish || allowed.allowEquipment;
+}
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
@@ -93,6 +108,7 @@ export async function createExchangeAction(formData: FormData) {
   const description = str(formData.get("description")) || null;
   const kind = parseKind(str(formData.get("kind")));
   const visibility = parseVisibility(str(formData.get("visibility")));
+  const allowedTypes = parseAllowedItemTypes(formData);
   const eventDateRaw = str(formData.get("eventDate"));
   let eventDate: Date | null = null;
   if (eventDateRaw) {
@@ -101,9 +117,18 @@ export async function createExchangeAction(formData: FormData) {
       eventDate = d;
     }
   }
+  if (kind === ExchangeKind.EVENT && !eventDate) {
+    redirect("/exchanges/new?error=event-date");
+  }
+  if (kind === ExchangeKind.GROUP) {
+    eventDate = null;
+  }
 
   if (!name) {
     redirect("/exchanges/new?error=name");
+  }
+  if (!hasAtLeastOneAllowedItemType(allowedTypes)) {
+    redirect("/exchanges/new?error=item-types");
   }
 
   try {
@@ -114,6 +139,9 @@ export async function createExchangeAction(formData: FormData) {
         kind,
         visibility,
         eventDate,
+        allowCoral: allowedTypes.allowCoral,
+        allowFish: allowedTypes.allowFish,
+        allowEquipment: allowedTypes.allowEquipment,
         createdById: admin.id,
         memberships: {
           create: {
@@ -184,6 +212,7 @@ export async function updateExchangeAction(formData: FormData) {
   const superUser = isSuperAdmin(user);
   const name = str(formData.get("name"));
   const description = str(formData.get("description")) || null;
+  const allowedTypes = parseAllowedItemTypes(formData);
   const eventDateRaw = str(formData.get("eventDate"));
   let eventDate: Date | null = null;
   if (eventDateRaw) {
@@ -195,6 +224,9 @@ export async function updateExchangeAction(formData: FormData) {
 
   if (!name) {
     redirect(`/exchanges/${exchangeId}/edit?error=name`);
+  }
+  if (!hasAtLeastOneAllowedItemType(allowedTypes)) {
+    redirect(`/exchanges/${exchangeId}/edit?error=item-types`);
   }
 
   try {
@@ -210,6 +242,9 @@ export async function updateExchangeAction(formData: FormData) {
             kind,
             visibility,
             eventDate,
+            allowCoral: allowedTypes.allowCoral,
+            allowFish: allowedTypes.allowFish,
+            allowEquipment: allowedTypes.allowEquipment,
           },
         });
         if (kind === ExchangeKind.GROUP) {
@@ -226,6 +261,9 @@ export async function updateExchangeAction(formData: FormData) {
           name,
           description,
           eventDate,
+          allowCoral: allowedTypes.allowCoral,
+          allowFish: allowedTypes.allowFish,
+          allowEquipment: allowedTypes.allowEquipment,
         },
       });
     }

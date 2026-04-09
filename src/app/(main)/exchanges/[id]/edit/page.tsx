@@ -22,6 +22,7 @@ function toDatetimeLocalValue(d: Date): string {
 const editErrors: Record<string, string> = {
   name: "Enter a name for the exchange.",
   logo: "Upload a valid logo image (JPG, PNG, or WebP up to 6MB).",
+  "item-types": "Select at least one item type.",
   "not-found": "That exchange could not be updated.",
 };
 
@@ -164,6 +165,27 @@ export default async function EditExchangePage({
               </fieldset>
             </>
           ) : null}
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-semibold text-slate-700">Allowed item types</legend>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input type="checkbox" name="allowCoral" className="mt-0.5" defaultChecked={exchange.allowCoral} />
+              <span className="text-sm text-slate-700">Coral</span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input type="checkbox" name="allowFish" className="mt-0.5" defaultChecked={exchange.allowFish} />
+              <span className="text-sm text-slate-700">Fish</span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input
+                type="checkbox"
+                name="allowEquipment"
+                className="mt-0.5"
+                defaultChecked={exchange.allowEquipment}
+              />
+              <span className="text-sm text-slate-700">Gear</span>
+            </label>
+          </fieldset>
 
           <label className="block w-full">
             <span className="mb-1 block text-sm font-semibold text-slate-700">Event date (optional)</span>

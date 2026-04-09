@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ExchangeKind } from "@/generated/prisma/enums";
+import { ExchangeKind, InventoryKind } from "@/generated/prisma/enums";
 import type { ExploreShellModel } from "@/components/explore-shell-context";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import {
   DISCOVER_CORAL_COLOURS,
   DISCOVER_CORAL_TYPES,
+  type DiscoverItemTab,
   discoverExchangeListings,
 } from "@/lib/discover-listings";
 import { buildExploreSearchHref, parseExploreFiltersFromSearchParams } from "@/lib/explore-search-href";
@@ -27,6 +28,18 @@ function recordToURLSearchParams(sp: Record<string, string | string[] | undefine
     }
   }
   return u;
+}
+
+function allowedTabsForExchange(exchange: {
+  allowCoral: boolean;
+  allowFish: boolean;
+  allowEquipment: boolean;
+}): DiscoverItemTab[] {
+  const tabs: DiscoverItemTab[] = [];
+  if (exchange.allowCoral) tabs.push("coral");
+  if (exchange.allowFish) tabs.push("fish");
+  if (exchange.allowEquipment) tabs.push("equipment");
+  return tabs;
 }
 
 export default async function ExplorePage({
@@ -53,6 +66,15 @@ export default async function ExplorePage({
   const exchangeId = exchangeIdFromTrustedParam ?? (memberships[0]?.exchangeId ?? "");
 
   const selected = memberships.find((m) => m.exchangeId === exchangeId);
+  const allowedTabs = selected ? allowedTabsForExchange(selected.exchange) : [];
+  const normalizedItemTab = allowedTabs.includes(filters.itemTab) ? filters.itemTab : (allowedTabs[0] ?? "coral");
+  const allowedKinds = selected
+    ? [
+        ...(selected.exchange.allowCoral ? [InventoryKind.CORAL] : []),
+        ...(selected.exchange.allowFish ? [InventoryKind.FISH] : []),
+        ...(selected.exchange.allowEquipment ? [InventoryKind.EQUIPMENT] : []),
+      ]
+    : [];
   const ownerParam = str(sp.owner);
   const fulfilmentParsed =
     filters.fulfilment === "POST" || filters.fulfilment === "MEET"
@@ -107,7 +129,7 @@ export default async function ExplorePage({
           viewerLat,
           viewerLon,
           searchActive,
-          itemTab: filters.itemTab,
+          itemTab: normalizedItemTab,
           q: filters.q.trim() || undefined,
           coralTypes: filters.coralTypes.length ? filters.coralTypes : undefined,
           colours: filters.colours.length ? filters.colours : undefined,
@@ -119,6 +141,7 @@ export default async function ExplorePage({
           reefSafeOnly: filters.reefSafeOnly || undefined,
           equipmentCategories: filters.equipmentCategories.length ? filters.equipmentCategories : undefined,
           equipmentConditions: filters.equipmentConditions.length ? filters.equipmentConditions : undefined,
+          allowedKinds,
         })
       : [];
 
@@ -149,7 +172,8 @@ export default async function ExplorePage({
           viewerHasCoords: viewerLat != null && viewerLon != null,
           coralTypes: DISCOVER_CORAL_TYPES,
           coralColours: DISCOVER_CORAL_COLOURS,
-          filters,
+          allowedItemTabs: allowedTabs,
+          filters: { ...filters, itemTab: normalizedItemTab },
           ownerUserId: validatedOwnerUserId,
         }
       : null;
