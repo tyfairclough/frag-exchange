@@ -153,6 +153,20 @@ function createPrismaClient(): PrismaClient {
   } catch {
     normalizedHost = "INVALID_URL";
   }
+  console.error(
+    "[reefx][db-client-init]",
+    JSON.stringify({
+      pid: process.pid,
+      nodeEnv: process.env.NODE_ENV,
+      host: normalizedHost,
+      port: normalizedPort,
+      connectionLimit,
+      minimumIdle,
+      allowPublicKeyRetrieval,
+      sslMode,
+      urlMutatedForRsa: rsaFix.changed,
+    }),
+  );
   // #region agent log
   postDebugLog("pre-fix", "H1", "src/lib/db.ts:createPrismaClient", "normalized-db-url-ready", {
     nodeEnv: process.env.NODE_ENV ?? "",
@@ -190,6 +204,10 @@ function createPrismaClient(): PrismaClient {
  */
 export function getPrisma(): PrismaClient {
   if (globalForPrisma.prisma) {
+    console.error(
+      "[reefx][db-client-reuse]",
+      JSON.stringify({ pid: process.pid, reused: true }),
+    );
     // #region agent log
     postDebugLog("pre-fix", "H4", "src/lib/db.ts:getPrisma", "returning-global-prisma", {
       reused: true,
@@ -198,6 +216,10 @@ export function getPrisma(): PrismaClient {
     return globalForPrisma.prisma;
   }
 
+  console.error(
+    "[reefx][db-client-reuse]",
+    JSON.stringify({ pid: process.pid, reused: false }),
+  );
   // #region agent log
   postDebugLog("pre-fix", "H4", "src/lib/db.ts:getPrisma", "creating-global-prisma", {
     reused: false,
@@ -217,6 +239,14 @@ export function assertMysqlReachable(err: unknown): void {
   const emptyPool =
     msg.includes("pool timeout") && msg.includes("active=0") && msg.includes("idle=0");
   if (emptyPool) {
+    console.error(
+      "[reefx][db-empty-pool-detected]",
+      JSON.stringify({
+        pid: process.pid,
+        uptimeSec: Math.round(process.uptime()),
+        msg,
+      }),
+    );
     const cause =
       err instanceof Error && err.cause instanceof Error
         ? ` Underlying: ${err.cause.message}`
