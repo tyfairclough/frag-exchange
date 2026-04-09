@@ -79,7 +79,10 @@ export default async function ExchangeReefersPage({
     where: {
       exchangeId,
       expiresAt: { gt: now },
-      inventoryItem: { profileStatus: CoralProfileStatus.UNLISTED },
+      inventoryItem: {
+        profileStatus: CoralProfileStatus.UNLISTED,
+        remainingQuantity: { gt: 0 },
+      },
     },
     select: { inventoryItem: { select: { userId: true } } },
   });

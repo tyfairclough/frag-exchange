@@ -39,6 +39,15 @@ function parseListingMode(raw: string): CoralListingMode {
   return CoralListingMode.BOTH;
 }
 
+function parseQuantity(raw: string): number | null {
+  if (!raw) return 1;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) {
+    return null;
+  }
+  return n;
+}
+
 export async function enrichCoralPreviewAction(name: string, imageUrl?: string | null) {
   await requireUser();
   return enrichCoralFields({ name, imageUrl: imageUrl ?? null });
@@ -58,6 +67,10 @@ export async function createInventoryItemAction(formData: FormData) {
   let imageUrl: string | null = imageUrlRaw || null;
   const listingMode = parseListingMode(str(formData.get("listingMode")));
   const freeToGoodHome = formData.get("freeToGoodHome") === "on";
+  const quantity = parseQuantity(str(formData.get("quantity")));
+  if (quantity === null) {
+    redirect(`${MY_ITEMS}/new?error=quantity`);
+  }
 
   const imageFile = formData.get("imageFile");
   if (imageFile && typeof imageFile === "object" && "arrayBuffer" in imageFile && "size" in imageFile) {
@@ -95,6 +108,8 @@ export async function createInventoryItemAction(formData: FormData) {
     imageUrl,
     listingMode,
     freeToGoodHome,
+    totalQuantity: quantity,
+    remainingQuantity: quantity,
   };
 
   if (kind === InventoryKind.CORAL) {
@@ -181,12 +196,18 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
   const imageUrl = imageUrlRaw || null;
   const listingMode = parseListingMode(str(formData.get("listingMode")));
   const freeToGoodHome = formData.get("freeToGoodHome") === "on";
+  const quantity = parseQuantity(str(formData.get("quantity")));
+  if (quantity === null) {
+    redirect(`${MY_ITEMS}/${itemId}/edit?error=quantity`);
+  }
 
   if (!name) {
     redirect(`${MY_ITEMS}/${itemId}/edit?error=name`);
   }
 
   const kind = existing.kind;
+  const totalQuantity = Math.max(existing.totalQuantity, quantity);
+  const remainingQuantity = quantity;
 
   if (kind === InventoryKind.CORAL) {
     const coralType = parseCoralTypeFromForm(str(formData.get("coralType")));
@@ -199,6 +220,8 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
         imageUrl,
         listingMode,
         freeToGoodHome,
+        totalQuantity,
+        remainingQuantity,
         coralType,
         colour,
         species: null,
@@ -221,6 +244,8 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
         imageUrl,
         listingMode,
         freeToGoodHome,
+        totalQuantity,
+        remainingQuantity,
         coralType: null,
         colour,
         species,
@@ -243,6 +268,8 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
         imageUrl,
         listingMode,
         freeToGoodHome,
+        totalQuantity,
+        remainingQuantity,
         coralType: null,
         colour: null,
         species: null,

@@ -1,8 +1,12 @@
 "use client";
 
-import { useRef } from "react";
+import { forwardRef, useImperativeHandle, useRef } from "react";
 
 export type AddCoralImageBarPhase = "pick" | "analyze" | "done";
+
+export type AddCoralImageBarHandle = {
+  openDesktopFilePicker: () => void;
+};
 
 type Props = {
   phase: AddCoralImageBarPhase;
@@ -12,16 +16,17 @@ type Props = {
   visionDisabled?: boolean;
 };
 
-export function AddCoralImageBar({
-  phase,
-  onFileSelected,
-  onClear,
-  onSubmitVision,
-  visionDisabled,
-}: Props) {
+export const AddCoralImageBar = forwardRef<AddCoralImageBarHandle, Props>(function AddCoralImageBar(
+  { phase, onFileSelected, onClear, onSubmitVision, visionDisabled },
+  ref,
+) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const desktopRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    openDesktopFilePicker: () => desktopRef.current?.click(),
+  }));
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -137,7 +142,9 @@ export function AddCoralImageBar({
       )}
     </nav>
   );
-}
+});
+
+AddCoralImageBar.displayName = "AddCoralImageBar";
 
 function CameraIcon() {
   return (

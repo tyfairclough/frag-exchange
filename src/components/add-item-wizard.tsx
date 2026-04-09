@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { CoralListingMode, InventoryKind } from "@/generated/prisma/enums";
 import { createInventoryItemAction } from "@/app/(main)/my-items/actions";
-import { AddCoralImageBar } from "@/components/add-coral-image-bar";
+import { AddCoralImageBar, type AddCoralImageBarHandle } from "@/components/add-coral-image-bar";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
+import { ItemQuantityFields } from "@/components/item-quantity-fields";
 import type { InventoryAiVisionResult } from "@/lib/coral-ai";
 import { CORAL_COLOURS } from "@/lib/coral-options";
 import {
@@ -113,6 +114,8 @@ export function AddItemWizard() {
   const [reefSafe, setReefSafe] = useState("");
   const [equipmentCategory, setEquipmentCategory] = useState("");
   const [equipmentCondition, setEquipmentCondition] = useState("");
+  const [hasMultipleToExchange, setHasMultipleToExchange] = useState(false);
+  const [itemCount, setItemCount] = useState("2");
 
   const [verifyBanner, setVerifyBanner] = useState(false);
   const [visionError, setVisionError] = useState<string | null>(null);
@@ -120,6 +123,14 @@ export function AddItemWizard() {
   const [savePending, startSave] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const imageBarRef = useRef<AddCoralImageBarHandle>(null);
+
+  function openDesktopPhotoPicker() {
+    if (typeof window === "undefined") return;
+    if (!window.matchMedia("(min-width: 768px)").matches) return;
+    imageBarRef.current?.openDesktopFilePicker();
+  }
 
   useEffect(() => {
     return () => {
@@ -222,6 +233,13 @@ export function AddItemWizard() {
       setSaveError("Select equipment type and condition.");
       return;
     }
+    if (hasMultipleToExchange) {
+      const count = Number.parseInt(itemCount, 10);
+      if (!Number.isInteger(count) || count < 2) {
+        setSaveError("Enter a valid item count (2 or more).");
+        return;
+      }
+    }
     setIsSaving(true);
 
     let uploadedImageUrl = "";
@@ -247,6 +265,7 @@ export function AddItemWizard() {
       const fd = new FormData();
       fd.append("kind", kind);
       fd.append("name", name.trim());
+      fd.append("quantity", hasMultipleToExchange ? itemCount : "1");
       fd.append("description", description);
       fd.append("imageUrl", uploadedImageUrl);
       fd.append("listingMode", listingMode);
@@ -298,10 +317,21 @@ export function AddItemWizard() {
       {!file ? (
         <div className="mb-4 overflow-hidden rounded-2xl border border-base-content/10 bg-base-200/30">
           <div
-            className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-gradient-to-b from-teal-50/90 to-cyan-100/80"
-            aria-hidden
+            className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-gradient-to-b from-teal-50/90 to-cyan-100/80 max-md:pointer-events-none md:cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            role="button"
+            tabIndex={0}
+            aria-label="Add a photo — choose image from your device"
+            onClick={openDesktopPhotoPicker}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openDesktopPhotoPicker();
+              }
+            }}
           >
-            <span className="text-5xl opacity-50">📷</span>
+            <span className="text-5xl opacity-50" aria-hidden>
+              📷
+            </span>
             <span className="px-4 text-center text-sm text-base-content/50">Add a photo to get started</span>
           </div>
         </div>
@@ -374,6 +404,14 @@ export function AddItemWizard() {
                 onAiSuggest={() => {}}
                 aiHint={null}
                 aiError={null}
+                afterNameFields={
+                  <ItemQuantityFields
+                    hasMultiple={hasMultipleToExchange}
+                    setHasMultiple={setHasMultipleToExchange}
+                    quantity={itemCount}
+                    setQuantity={setItemCount}
+                  />
+                }
               />
             ) : null}
 
@@ -390,6 +428,12 @@ export function AddItemWizard() {
                     className="input input-bordered w-full rounded-xl"
                   />
                 </label>
+                <ItemQuantityFields
+                  hasMultiple={hasMultipleToExchange}
+                  setHasMultiple={setHasMultipleToExchange}
+                  quantity={itemCount}
+                  setQuantity={setItemCount}
+                />
                 <label className="form-control w-full">
                   <span className="label-text font-medium">Description</span>
                   <textarea
@@ -474,6 +518,12 @@ export function AddItemWizard() {
                     className="input input-bordered w-full rounded-xl"
                   />
                 </label>
+                <ItemQuantityFields
+                  hasMultiple={hasMultipleToExchange}
+                  setHasMultiple={setHasMultipleToExchange}
+                  quantity={itemCount}
+                  setQuantity={setItemCount}
+                />
                 <label className="form-control w-full">
                   <span className="label-text font-medium">Description</span>
                   <textarea
@@ -548,6 +598,7 @@ export function AddItemWizard() {
       </form>
 
       <AddCoralImageBar
+        ref={imageBarRef}
         phase={imageBarPhase}
         onFileSelected={handleFileSelected}
         onClear={handleClear}

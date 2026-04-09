@@ -72,7 +72,7 @@ export function OperatorExchangeTabs({
   return (
     <nav
       aria-label="Operator"
-      className="tabs tabs-lift tabs-md min-w-0 flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="tabs tabs-border tabs-md min-w-0 flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {items.map((tab) => {
         const isActive = tab.id === active;
@@ -80,7 +80,7 @@ export function OperatorExchangeTabs({
           <Link
             key={tab.id}
             href={tab.href}
-            className="tab shrink-0 whitespace-nowrap font-semibold"
+            className={`tab shrink-0 whitespace-nowrap font-semibold${isActive ? " tab-active" : ""}`}
             aria-current={isActive ? "page" : undefined}
           >
             {tab.label}

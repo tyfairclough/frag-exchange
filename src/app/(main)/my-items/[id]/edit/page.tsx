@@ -63,6 +63,11 @@ export default async function EditItemPage({
           Choose equipment type and condition.
         </p>
       ) : null}
+      {error === "quantity" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Enter a valid quantity.
+        </p>
+      ) : null}
 
       {item.profileStatus === CoralProfileStatus.UNLISTED ? (
         item.kind === InventoryKind.CORAL ? (
@@ -74,6 +79,7 @@ export default async function EditItemPage({
               imageUrl: item.imageUrl ?? "",
               listingMode: item.listingMode,
               freeToGoodHome: item.freeToGoodHome,
+              remainingQuantity: item.remainingQuantity,
               coralType: coralTypeToFormValue(item.coralType),
               colour: coralColourToFormValue(item.colour),
             }}
@@ -87,6 +93,7 @@ export default async function EditItemPage({
               imageUrl: item.imageUrl ?? "",
               listingMode: item.listingMode,
               freeToGoodHome: item.freeToGoodHome,
+              remainingQuantity: item.remainingQuantity,
               species: item.species ?? "",
               colour: coralColourToFormValue(item.colour),
               reefSafe: item.reefSafe,
@@ -101,6 +108,7 @@ export default async function EditItemPage({
               imageUrl: item.imageUrl ?? "",
               listingMode: item.listingMode,
               freeToGoodHome: item.freeToGoodHome,
+              remainingQuantity: item.remainingQuantity,
               equipmentCategory: item.equipmentCategory,
               equipmentCondition: item.equipmentCondition,
             }}

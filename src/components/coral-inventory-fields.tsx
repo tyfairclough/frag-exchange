@@ -2,6 +2,7 @@
 
 import { CoralListingMode } from "@/generated/prisma/enums";
 import { CORAL_COLOURS, CORAL_TYPES, isActiveCoralColour } from "@/lib/coral-options";
+import type { ReactNode } from "react";
 
 export type CoralInventoryFieldsProps = {
   name: string;
@@ -23,6 +24,7 @@ export type CoralInventoryFieldsProps = {
   onAiSuggest: () => void;
   aiHint: string | null;
   aiError: string | null;
+  afterNameFields?: ReactNode;
 };
 
 export function CoralInventoryFields({
@@ -45,6 +47,7 @@ export function CoralInventoryFields({
   onAiSuggest,
   aiHint,
   aiError,
+  afterNameFields,
 }: CoralInventoryFieldsProps) {
   return (
     <>
@@ -61,6 +64,7 @@ export function CoralInventoryFields({
           placeholder="e.g. Green slimer acro frag"
         />
       </label>
+      {afterNameFields}
 
       {showImageUrlAndAiSuggest ? (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">

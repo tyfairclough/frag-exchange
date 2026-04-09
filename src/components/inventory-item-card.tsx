@@ -12,6 +12,7 @@ export type InventoryItemCardItem = {
   colour: string | null;
   freeToGoodHome: boolean;
   profileStatus: CoralProfileStatus;
+  remainingQuantity?: number;
 };
 
 function kindLabel(kind: InventoryKind) {
@@ -45,6 +46,8 @@ export type InventoryItemCardProps = {
    * When false (e.g. trade picker), those badges are hidden.
    */
   showListingStatusBadge?: boolean;
+  /** When true, show quantity badge in the format x[count]. */
+  showQuantityBadge?: boolean;
   /** Extra line under the meta row (e.g. exchange listing copy). */
   extraMeta?: ReactNode;
   /** Use h3 when nested under a page section heading (e.g. Start a trade). */
@@ -61,6 +64,7 @@ export function InventoryItemCard({
   item,
   actions,
   showListingStatusBadge = false,
+  showQuantityBadge = false,
   extraMeta,
   titleHeading = "h2",
   selection,
@@ -95,6 +99,9 @@ export function InventoryItemCard({
                 ) : (
                   <span className="badge badge-ghost badge-sm">Unlisted</span>
                 )
+              ) : null}
+              {showQuantityBadge && item.remainingQuantity != null ? (
+                <span className="badge badge-ghost badge-sm">x{item.remainingQuantity}</span>
               ) : null}
               {item.freeToGoodHome ? (
                 <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
