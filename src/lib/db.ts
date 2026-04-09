@@ -1,7 +1,18 @@
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/generated/prisma/client";
+import { createRequire } from "node:module";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
+const require = createRequire(import.meta.url);
+
+function safeReadPkgVersion(pkgPath: string): string {
+  try {
+    const pkg = require(pkgPath) as { version?: string };
+    return pkg.version ?? "unknown";
+  } catch {
+    return "unresolved";
+  }
+}
 
 /**
  * Shared MySQL (e.g. Hostinger): the `mariadb` driver defaults `connectionLimit` to 10 and
@@ -155,6 +166,17 @@ function createPrismaClient(): PrismaClient {
       allowPublicKeyRetrieval,
       sslMode,
       urlMutatedForRsa: rsaFix.changed,
+    }),
+  );
+  console.error(
+    "[reefx][db-driver-versions]",
+    JSON.stringify({
+      pid: process.pid,
+      adapterVersion: safeReadPkgVersion("@prisma/adapter-mariadb/package.json"),
+      mariadbTopLevelVersion: safeReadPkgVersion("mariadb/package.json"),
+      mariadbAdapterNestedVersion: safeReadPkgVersion(
+        "@prisma/adapter-mariadb/node_modules/mariadb/package.json",
+      ),
     }),
   );
 

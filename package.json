@@ -50,5 +50,10 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.0",
     "tsx": "^4.21.0"
+  },
+  "overrides": {
+    "@prisma/adapter-mariadb": {
+      "mariadb": "3.5.2"
+    }
   }
 }
