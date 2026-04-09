@@ -2,6 +2,33 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
+const DEBUG_ENDPOINT = "http://127.0.0.1:7293/ingest/14cea746-935d-454f-95b5-f436cb319937";
+const DEBUG_SESSION_ID = "7d140c";
+
+function postDebugLog(
+  runId: string,
+  hypothesisId: string,
+  location: string,
+  message: string,
+  data: Record<string, unknown>,
+): void {
+  void fetch(DEBUG_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": DEBUG_SESSION_ID,
+    },
+    body: JSON.stringify({
+      sessionId: DEBUG_SESSION_ID,
+      runId,
+      hypothesisId,
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+}
 
 /**
  * Shared MySQL (e.g. Hostinger): the `mariadb` driver defaults `connectionLimit` to 10 and
@@ -109,9 +136,48 @@ function createPrismaClient(): PrismaClient {
   const poolUrl = withMysqlPoolParams(url);
   const ipv4LoopbackUrl = withMysqlLoopbackIpv4(poolUrl);
   const rsaFix = withMysqlAllowPublicKeyRetrieval(ipv4LoopbackUrl);
+  let normalizedHost = "";
+  let normalizedPort = 3306;
+  let connectionLimit = "";
+  let minimumIdle = "";
+  let allowPublicKeyRetrieval = "";
+  let sslMode = "";
+  try {
+    const parsed = new URL(rsaFix.url);
+    normalizedHost = parsed.hostname;
+    normalizedPort = parsed.port ? Number(parsed.port) : 3306;
+    connectionLimit = parsed.searchParams.get("connectionLimit") ?? "";
+    minimumIdle = parsed.searchParams.get("minimumIdle") ?? "";
+    allowPublicKeyRetrieval = parsed.searchParams.get("allowPublicKeyRetrieval") ?? "";
+    sslMode = parsed.searchParams.get("ssl") ?? parsed.searchParams.get("tls") ?? "";
+  } catch {
+    normalizedHost = "INVALID_URL";
+  }
+  // #region agent log
+  postDebugLog("pre-fix", "H1", "src/lib/db.ts:createPrismaClient", "normalized-db-url-ready", {
+    nodeEnv: process.env.NODE_ENV ?? "",
+    host: normalizedHost,
+    port: normalizedPort,
+    connectionLimit,
+    minimumIdle,
+    allowPublicKeyRetrieval,
+    sslMode,
+    urlMutatedForRsa: rsaFix.changed,
+  });
+  // #endregion
 
+  // #region agent log
+  postDebugLog("pre-fix", "H2", "src/lib/db.ts:createPrismaClient", "creating-prisma-adapter", {
+    hasGlobalClient: Boolean(globalForPrisma.prisma),
+  });
+  // #endregion
   const adapter = new PrismaMariaDb(rsaFix.url);
 
+  // #region agent log
+  postDebugLog("pre-fix", "H3", "src/lib/db.ts:createPrismaClient", "creating-prisma-client", {
+    logLevel: process.env.NODE_ENV === "development" ? "error,warn" : "error",
+  });
+  // #endregion
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
@@ -124,9 +190,19 @@ function createPrismaClient(): PrismaClient {
  */
 export function getPrisma(): PrismaClient {
   if (globalForPrisma.prisma) {
+    // #region agent log
+    postDebugLog("pre-fix", "H4", "src/lib/db.ts:getPrisma", "returning-global-prisma", {
+      reused: true,
+    });
+    // #endregion
     return globalForPrisma.prisma;
   }
 
+  // #region agent log
+  postDebugLog("pre-fix", "H4", "src/lib/db.ts:getPrisma", "creating-global-prisma", {
+    reused: false,
+  });
+  // #endregion
   globalForPrisma.prisma = createPrismaClient();
   return globalForPrisma.prisma;
 }
