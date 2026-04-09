@@ -165,9 +165,11 @@ function createPrismaClient(): PrismaClient {
     }),
   );
 
-  return new PrismaClient({
+  const prismaOptions = {
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  });
+  } as unknown as ConstructorParameters<typeof PrismaClient>[0];
+
+  return new PrismaClient(prismaOptions);
 }
 
 /**
