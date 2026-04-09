@@ -196,6 +196,10 @@ export function pingMysqlOptional(): void {
 
     try {
       await getPrisma().$queryRaw`SELECT 1`;
+      console.error(
+        "[reefx][db-startup-ping-ok]",
+        JSON.stringify({ ok: true, pid: process.pid }),
+      );
     } catch (e) {
       console.error("[reefx][db-startup-ping]", JSON.stringify(serializeDbError(e)));
     }

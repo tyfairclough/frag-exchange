@@ -51,8 +51,7 @@ function withMysqlAllowPublicKeyRetrieval(url: string) {
     const hasAllow = u.searchParams.has("allowPublicKeyRetrieval");
     const hasCacheKey = u.searchParams.has("cachingRsaPublicKey");
 
-    // Prisma adapter passes DATABASE_URL through to the underlying MySQL driver.
-    // The driver error suggests enabling public key retrieval.
+    // Some host setups require this during auth handshake.
     if (!hasAllow && !hasCacheKey) {
       u.searchParams.set("allowPublicKeyRetrieval", "true");
       return { url: u.toString(), changed: true, hasAllow: true, hasCacheKey: false };
@@ -133,7 +132,7 @@ function createPrismaClient(): PrismaClient {
   } catch {
     originalHost = "INVALID_URL";
   }
-  // Keep Prisma internals and adapter in sync by forcing normalized URL.
+  // Keep Prisma internals on the normalized URL (localhost -> 127.0.0.1).
   process.env.DATABASE_URL = rsaFix.url;
   console.error(
     "[reefx][db-env-rewrite]",
@@ -160,6 +159,14 @@ function createPrismaClient(): PrismaClient {
   );
 
   const adapter = new PrismaMariaDb(rsaFix.url);
+
+  console.error(
+    "[reefx][db-client-mode]",
+    JSON.stringify({
+      pid: process.pid,
+      mode: "mariadb-adapter",
+    }),
+  );
 
   return new PrismaClient({
     adapter,
