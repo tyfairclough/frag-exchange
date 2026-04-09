@@ -1,6 +1,8 @@
 import { getPrisma } from "@/lib/db";
 import { serializeDbError } from "@/lib/mysql-error-serialize";
+import { createRequire } from "node:module";
 import { Socket } from "node:net";
+import path from "node:path";
 import * as mariadb from "mariadb";
 
 function parseDbTarget(): { host: string; port: number; valid: boolean } {
@@ -156,6 +158,68 @@ async function probeDirectPool(
   }
 }
 
+async function probeAdapterResolvedMariadb(cfg: mariadb.ConnectionConfig | null): Promise<void> {
+  if (!cfg) {
+    console.error(
+      "[reefx][db-adapter-resolved-probe]",
+      JSON.stringify({ skipped: "invalid-config" }),
+    );
+    return;
+  }
+  const require = createRequire(import.meta.url);
+  try {
+    const adapterEntry = require.resolve("@prisma/adapter-mariadb");
+    const adapterDir = path.dirname(adapterEntry);
+    const mariadbPkgPath = require.resolve("mariadb/package.json", { paths: [adapterDir] });
+    const mariadbPkg = require(mariadbPkgPath) as { version?: string };
+    const mariadbResolvedPath = require.resolve("mariadb", { paths: [adapterDir] });
+    const mariadbResolved = require(mariadbResolvedPath) as typeof import("mariadb");
+    const pool = mariadbResolved.createPool({
+      ...cfg,
+      connectionLimit: 5,
+      minimumIdle: 0,
+      acquireTimeout: 3_500,
+      connectTimeout: 3_500,
+    });
+    let conn: mariadb.PoolConnection | null = null;
+    try {
+      conn = await pool.getConnection();
+      await conn.query("SELECT 1");
+      console.error(
+        "[reefx][db-adapter-resolved-probe]",
+        JSON.stringify({
+          ok: true,
+          resolvedMariadbVersion: mariadbPkg.version ?? "unknown",
+          resolvedPath: mariadbResolvedPath,
+        }),
+      );
+      // #region agent log
+      fetch("http://127.0.0.1:7293/ingest/14cea746-935d-454f-95b5-f436cb319937", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "7d140c" },
+        body: JSON.stringify({
+          sessionId: "7d140c",
+          runId: "pre-fix",
+          hypothesisId: "H1",
+          location: "src/lib/db-startup-ping.ts:probeAdapterResolvedMariadb",
+          message: "adapter-resolved-mariadb-ok",
+          data: { resolvedMariadbVersion: mariadbPkg.version ?? "unknown" },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+    } finally {
+      if (conn) conn.release();
+      await pool.end().catch(() => {});
+    }
+  } catch (e) {
+    console.error(
+      "[reefx][db-adapter-resolved-probe]",
+      JSON.stringify({ ok: false, error: serializeDbError(e) }),
+    );
+  }
+}
+
 /** Fire-and-forget: logs underlying errno/message if the pool cannot connect at boot. */
 export function pingMysqlOptional(): void {
   void (async () => {
@@ -192,6 +256,7 @@ export function pingMysqlOptional(): void {
     if (ipv4Cfg) {
       await probeDirectDriver("ipv4-loopback", ipv4Cfg);
       await probeDirectPool("ipv4-pool", ipv4Cfg);
+      await probeAdapterResolvedMariadb(ipv4Cfg);
     }
 
     try {

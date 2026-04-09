@@ -1,6 +1,7 @@
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/generated/prisma/client";
 import { createRequire } from "node:module";
+import { serializeDbError } from "@/lib/mysql-error-serialize";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 const require = createRequire(import.meta.url);
@@ -214,7 +215,29 @@ function createPrismaClient(): PrismaClient {
     );
   }
 
-  const adapter = new PrismaMariaDb(adapterConfig);
+  const adapterWithErrors = new PrismaMariaDb(adapterConfig, {
+    onConnectionError: (err) => {
+      console.error(
+        "[reefx][db-adapter-on-connection-error]",
+        JSON.stringify(serializeDbError(err)),
+      );
+      // #region agent log
+      fetch("http://127.0.0.1:7293/ingest/14cea746-935d-454f-95b5-f436cb319937", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "7d140c" },
+        body: JSON.stringify({
+          sessionId: "7d140c",
+          runId: "pre-fix",
+          hypothesisId: "H2",
+          location: "src/lib/db.ts:createPrismaClient",
+          message: "adapter-on-connection-error",
+          data: { name: (err as { name?: string }).name ?? "", code: (err as { code?: string }).code ?? "" },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+    },
+  });
   console.error(
     "[reefx][db-client-mode]",
     JSON.stringify({
@@ -222,9 +245,24 @@ function createPrismaClient(): PrismaClient {
       mode: "mariadb-adapter",
     }),
   );
+  // #region agent log
+  fetch("http://127.0.0.1:7293/ingest/14cea746-935d-454f-95b5-f436cb319937", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "7d140c" },
+    body: JSON.stringify({
+      sessionId: "7d140c",
+      runId: "pre-fix",
+      hypothesisId: "H1",
+      location: "src/lib/db.ts:createPrismaClient",
+      message: "adapter-created",
+      data: { mode: "mariadb-adapter", host: normalizedHost, port: normalizedPort },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   return new PrismaClient({
-    adapter,
+    adapter: adapterWithErrors,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 }
