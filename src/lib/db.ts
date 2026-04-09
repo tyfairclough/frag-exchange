@@ -1,3 +1,4 @@
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
@@ -157,19 +158,53 @@ function createPrismaClient(): PrismaClient {
     }),
   );
 
+  let adapterConfig: ConstructorParameters<typeof PrismaMariaDb>[0] = rsaFix.url;
+  try {
+    const parsed = new URL(rsaFix.url);
+    const parsedConnectionLimit = Number(parsed.searchParams.get("connectionLimit") ?? "5");
+    const parsedMinimumIdle = Number(parsed.searchParams.get("minimumIdle") ?? "0");
+    adapterConfig = {
+      host: parsed.hostname,
+      port: parsed.port ? Number(parsed.port) : 3306,
+      user: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+      database: parsed.pathname.replace(/^\//, ""),
+      connectionLimit: Number.isFinite(parsedConnectionLimit) ? parsedConnectionLimit : 5,
+      minimumIdle: Number.isFinite(parsedMinimumIdle) ? parsedMinimumIdle : 0,
+      connectTimeout: 5_000,
+      acquireTimeout: 10_000,
+    };
+    console.error(
+      "[reefx][db-adapter-config]",
+      JSON.stringify({
+        pid: process.pid,
+        source: "pool-config-object",
+        host: parsed.hostname,
+        port: parsed.port ? Number(parsed.port) : 3306,
+        connectionLimit: Number.isFinite(parsedConnectionLimit) ? parsedConnectionLimit : 5,
+        minimumIdle: Number.isFinite(parsedMinimumIdle) ? parsedMinimumIdle : 0,
+      }),
+    );
+  } catch {
+    console.error(
+      "[reefx][db-adapter-config]",
+      JSON.stringify({ pid: process.pid, source: "url-string-fallback" }),
+    );
+  }
+
+  const adapter = new PrismaMariaDb(adapterConfig);
   console.error(
     "[reefx][db-client-mode]",
     JSON.stringify({
       pid: process.pid,
-      mode: "prisma-engine",
+      mode: "mariadb-adapter",
     }),
   );
 
-  const prismaOptions = {
+  return new PrismaClient({
+    adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  } as unknown as ConstructorParameters<typeof PrismaClient>[0];
-
-  return new PrismaClient(prismaOptions);
+  });
 }
 
 /**
