@@ -1,4 +1,3 @@
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
@@ -158,18 +157,15 @@ function createPrismaClient(): PrismaClient {
     }),
   );
 
-  const adapter = new PrismaMariaDb(rsaFix.url);
-
   console.error(
     "[reefx][db-client-mode]",
     JSON.stringify({
       pid: process.pid,
-      mode: "mariadb-adapter",
+      mode: "prisma-engine",
     }),
   );
 
   return new PrismaClient({
-    adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 }
