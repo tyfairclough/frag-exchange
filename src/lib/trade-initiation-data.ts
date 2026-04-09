@@ -49,7 +49,11 @@ export async function loadTradeInitiationContext(
       where: {
         exchangeId,
         expiresAt: { gt: now },
-        inventoryItem: { userId: viewer.id, profileStatus: CoralProfileStatus.UNLISTED },
+        inventoryItem: {
+          userId: viewer.id,
+          profileStatus: CoralProfileStatus.UNLISTED,
+          remainingQuantity: { gt: 0 },
+        },
       },
       include: { inventoryItem: true },
       orderBy: { listedAt: "desc" },
@@ -58,7 +62,11 @@ export async function loadTradeInitiationContext(
       where: {
         exchangeId,
         expiresAt: { gt: now },
-        inventoryItem: { userId: peerUserId, profileStatus: CoralProfileStatus.UNLISTED },
+        inventoryItem: {
+          userId: peerUserId,
+          profileStatus: CoralProfileStatus.UNLISTED,
+          remainingQuantity: { gt: 0 },
+        },
       },
       include: { inventoryItem: true },
       orderBy: { listedAt: "desc" },

@@ -143,7 +143,12 @@ export async function updateTradeOfferSelectionAction(formData: FormData) {
   }
 
   const receiveItems = await getPrisma().inventoryItem.findMany({
-    where: { id: { in: draft.receiveItemIds }, userId: peerUserId, profileStatus: CoralProfileStatus.UNLISTED },
+    where: {
+      id: { in: draft.receiveItemIds },
+      userId: peerUserId,
+      profileStatus: CoralProfileStatus.UNLISTED,
+      remainingQuantity: { gt: 0 },
+    },
     select: { id: true, freeToGoodHome: true },
   });
   const receiveAllFreeToGoodHome =
@@ -207,10 +212,20 @@ export async function submitTradeInitiationAction(formData: FormData) {
   const now = new Date();
 
   const initiatorItems = await db.inventoryItem.findMany({
-    where: { id: { in: initiatorIds }, userId: user.id, profileStatus: CoralProfileStatus.UNLISTED },
+    where: {
+      id: { in: initiatorIds },
+      userId: user.id,
+      profileStatus: CoralProfileStatus.UNLISTED,
+      remainingQuantity: { gt: 0 },
+    },
   });
   const peerItems = await db.inventoryItem.findMany({
-    where: { id: { in: peerIds }, userId: peerUserId, profileStatus: CoralProfileStatus.UNLISTED },
+    where: {
+      id: { in: peerIds },
+      userId: peerUserId,
+      profileStatus: CoralProfileStatus.UNLISTED,
+      remainingQuantity: { gt: 0 },
+    },
   });
 
   if (peerItems.length !== peerIds.length) {
@@ -322,105 +337,148 @@ export async function acceptTradeAction(formData: FormData) {
   const baseUrl = await getRequestOrigin();
   await expireDueTradesAndNotify(db, { baseUrl, now, tradeIds: [tradeId] });
 
-  const result = await db.$transaction(async (tx) => {
-    const trade = await tx.trade.findFirst({
-      where: { id: tradeId, exchangeId },
-      include: { inventoryLines: { include: { inventoryItem: true } }, exchange: true },
-    });
-
-    if (!trade) {
-      return { ok: false as const, code: "missing" as const };
-    }
-
-    if (!isTradePending(trade)) {
-      return { ok: false as const, code: trade.status === TradeStatus.EXPIRED ? "expired" : "not-pending" };
-    }
-
-    if (trade.expiresAt.getTime() <= now.getTime()) {
-      await tx.trade.update({
-        where: { id: tradeId },
-        data: { status: TradeStatus.EXPIRED },
+  let result:
+    | { ok: true }
+    | { ok: false; code: "missing" | "expired" | "not-pending" | "not-your-turn" | "coral-missing" | "coral-unavailable" | "listing-gone" | "race" };
+  try {
+    result = await db.$transaction(async (tx) => {
+      const trade = await tx.trade.findFirst({
+        where: { id: tradeId, exchangeId },
+        include: { inventoryLines: { include: { inventoryItem: true } }, exchange: true },
       });
-      return { ok: false as const, code: "expired" as const };
-    }
 
-    const responder = tradeResponderUserId(trade);
-    if (responder !== user.id) {
-      return { ok: false as const, code: "not-your-turn" as const };
-    }
-
-    const itemIds = trade.inventoryLines.map((c) => c.inventoryItemId);
-    const initiatorIds = trade.inventoryLines
-      .filter((c) => c.side === TradeLineSide.INITIATOR)
-      .map((c) => c.inventoryItemId);
-    const peerIds = trade.inventoryLines
-      .filter((c) => c.side === TradeLineSide.PEER)
-      .map((c) => c.inventoryItemId);
-
-    const items = await tx.inventoryItem.findMany({
-      where: { id: { in: itemIds } },
-    });
-    if (items.length !== itemIds.length) {
-      return { ok: false as const, code: "coral-missing" as const };
-    }
-
-    const byId = new Map(items.map((c) => [c.id, c]));
-    for (const id of initiatorIds) {
-      const c = byId.get(id);
-      if (!c || c.userId !== trade.initiatorUserId || c.profileStatus !== CoralProfileStatus.UNLISTED) {
-        return { ok: false as const, code: "coral-unavailable" as const };
+      if (!trade) {
+        return { ok: false as const, code: "missing" as const };
       }
-    }
-    for (const id of peerIds) {
-      const c = byId.get(id);
-      if (!c || c.userId !== trade.peerUserId || c.profileStatus !== CoralProfileStatus.UNLISTED) {
-        return { ok: false as const, code: "coral-unavailable" as const };
+
+      if (!isTradePending(trade)) {
+        return { ok: false as const, code: trade.status === TradeStatus.EXPIRED ? "expired" : "not-pending" };
       }
-    }
 
-    const listings = await tx.exchangeListing.findMany({
-      where: {
-        exchangeId: trade.exchangeId,
-        inventoryItemId: { in: itemIds },
-        expiresAt: { gt: now },
-      },
-    });
-    if (listings.length !== itemIds.length) {
-      return { ok: false as const, code: "listing-gone" as const };
-    }
+      if (trade.expiresAt.getTime() <= now.getTime()) {
+        await tx.trade.update({
+          where: { id: tradeId },
+          data: { status: TradeStatus.EXPIRED },
+        });
+        return { ok: false as const, code: "expired" as const };
+      }
 
-    const updated = await tx.trade.updateMany({
-      where: {
-        id: tradeId,
-        version,
-        status: { in: [TradeStatus.OFFER, TradeStatus.COUNTERED] },
-        expiresAt: { gt: now },
-      },
-      data: {
-        status: TradeStatus.APPROVED,
-        version: { increment: 1 },
-      },
-    });
+      const responder = tradeResponderUserId(trade);
+      if (responder !== user.id) {
+        return { ok: false as const, code: "not-your-turn" as const };
+      }
 
-    if (updated.count !== 1) {
-      return { ok: false as const, code: "race" as const };
-    }
+      const itemIds = trade.inventoryLines.map((c) => c.inventoryItemId);
+      const initiatorIds = trade.inventoryLines
+        .filter((c) => c.side === TradeLineSide.INITIATOR)
+        .map((c) => c.inventoryItemId);
+      const peerIds = trade.inventoryLines
+        .filter((c) => c.side === TradeLineSide.PEER)
+        .map((c) => c.inventoryItemId);
 
-    await tx.exchangeListing.deleteMany({ where: { inventoryItemId: { in: itemIds } } });
-    await tx.inventoryItem.updateMany({
-      where: { id: { in: itemIds } },
-      data: { profileStatus: CoralProfileStatus.TRADED },
-    });
-
-    if (trade.exchange.kind === ExchangeKind.EVENT) {
-      await tx.tradeInventoryLine.updateMany({
-        where: { tradeId },
-        data: { eventHandoffStatus: TradeLineEventHandoffStatus.AWAITING_CHECKIN },
+      const items = await tx.inventoryItem.findMany({
+        where: { id: { in: itemIds } },
       });
-    }
+      if (items.length !== itemIds.length) {
+        return { ok: false as const, code: "coral-missing" as const };
+      }
 
-    return { ok: true as const };
-  });
+      const byId = new Map(items.map((c) => [c.id, c]));
+      for (const id of initiatorIds) {
+        const c = byId.get(id);
+        if (
+          !c ||
+          c.userId !== trade.initiatorUserId ||
+          c.profileStatus !== CoralProfileStatus.UNLISTED ||
+          c.remainingQuantity <= 0
+        ) {
+          return { ok: false as const, code: "coral-unavailable" as const };
+        }
+      }
+      for (const id of peerIds) {
+        const c = byId.get(id);
+        if (
+          !c ||
+          c.userId !== trade.peerUserId ||
+          c.profileStatus !== CoralProfileStatus.UNLISTED ||
+          c.remainingQuantity <= 0
+        ) {
+          return { ok: false as const, code: "coral-unavailable" as const };
+        }
+      }
+      
+
+      const listings = await tx.exchangeListing.findMany({
+        where: {
+          exchangeId: trade.exchangeId,
+          inventoryItemId: { in: itemIds },
+          expiresAt: { gt: now },
+        },
+      });
+      if (listings.length !== itemIds.length) {
+        return { ok: false as const, code: "listing-gone" as const };
+      }
+
+      const updated = await tx.trade.updateMany({
+        where: {
+          id: tradeId,
+          version,
+          status: { in: [TradeStatus.OFFER, TradeStatus.COUNTERED] },
+          expiresAt: { gt: now },
+        },
+        data: {
+          status: TradeStatus.APPROVED,
+          version: { increment: 1 },
+        },
+      });
+
+      if (updated.count !== 1) {
+        return { ok: false as const, code: "race" as const };
+      }
+
+      for (const itemId of itemIds) {
+        const decremented = await tx.inventoryItem.updateMany({
+          where: {
+            id: itemId,
+            profileStatus: CoralProfileStatus.UNLISTED,
+            remainingQuantity: { gt: 0 },
+          },
+          data: { remainingQuantity: { decrement: 1 } },
+        });
+        if (decremented.count !== 1) {
+          throw new Error("coral-unavailable");
+        }
+      }
+
+      const exhaustedItems = await tx.inventoryItem.findMany({
+        where: { id: { in: itemIds }, remainingQuantity: { lte: 0 } },
+        select: { id: true },
+      });
+      const exhaustedIds = exhaustedItems.map((item) => item.id);
+      if (exhaustedIds.length > 0) {
+        await tx.exchangeListing.deleteMany({ where: { inventoryItemId: { in: exhaustedIds } } });
+        await tx.inventoryItem.updateMany({
+          where: { id: { in: exhaustedIds } },
+          data: { profileStatus: CoralProfileStatus.TRADED, remainingQuantity: 0 },
+        });
+      }
+
+      if (trade.exchange.kind === ExchangeKind.EVENT) {
+        await tx.tradeInventoryLine.updateMany({
+          where: { tradeId },
+          data: { eventHandoffStatus: TradeLineEventHandoffStatus.AWAITING_CHECKIN },
+        });
+      }
+
+      return { ok: true as const };
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "coral-unavailable") {
+      result = { ok: false as const, code: "coral-unavailable" as const };
+    } else {
+      throw error;
+    }
+  }
 
   revalidatePath(`/exchanges/${exchangeId}/trades`);
   revalidatePath(`/exchanges/${exchangeId}/trades/${tradeId}`);
@@ -606,6 +664,7 @@ export async function counterTradeAction(formData: FormData) {
       id: { in: initiatorIds },
       userId: trade.initiatorUserId,
       profileStatus: CoralProfileStatus.UNLISTED,
+      remainingQuantity: { gt: 0 },
     },
   });
   const peerItems = await db.inventoryItem.findMany({
@@ -613,6 +672,7 @@ export async function counterTradeAction(formData: FormData) {
       id: { in: peerIds },
       userId: trade.peerUserId,
       profileStatus: CoralProfileStatus.UNLISTED,
+      remainingQuantity: { gt: 0 },
     },
   });
 

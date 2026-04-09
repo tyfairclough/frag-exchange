@@ -103,7 +103,11 @@ export default async function ExchangeDetailPage({
   const myListableItems =
     membership && canView
       ? await getPrisma().inventoryItem.findMany({
-          where: { userId: user.id, profileStatus: CoralProfileStatus.UNLISTED },
+          where: {
+            userId: user.id,
+            profileStatus: CoralProfileStatus.UNLISTED,
+            remainingQuantity: { gt: 0 },
+          },
           orderBy: { updatedAt: "desc" },
         })
       : [];
@@ -352,6 +356,9 @@ export default async function ExchangeDetailPage({
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="badge badge-ghost badge-sm">{kindLabel(l.inventoryItem.kind)}</span>
                               <h3 className="font-semibold text-base-content">{l.inventoryItem.name}</h3>
+                              <span className="badge badge-outline badge-sm">
+                                {l.inventoryItem.remainingQuantity} remaining
+                              </span>
                               {l.inventoryItem.freeToGoodHome ? (
                                 <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
                               ) : null}
@@ -434,6 +441,7 @@ export default async function ExchangeDetailPage({
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="badge badge-ghost badge-sm">{kindLabel(c.kind)}</span>
                                 <h3 className="font-semibold text-base-content">{c.name}</h3>
+                                <span className="badge badge-outline badge-sm">{c.remainingQuantity} remaining</span>
                                 {c.freeToGoodHome ? (
                                   <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
                                 ) : null}

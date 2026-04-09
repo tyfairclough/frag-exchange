@@ -3,7 +3,8 @@
 import { CoralListingMode } from "@/generated/prisma/enums";
 import type { EquipmentCategory, EquipmentCondition } from "@/generated/prisma/enums";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
-import { CORAL_COLOURS, CORAL_TYPES, isActiveCoralColour } from "@/lib/coral-options";
+import { ItemQuantityFields } from "@/components/item-quantity-fields";
+import { CORAL_COLOURS, isActiveCoralColour } from "@/lib/coral-options";
 import {
   EQUIPMENT_CATEGORY_LABELS,
   EQUIPMENT_CATEGORY_VALUES,
@@ -21,6 +22,7 @@ type SharedInventoryDefaults = {
   imageUrl: string;
   listingMode: CoralListingMode;
   freeToGoodHome: boolean;
+  remainingQuantity: number;
 };
 
 export function CoralKindEditForm({
@@ -37,6 +39,8 @@ export function CoralKindEditForm({
   const [freeToGoodHome, setFreeToGoodHome] = useState(defaults.freeToGoodHome);
   const [coralType, setCoralType] = useState(defaults.coralType);
   const [colour, setColour] = useState(defaults.colour);
+  const [hasMultipleToExchange, setHasMultipleToExchange] = useState(defaults.remainingQuantity > 1);
+  const [itemCount, setItemCount] = useState(String(Math.max(2, defaults.remainingQuantity)));
   const [aiPending, startAi] = useTransition();
   const [aiHint, setAiHint] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -73,6 +77,22 @@ export function CoralKindEditForm({
         onAiSuggest={onAiSuggest}
         aiHint={aiHint}
         aiError={aiError}
+        afterNameFields={
+          <>
+            <ItemQuantityFields
+              hasMultiple={hasMultipleToExchange}
+              setHasMultiple={setHasMultipleToExchange}
+              quantity={itemCount}
+              setQuantity={setItemCount}
+            />
+            <input
+              type="hidden"
+              name="quantity"
+              value={hasMultipleToExchange ? itemCount : "1"}
+              readOnly
+            />
+          </>
+        }
       />
       <button type="submit" className="btn btn-primary min-h-11 rounded-xl">
         Save
@@ -95,6 +115,8 @@ export function FishKindEditForm({
   const [reefSafe, setReefSafe] = useState<string>(
     defaults.reefSafe === true ? "true" : defaults.reefSafe === false ? "false" : "",
   );
+  const [hasMultipleToExchange, setHasMultipleToExchange] = useState(defaults.remainingQuantity > 1);
+  const [itemCount, setItemCount] = useState(String(Math.max(2, defaults.remainingQuantity)));
 
   return (
     <form action={saveAction} className="flex flex-col gap-4">
@@ -108,6 +130,13 @@ export function FishKindEditForm({
           className="input input-bordered w-full rounded-xl"
         />
       </label>
+      <ItemQuantityFields
+        hasMultiple={hasMultipleToExchange}
+        setHasMultiple={setHasMultipleToExchange}
+        quantity={itemCount}
+        setQuantity={setItemCount}
+      />
+      <input type="hidden" name="quantity" value={hasMultipleToExchange ? itemCount : "1"} readOnly />
       <label className="form-control w-full">
         <span className="label-text font-medium">Description</span>
         <textarea
@@ -197,6 +226,9 @@ export function EquipmentKindEditForm({
     equipmentCondition: EquipmentCondition;
   };
 }) {
+  const [hasMultipleToExchange, setHasMultipleToExchange] = useState(defaults.remainingQuantity > 1);
+  const [itemCount, setItemCount] = useState(String(Math.max(2, defaults.remainingQuantity)));
+
   return (
     <form action={saveAction} className="flex flex-col gap-4">
       <label className="form-control w-full">
@@ -209,6 +241,13 @@ export function EquipmentKindEditForm({
           className="input input-bordered w-full rounded-xl"
         />
       </label>
+      <ItemQuantityFields
+        hasMultiple={hasMultipleToExchange}
+        setHasMultiple={setHasMultipleToExchange}
+        quantity={itemCount}
+        setQuantity={setItemCount}
+      />
+      <input type="hidden" name="quantity" value={hasMultipleToExchange ? itemCount : "1"} readOnly />
       <label className="form-control w-full">
         <span className="label-text font-medium">Description</span>
         <textarea

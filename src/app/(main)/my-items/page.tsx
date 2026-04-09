@@ -28,7 +28,7 @@ export default async function MyItemsPage({
             Manage corals, fish, and equipment you want to swap. List them on exchanges until a trade completes.
           </p>
         </div>
-        <Link href="/my-items/new" className="btn btn-primary btn-sm min-h-10 shrink-0 rounded-xl">
+        <Link href="/my-items/new" className="btn btn-primary btn-sm h-9 min-h-9 shrink-0 rounded-xl">
           Add item
         </Link>
       </div>
@@ -58,10 +58,11 @@ export default async function MyItemsPage({
               <InventoryItemCard
                 item={c}
                 showListingStatusBadge
+                showQuantityBadge
                 actions={
                   c.profileStatus === CoralProfileStatus.UNLISTED ? (
                     <>
-                      <Link href={`/my-items/${c.id}/edit`} className="btn btn-outline btn-sm min-h-10 rounded-xl">
+                      <Link href={`/my-items/${c.id}/edit`} className="btn btn-outline btn-sm min-h-9 rounded-xl">
                         Edit
                       </Link>
                       <DeleteCoralButton itemId={c.id} />

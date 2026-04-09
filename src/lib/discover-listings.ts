@@ -25,6 +25,7 @@ export type DiscoverItemTab = "coral" | "fish" | "equipment";
 export type DiscoverRow = {
   listingId: string;
   itemId: string;
+  remainingQuantity: number;
   kind: InventoryKind;
   name: string;
   description: string;
@@ -159,6 +160,7 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
 
   const itemParts: Prisma.InventoryItemWhereInput[] = [
     { profileStatus: CoralProfileStatus.UNLISTED },
+    { remainingQuantity: { gt: 0 } },
     params.ownerUserId
       ? { userId: params.ownerUserId }
       : { userId: { not: params.viewerUserId } },
@@ -247,6 +249,7 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
     return {
       listingId: row.id,
       itemId: item.id,
+      remainingQuantity: item.remainingQuantity,
       kind: item.kind,
       name: item.name,
       description: item.description,

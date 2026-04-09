@@ -80,6 +80,11 @@ export function CoralListingCard({
                   ? EQUIPMENT_CATEGORY_LABELS[row.equipmentCategory]
                   : "Equipment"}
           </span>
+          {row.remainingQuantity > 1 ? (
+            <span className="absolute left-2 top-2 rounded-full bg-slate-900/85 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
+              {row.remainingQuantity} available
+            </span>
+          ) : null}
           {row.freeToGoodHome ? (
             <span className="absolute bottom-2 left-2 rounded-lg bg-emerald-500 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
               Free to a good home

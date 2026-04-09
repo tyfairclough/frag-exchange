@@ -197,6 +197,8 @@ model InventoryItem {
   listingMode    CoralListingMode   @default(BOTH)
   freeToGoodHome Boolean            @default(false)
   profileStatus  CoralProfileStatus @default(UNLISTED)
+  totalQuantity  Int                @default(1)
+  remainingQuantity Int             @default(1)
   /// Coral taxonomy (when kind = CORAL).
   coralType      String?            @db.VarChar(120)
   /// Coral + fish colour palette (when kind = CORAL or FISH).

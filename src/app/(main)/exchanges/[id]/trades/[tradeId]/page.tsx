@@ -39,7 +39,7 @@ const detailErrors: Record<string, string> = {
   "coral-missing": "An item in this trade no longer exists.",
   "coral-unavailable": "An item is no longer available for trade.",
   "listing-gone": "Something in this offer is no longer listed — ask them to refresh or counter.",
-  approved: "Trade approved. Items are marked traded and removed from all exchanges.",
+  approved: "Trade approved. Traded items were decremented and exhausted listings were removed.",
   rejected: "You declined this trade.",
   countered: "Counter-offer sent.",
   "counter-invalid": "Pick at least one item on each side.",
@@ -164,7 +164,11 @@ export default async function ExchangeTradeDetailPage({
           where: {
             exchangeId,
             expiresAt: { gt: now },
-            inventoryItem: { userId: trade.initiatorUserId, profileStatus: CoralProfileStatus.UNLISTED },
+            inventoryItem: {
+              userId: trade.initiatorUserId,
+              profileStatus: CoralProfileStatus.UNLISTED,
+              remainingQuantity: { gt: 0 },
+            },
           },
           include: { inventoryItem: true },
           orderBy: { listedAt: "desc" },
@@ -173,7 +177,11 @@ export default async function ExchangeTradeDetailPage({
           where: {
             exchangeId,
             expiresAt: { gt: now },
-            inventoryItem: { userId: trade.peerUserId, profileStatus: CoralProfileStatus.UNLISTED },
+            inventoryItem: {
+              userId: trade.peerUserId,
+              profileStatus: CoralProfileStatus.UNLISTED,
+              remainingQuantity: { gt: 0 },
+            },
           },
           include: { inventoryItem: true },
           orderBy: { listedAt: "desc" },
