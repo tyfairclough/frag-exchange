@@ -30,6 +30,15 @@ function postDebugLog(
 
 export function register(): void {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    console.error(
+      "[reefx][build-marker]",
+      JSON.stringify({
+        marker: "dbg-2026-04-09-2135",
+        nodeEnv: process.env.NODE_ENV ?? "",
+        pid: process.pid,
+        node: process.version,
+      }),
+    );
     void import("@/lib/db-startup-ping").then((m) => m.pingMysqlOptional());
   }
 }
