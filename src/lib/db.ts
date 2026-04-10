@@ -10,18 +10,6 @@ function createPrismaClient(): PrismaClient {
       "DATABASE_URL is not set. Configure the Neon pooled URL in environment variables before running the app.",
     );
   }
-  const parsed = new URL(url);
-  console.error(
-    "[reefx][db-client-init]",
-    JSON.stringify({
-      pid: process.pid,
-      nodeEnv: process.env.NODE_ENV,
-      host: parsed.hostname,
-      database: parsed.pathname.replace(/^\//, ""),
-      usesPooledUrl: true,
-      hasDirectUrl: Boolean(process.env.DIRECT_URL),
-    }),
-  );
   return new PrismaClient({
     adapter: new PrismaPg({ connectionString: url }),
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
@@ -34,17 +22,9 @@ function createPrismaClient(): PrismaClient {
  */
 export function getPrisma(): PrismaClient {
   if (globalForPrisma.prisma) {
-    console.error(
-      "[reefx][db-client-reuse]",
-      JSON.stringify({ pid: process.pid, reused: true }),
-    );
     return globalForPrisma.prisma;
   }
 
-  console.error(
-    "[reefx][db-client-reuse]",
-    JSON.stringify({ pid: process.pid, reused: false }),
-  );
   globalForPrisma.prisma = createPrismaClient();
   return globalForPrisma.prisma;
 }

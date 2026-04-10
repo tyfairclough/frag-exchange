@@ -94,3 +94,40 @@ If needed:
 - Restore previous app build.
 - Restore old Hostinger DB variables.
 - Restart app.
+
+## 7) Local development on a Neon branch
+
+Use one long-lived branch for local parity (recommended: `dev-local`).
+
+### Branch details (current)
+
+- Project: `floral-field-24091236`
+- Production branch: `production` (`br-sweet-breeze-abajrxde`)
+- Local dev branch: `dev-local` (`br-shy-fog-abhd4dgp`)
+
+### Local env setup
+
+In `.env.development` set:
+
+- `DATABASE_URL` = `dev-local` pooled URL
+- `DIRECT_URL` = `dev-local` direct URL
+- `NODE_ENV=development`
+
+### Daily development workflow
+
+1. Keep `dev-local` persistent while developing.
+2. Run migrations locally against the branch (`npm run db:migrate:dev`).
+3. Start app (`npm run dev`) and verify `/api/health`.
+
+### Reset `dev-local` from production (when needed)
+
+Use Neon MCP tool `reset_from_parent`:
+
+- `projectId`: `floral-field-24091236`
+- `branchIdOrName`: `dev-local`
+- optional `preserveUnderName`: e.g. `dev-local-pre-reset-YYYYMMDD`
+
+After reset:
+
+1. Re-run any local seed/bootstrap scripts if needed.
+2. Re-verify `/api/health` and key flows (auth, exchanges, trade actions).

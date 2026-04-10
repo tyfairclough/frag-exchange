@@ -19,11 +19,21 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
    cp .env.example .env
    ```
 
-   **Database URL:** create **`.env.development`** from `.env.example` (dev block) so Prisma/Next use local Docker **Postgres** (`frag` / `fraglocaldev` / `frag_exchange` on `127.0.0.1:5432`). It is loaded only when you run **`npm run dev`** (`NODE_ENV=development`). Add optional keys (Mailtrap, etc.) to `.env` or `.env.local`. App-specific secrets use the **`REEFX_*`** prefix (see `.env.example`).
+   **Database URL:** create **`.env.development`** from `.env.example` (dev block). Recommended local workflow is a dedicated Neon branch (for example `dev-local`) with:
+   - `DATABASE_URL` = pooled URL for that branch
+   - `DIRECT_URL` = direct URL for that branch
+   It is loaded only when you run **`npm run dev`** (`NODE_ENV=development`). Add optional keys (Mailtrap, etc.) to `.env` or `.env.local`. App-specific secrets use the **`REEFX_*`** prefix (see `.env.example`).
 
    **Production** on Hostinger: set **`DATABASE_URL`** and **`DIRECT_URL`** in the Node.js app environment — `.env.development` is not used when `NODE_ENV=production`.
 
-2. **Local Postgres (Docker)**
+2. **Local DB options**
+
+   **Option A (recommended): Neon branch parity**
+   - Keep one long-lived branch (e.g. `dev-local`) cloned from production.
+   - Use Neon pooled/direct URLs for that branch in `.env.development`.
+   - This keeps local behavior close to hosted production.
+
+   **Option B: Local Docker Postgres fallback**
 
    From the app root (`frag-exchange/`):
 
@@ -45,6 +55,7 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
    `postinstall` runs `prisma generate` so the client matches the schema after installs.
 
    Local Postgres migration does not require `PRISMA_SHADOW_DATABASE_URL`.
+   For Neon branch development, `npm run db:migrate:dev` runs against your branch via `DIRECT_URL`.
 
 4. **Run**
 
@@ -78,6 +89,17 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
 ## Deploy (Hostinger)
 
 See **[docs/deploy-hostinger.md](./docs/deploy-hostinger.md)** for panel settings, `DATABASE_URL`, build/start commands, and running migrations on deploy.
+
+## Neon branch reset workflow
+
+- Recommended model:
+  - Keep `dev-local` persistent for normal daily development.
+  - Reset from production only when branch data has drifted too far.
+- Reset command (Neon MCP): `reset_from_parent` on branch `dev-local`.
+- Optional safe reset:
+  - pass `preserveUnderName` to snapshot current branch state before reset.
+- After reset:
+  - run local smoke checks (`/api/health`, login, exchange create/edit, trade read/write).
 
 **Coral photos:** uploads are written under `public/coral-uploads/{userId}/` at runtime. Ensure that path exists on the server and is writable by the Node process, and that it is preserved across deploys (otherwise user images are lost when the app directory is replaced).
 
