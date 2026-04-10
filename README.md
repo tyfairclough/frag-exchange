@@ -1,17 +1,15 @@
 # REEFX (web)
 
-Next.js app for **REEFX** (reefx.net): mobile-first shell, **MySQL-compatible** databases (**MariaDB** or **MySQL**) via **Prisma 7**, aligned with a **Hostinger Node.js** deployment (Next.js preset).
+Next.js app for **REEFX** (reefx.net): mobile-first shell with **Neon Postgres** via **Prisma 7**, aligned with a **Hostinger Node.js** deployment (Next.js preset).
 
-Runtime DB access uses Prisma’s **`@prisma/adapter-mariadb`** driver with the [`mariadb`](https://www.npmjs.com/package/mariadb) client (same `mysql://…` `DATABASE_URL` as in Prisma’s docs).
-
-**MySQL / MariaDB only:** the Prisma schema uses `provider = "mysql"` (correct for both engines). Do not use PostgreSQL or `prisma+postgres://` URLs. The `postgres` package may appear under `node_modules` as a **transitive dependency of the Prisma CLI**; the app runtime does not connect to Postgres.
+Runtime DB access uses Prisma's native Postgres engine with `DATABASE_URL` (Neon pooled URL) and `DIRECT_URL` (Neon direct URL for migrations).
 UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) using custom themes: `fraglight` and `fragdark`.
 
 ## Requirements
 
 - **Node.js** 20–24 (see `engines` in `package.json`)
-- **Docker Desktop** (Windows/Mac) or **Docker Engine + Compose** (Linux), for the bundled local **MariaDB 11.8.6** (Docker Compose)
-- **Production:** Hostinger **managed MySQL or MariaDB** (or any reachable MySQL-compatible instance); keep local and prod on the same family when possible
+- **Docker Desktop** (Windows/Mac) or **Docker Engine + Compose** (Linux), for bundled local **Postgres 17** (Docker Compose)
+- **Production:** Neon Postgres (plus Hostinger Node.js hosting)
 
 ## Local setup
 
@@ -21,11 +19,11 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
    cp .env.example .env
    ```
 
-   **Database URL:** create **`.env.development`** from `.env.example` (dev block) so Prisma/Next use local Docker **MariaDB** (`frag` / `fraglocaldev` / `frag_exchange` on `127.0.0.1:3306`). It is loaded only when you run **`npm run dev`** (`NODE_ENV=development`). Add optional keys (Mailtrap, etc.) to `.env` or `.env.local`. App-specific secrets use the **`REEFX_*`** prefix (see `.env.example`).
+   **Database URL:** create **`.env.development`** from `.env.example` (dev block) so Prisma/Next use local Docker **Postgres** (`frag` / `fraglocaldev` / `frag_exchange` on `127.0.0.1:5432`). It is loaded only when you run **`npm run dev`** (`NODE_ENV=development`). Add optional keys (Mailtrap, etc.) to `.env` or `.env.local`. App-specific secrets use the **`REEFX_*`** prefix (see `.env.example`).
 
-   **Production** on Hostinger: set **`DATABASE_URL`** in the Node.js app environment — `.env.development` is not used when `NODE_ENV=production`.
+   **Production** on Hostinger: set **`DATABASE_URL`** and **`DIRECT_URL`** in the Node.js app environment — `.env.development` is not used when `NODE_ENV=production`.
 
-2. **Local MariaDB (Docker)**
+2. **Local Postgres (Docker)**
 
    From the app root (`frag-exchange/`):
 
@@ -33,9 +31,9 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
    npm run db:up
    ```
 
-   Wait until the container is healthy (first start can take ~30s). Stop the database with `npm run db:down` (data persists in the `frag_exchange_mysql_data` volume until you remove it with `docker compose down -v`).
+   Wait until the container is healthy (first start can take ~30s). Stop the database with `npm run db:down` (data persists in the `frag_exchange_postgres_data` volume until you remove it with `docker compose down -v`).
 
-   If port **3306** is already in use, edit `docker-compose.yml` to map e.g. `3307:3306` and set `DATABASE_URL` to use port `3307`.
+   If port **5432** is already in use, edit `docker-compose.yml` to map e.g. `5433:5432` and set `DATABASE_URL` to use port `5433`.
 
 3. **Install and database**
 
@@ -46,7 +44,7 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
 
    `postinstall` runs `prisma generate` so the client matches the schema after installs.
 
-   **Prisma P3014 (shadow database):** Local dev uses **`PRISMA_SHADOW_DATABASE_URL`** in `.env.development` (`root` + empty database **`prisma_shadow`**), so Migrate does not rely on `frag` creating random shadow DBs. Ensure that DB exists: new containers run `docker/mysql/99-prisma-migrate-grants.sql` on **first** init; for an older volume run **`npm run db:grant`** once while the DB container is up. Then **`npm run db:migrate:dev`**. To reset everything: `docker compose down -v` and `npm run db:up` (wipes local data).
+   Local Postgres migration does not require `PRISMA_SHADOW_DATABASE_URL`.
 
 4. **Run**
 
@@ -66,10 +64,9 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
 | `npm run start`      | Production server (`next start`)             |
 | `npm run db:migrate` | `prisma migrate deploy` (CI / production)   |
 | `npm run db:migrate:dev` | Create/apply migrations in development |
-| `npm run db:up`          | Start local MariaDB (Docker Compose)        |
+| `npm run db:up`          | Start local Postgres (Docker Compose)       |
 | `npm run db:down`        | Stop local database containers               |
-| `npm run db:grant` | Grant `frag` shadow-DB rights (existing volumes only; see P3014 note above) |
-| `npm run db:grant-migrate` | Same as `db:grant` |
+| `npm run db:migrate:docker-to-neon` | Copy data from Docker MariaDB source into Neon Postgres |
 
 ## UI conventions (Tailwind + daisyUI)
 

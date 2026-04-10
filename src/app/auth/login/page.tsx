@@ -9,7 +9,7 @@ const loginErrors: Record<string, string> = {
   "invalid-credentials": "Email or password is incorrect.",
   "rate-limit": "Too many attempts from this network. Please wait a little while and try again.",
   "server-unavailable":
-    "Sign-in could not reach the database or complete the request. If you run the app yourself, check DATABASE_URL and that MySQL is running, then try again.",
+    "Sign-in could not reach the database or complete the request. If you run the app yourself, check DATABASE_URL/DIRECT_URL and your Postgres service, then try again.",
 };
 
 export default async function LoginPage({

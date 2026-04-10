@@ -1,31 +1,28 @@
-# Local development only — MariaDB 11.8 (LTS) for REEFX (Prisma mysql provider).
-# Wire-compatible with mysql:// DATABASE_URL; matches typical production MariaDB.
+# Local development only — PostgreSQL for REEFX (Prisma PostgreSQL provider).
 # From this folder: npm run db:up
 # Stop: npm run db:down
 #
 # Requires Docker Desktop (Windows/Mac) or Docker Engine + Compose (Linux).
 
 services:
-  mysql:
-    image: mariadb:11.8.6
-    container_name: frag-exchange-mysql
+  postgres:
+    image: postgres:17
+    container_name: frag-exchange-postgres
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: frag_exchange
-      MYSQL_USER: frag
-      MYSQL_PASSWORD: fraglocaldev
-      MYSQL_ROOT_PASSWORD: fragrootlocaldev
+      POSTGRES_DB: frag_exchange
+      POSTGRES_USER: frag
+      POSTGRES_PASSWORD: fraglocaldev
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - frag_exchange_mysql_data:/var/lib/mysql
-      - ./docker/mysql/99-prisma-migrate-grants.sql:/docker-entrypoint-initdb.d/99-prisma-migrate-grants.sql:ro
+      - frag_exchange_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD-SHELL", "pg_isready -U frag -d frag_exchange"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 30s
 
 volumes:
-  frag_exchange_mysql_data:
+  frag_exchange_postgres_data:

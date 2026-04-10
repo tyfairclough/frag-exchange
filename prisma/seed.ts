@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { UserGlobalRole } from "../src/generated/prisma/enums";
 import { hashPassword } from "../src/lib/password";
@@ -17,7 +17,7 @@ if (!databaseUrl) {
 }
 
 const prisma = new PrismaClient({
-  adapter: new PrismaMariaDb(databaseUrl),
+  adapter: new PrismaPg({ connectionString: databaseUrl }),
 });
 
 async function main() {

@@ -13,14 +13,13 @@ Add **at least**:
 
 | Variable         | Description                                                                 |
 | ---------------- | --------------------------------------------------------------------------- |
-| `DATABASE_URL`   | **MySQL-compatible only** (MySQL or MariaDB) — `mysql://USER:PASSWORD@HOST:3306/DATABASE`. Do not use PostgreSQL or `prisma+postgres://`. Never commit. Local **`.env.development`** (Docker URL) is **ignored in production**; production must get `DATABASE_URL` from this panel. |
+| `DATABASE_URL`   | Neon **pooled** Postgres URL for app runtime, e.g. `postgresql://...-pooler...`. Never commit. Local **`.env.development`** is **ignored in production**; production must get `DATABASE_URL` from this panel. |
+| `DIRECT_URL`     | Neon **direct** Postgres URL for Prisma migration/introspection (`prisma migrate deploy`). |
 | `NODE_ENV`       | Usually `production` (often set automatically).                            |
-| `DATABASE_POOL_CONNECTION_LIMIT` | Optional. Overrides the built-in **production** default of **`5`** connections (when `connectionLimit` is not already in `DATABASE_URL`). |
-| `DATABASE_POOL_MINIMUM_IDLE` | Optional. Overrides **`minimumIdle`**; production defaults to **`0`** (lazy pool) when not in the URL. |
 
 Optional Next defaults apply; add others only when you introduce features that need them.
 
-**Database pool errors:** If runtime logs show `pool timeout … active=0 idle=0`, the DB user or server is refusing new connections or the account hit **process limits** (SSH may show `fork: Resource temporarily unavailable`). After redeploying the app, errors should show `limit=5` if production pool defaults are active. If problems remain, lower further (`connectionLimit=3` on the URL), stop other sites using the same database user, and reduce **max processes** load (Joomla/cron/duplicate Node apps).
+**Database errors:** If runtime logs show connection/auth errors, verify Hostinger env values use the correct Neon pooled/direct URLs and that SSL params match Neon requirements.
 
 ## 3. Build and start commands
 
@@ -49,7 +48,7 @@ Do **not** commit `.env`; store secrets only in the panel or your secret manager
 
 ## 5. Database source
 
-Use **Hostinger managed MySQL or MariaDB**, or any MySQL-compatible instance reachable from the Node process. The Prisma schema provider is **`mysql`** (valid for both engines); Prisma 7 connects at runtime through **`@prisma/adapter-mariadb`** and the **`mariadb`** npm package using your existing `mysql://…` URL.
+Use **Neon Postgres** as the primary database. Prisma schema provider is **`postgresql`** and runtime uses Prisma's native Postgres engine with `DATABASE_URL` (pooled) + `DIRECT_URL` (direct).
 
 ## 6. Scheduled housekeeping (Chunk 10)
 

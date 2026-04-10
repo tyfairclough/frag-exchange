@@ -11,7 +11,7 @@ export function register(): void {
         node: process.version,
       }),
     );
-    void import("@/lib/db-startup-ping").then((m) => m.pingMysqlOptional());
+    void import("@/lib/db-startup-ping").then((m) => m.pingDatabaseOptional());
   }
 }
 
@@ -20,10 +20,10 @@ export const onRequestError: Instrumentation.onRequestError = async (err, req, c
     return;
   }
   const msg = err instanceof Error ? err.message : String(err);
-  if (!msg.includes("pool timeout") && !msg.includes("DriverAdapterError")) {
+  if (!msg.includes("Prisma") && !msg.toLowerCase().includes("database")) {
     return;
   }
-  const { serializeDbError } = await import("@/lib/mysql-error-serialize");
+  const { serializeDbError } = await import("@/lib/db-error-serialize");
   const serialized = serializeDbError(err);
   console.error(
     "[reefx][db-pool-request-error]",

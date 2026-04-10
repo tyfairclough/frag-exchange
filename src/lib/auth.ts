@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextResponse } from "next/server";
 import { createHash, randomBytes } from "node:crypto";
-import { getPrisma, throwIfMysqlPoolUnreachable } from "@/lib/db";
+import { getPrisma, throwIfDatabaseUnreachable } from "@/lib/db";
 
 const SESSION_COOKIE = "fe_session";
 const SESSION_TTL_DAYS = 30;
@@ -25,7 +25,7 @@ export async function createMagicLink(email: string, requestedIp?: string | null
       create: { email: normalizedEmail },
     });
   } catch (e) {
-    throwIfMysqlPoolUnreachable(e);
+    throwIfDatabaseUnreachable(e);
   }
 
   const token = makeToken();

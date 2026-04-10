@@ -8,7 +8,7 @@ import {
   ExchangeMembershipRole,
   ExchangeVisibility,
 } from "@/generated/prisma/enums";
-import { assertMysqlReachable, getPrisma } from "@/lib/db";
+import { assertDatabaseReachable, getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
 import { getRequestOrigin } from "@/lib/request-origin";
@@ -171,7 +171,7 @@ export async function createExchangeAction(formData: FormData) {
     if (e instanceof Error && e.message.startsWith("exchange-logo:")) {
       redirect("/exchanges/new?error=logo");
     }
-    assertMysqlReachable(e);
+    assertDatabaseReachable(e);
     throw e instanceof Error ? e : new Error(String(e));
   }
 
@@ -278,7 +278,7 @@ export async function updateExchangeAction(formData: FormData) {
     if (e instanceof Error && e.message.startsWith("exchange-logo:")) {
       redirect(`/exchanges/${exchangeId}/edit?error=logo`);
     }
-    assertMysqlReachable(e);
+    assertDatabaseReachable(e);
     redirect(`/exchanges/${exchangeId}/edit?error=not-found`);
   }
 
@@ -350,7 +350,7 @@ export async function updateExchangeLogoAction(formData: FormData) {
       data: logo,
     });
   } catch (e: unknown) {
-    assertMysqlReachable(e);
+    assertDatabaseReachable(e);
     redirect(`/exchanges/${exchangeId}/edit?error=logo`);
   }
 
@@ -394,7 +394,7 @@ export async function deleteExchangeAction(formData: FormData) {
   try {
     await getPrisma().exchange.delete({ where: { id: exchangeId } });
   } catch (e: unknown) {
-    assertMysqlReachable(e);
+    assertDatabaseReachable(e);
     redirect("/exchanges?error=forbidden");
   }
 

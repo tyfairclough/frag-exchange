@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import {
   CoralProfileStatus,
@@ -26,7 +26,7 @@ if (!databaseUrl) {
 }
 
 const prisma = new PrismaClient({
-  adapter: new PrismaMariaDb(databaseUrl),
+  adapter: new PrismaPg({ connectionString: databaseUrl }),
 });
 
 const RUN_STAMP = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);

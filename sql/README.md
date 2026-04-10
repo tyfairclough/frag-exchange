@@ -1,6 +1,7 @@
-# REEFX SQL Bootstrap
+# REEFX SQL Bootstrap (Legacy MariaDB)
 
-Use these scripts when your MySQL database is empty and you want a full baseline quickly.
+These scripts are legacy helpers for MariaDB/MySQL snapshots only.
+Primary production database is now Neon Postgres via Prisma migrations.
 
 ## Files
 

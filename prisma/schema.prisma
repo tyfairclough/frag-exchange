@@ -1,4 +1,4 @@
-// REEFX — Prisma schema (MySQL-compatible: MariaDB or MySQL / Hostinger)
+// REEFX — Prisma schema (PostgreSQL on Neon / Hostinger)
 // https://pris.ly/d/prisma-schema
 
 generator client {
@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 /// Baseline user row for upcoming auth/profile (Chunk 2). Extend as needed.

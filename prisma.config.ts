@@ -1,5 +1,5 @@
-// Prisma config — REEFX uses MySQL only (`prisma/schema.prisma` datasource).
-// DATABASE_URL: local dev uses `.env.development` (Docker); production comes from the host (e.g. Hostinger panel).
+// Prisma config — REEFX uses PostgreSQL (Neon) via `prisma/schema.prisma`.
+// DATABASE_URL: pooled runtime URL. DIRECT_URL: direct URL for migrations/introspection.
 import dotenv from "dotenv";
 import { defineConfig } from "prisma/config";
 
@@ -10,7 +10,7 @@ if (process.env.NODE_ENV !== "production") {
 dotenv.config({ path: ".env.local" });
 
 const databaseUrl = process.env["DATABASE_URL"];
-const shadowDatabaseUrl = process.env["PRISMA_SHADOW_DATABASE_URL"];
+const directUrl = process.env["DIRECT_URL"];
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -20,6 +20,6 @@ export default defineConfig({
   },
   datasource: {
     url: databaseUrl,
-    ...(shadowDatabaseUrl ? { shadowDatabaseUrl } : {}),
+    ...(directUrl ? { directUrl } : {}),
   },
 });
