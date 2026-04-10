@@ -19,6 +19,14 @@ export function parseEmailFrom(from: string): { name: string; email: string } | 
   return null;
 }
 
+/** Mailtrap docs: stray spaces in API tokens often cause 401 Unauthorized. */
+function getMailtrapApiKey(): string | undefined {
+  const raw = process.env.MAILTRAP_API_KEY;
+  if (raw == null) return undefined;
+  const t = raw.trim();
+  return t === "" ? undefined : t;
+}
+
 export function mailtrapErrorDetails(err: unknown): { status: number; body: string } {
   if (err instanceof Error) {
     let status = 500;
@@ -37,14 +45,14 @@ export function mailtrapErrorDetails(err: unknown): { status: number; body: stri
 }
 
 function createClient(): MailtrapClient | null {
-  const apiKey = process.env.MAILTRAP_API_KEY;
+  const apiKey = getMailtrapApiKey();
   const fromRaw = process.env.EMAIL_FROM;
   const fromParsed = fromRaw ? parseEmailFrom(fromRaw) : null;
   if (!apiKey || !fromParsed) {
     return null;
   }
-  const useSandbox = process.env.MAILTRAP_USE_SANDBOX === "true";
-  const inboxIdRaw = process.env.MAILTRAP_INBOX_ID;
+  const useSandbox = process.env.MAILTRAP_USE_SANDBOX?.trim() === "true";
+  const inboxIdRaw = process.env.MAILTRAP_INBOX_ID?.trim();
   const testInboxId = inboxIdRaw ? Number(inboxIdRaw) : undefined;
   if (useSandbox && (!inboxIdRaw || Number.isNaN(testInboxId))) {
     return null;
