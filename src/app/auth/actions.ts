@@ -9,6 +9,7 @@ import { setOnboardingNextCookie } from "@/lib/onboarding-next-cookie";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { getPrisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
+import { isDevMagicLinkViaEmail } from "@/lib/dev-magic-link-mode";
 import { sendMagicLinkEmail } from "@/lib/send-magic-link-email";
 import { consumeRateLimitToken, getRequestIp } from "@/lib/rate-limit";
 
@@ -33,13 +34,22 @@ export async function requestMagicLinkAction(formData: FormData) {
     const origin = await getRequestOrigin();
     const verifyUrl = `${origin}/auth/verify?token=${encodeURIComponent(token)}`;
 
-    const sent = await sendMagicLinkEmail({ to: email, verifyUrl });
-    if (!sent.ok) {
-      console.error("[magic-link] outbound email failed", sent.status, sent.body);
+    const useMailtrapInDev = isDevMagicLinkViaEmail();
+    if (process.env.NODE_ENV === "development" && !useMailtrapInDev) {
+      console.info(
+        `[magic-link] dev debug path — outbound email skipped (set REEFX_DEV_MAGIC_LINK_VIA_EMAIL=true to use Mailtrap). To: ${email}`,
+      );
+    } else {
+      const sent = await sendMagicLinkEmail({ to: email, verifyUrl });
+      if (!sent.ok) {
+        console.error("[magic-link] outbound email failed", sent.status, sent.body);
+      }
     }
 
     const debugQuery =
-      process.env.NODE_ENV === "development" ? `&debugToken=${encodeURIComponent(token)}` : "";
+      process.env.NODE_ENV === "development" && !useMailtrapInDev
+        ? `&debugToken=${encodeURIComponent(token)}`
+        : "";
 
     redirect(`/auth/check-email?email=${encodeURIComponent(email)}${debugQuery}`);
   } catch (e) {

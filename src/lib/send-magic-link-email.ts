@@ -18,7 +18,8 @@ type SendResult =
 
 /**
  * Sends the access link when Mailtrap is configured; otherwise logs once in development.
- * Core auth still works via the check-email debug link when running `next dev` (NODE_ENV=development).
+ * In development, magic-link email is only sent when `REEFX_DEV_MAGIC_LINK_VIA_EMAIL=true`;
+ * otherwise `requestMagicLinkAction` skips calling this and uses the check-email debug link.
  */
 export async function sendMagicLinkEmail(params: {
   to: string;

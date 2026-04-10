@@ -60,7 +60,7 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
     <div className="min-h-dvh bg-white text-slate-600">
       <MarketingSiteHeader />
 
-      <section className="mx-auto grid max-w-6xl gap-10 px-4 pt-10 sm:gap-12 sm:px-6 sm:pt-14 lg:grid-cols-2 lg:items-center">
+      <section className="mx-auto grid max-w-6xl gap-10 px-4 pt-10 sm:gap-12 sm:px-6 sm:pt-14 lg:grid-cols-2 lg:items-stretch">
         <div className="py-10 sm:py-14">
           <h1
             className="text-[1.65rem] font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.65rem] lg:leading-[1.12]"
@@ -87,14 +87,14 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
             </Link>
           </div>
         </div>
-        <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+        <div className="relative mx-auto flex w-full max-w-md flex-col justify-end lg:max-w-none">
           {/* eslint-disable-next-line @next/next/no-img-element -- static marketing SVG from /public */}
           <img
             src="/marketing/coral_illustration_001.svg"
             alt=""
             width={640}
             height={335}
-            className="h-auto w-full object-contain"
+            className="block h-auto w-full object-contain"
             decoding="async"
             fetchPriority="high"
           />
