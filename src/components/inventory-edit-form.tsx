@@ -4,7 +4,8 @@ import { CoralListingMode } from "@/generated/prisma/enums";
 import type { EquipmentCategory, EquipmentCondition } from "@/generated/prisma/enums";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
 import { ItemQuantityFields } from "@/components/item-quantity-fields";
-import { CORAL_COLOURS, isActiveCoralColour } from "@/lib/coral-options";
+import { coralColoursToFormValue } from "@/lib/coral-options";
+import { InventoryColourMultiselect } from "@/components/inventory-colour-multiselect";
 import {
   EQUIPMENT_CATEGORY_LABELS,
   EQUIPMENT_CATEGORY_VALUES,
@@ -12,9 +13,27 @@ import {
   EQUIPMENT_CONDITION_VALUES,
 } from "@/lib/equipment-options";
 import { enrichCoralPreviewAction } from "@/app/(main)/my-items/actions";
-import { useState, useTransition } from "react";
+import {
+  InventoryItemImageField,
+  type InventoryItemImageFieldHandle,
+} from "@/components/inventory-item-image-field";
+import { InventoryEditBottomNavBridge } from "@/components/inventory-edit-bottom-nav-context";
+import { useRef, useState, useTransition } from "react";
 
 type SaveAction = (formData: FormData) => void | Promise<void>;
+
+function messageForUploadError(code: string | undefined): string {
+  switch (code) {
+    case "image-too-large":
+      return "Photo is too large (max 6 MB). Choose a smaller image.";
+    case "invalid-image-type":
+      return "Use a JPEG, PNG, or WebP photo.";
+    case "invalid-image":
+      return "Could not process that photo. Try a different image.";
+    default:
+      return "Could not upload the photo. Try again.";
+  }
+}
 
 type SharedInventoryDefaults = {
   name: string;
@@ -30,7 +49,7 @@ export function CoralKindEditForm({
   defaults,
 }: {
   saveAction: SaveAction;
-  defaults: SharedInventoryDefaults & { coralType: string; colour: string };
+  defaults: SharedInventoryDefaults & { coralType: string; colours: string[] };
 }) {
   const [name, setName] = useState(defaults.name);
   const [description, setDescription] = useState(defaults.description);
@@ -38,41 +57,68 @@ export function CoralKindEditForm({
   const [listingMode, setListingMode] = useState(defaults.listingMode);
   const [freeToGoodHome, setFreeToGoodHome] = useState(defaults.freeToGoodHome);
   const [coralType, setCoralType] = useState(defaults.coralType);
-  const [colour, setColour] = useState(defaults.colour);
+  const [colours, setColours] = useState(defaults.colours);
   const [hasMultipleToExchange, setHasMultipleToExchange] = useState(defaults.remainingQuantity > 1);
   const [itemCount, setItemCount] = useState(String(Math.max(2, defaults.remainingQuantity)));
   const [aiPending, startAi] = useTransition();
   const [aiHint, setAiHint] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const imageFieldRef = useRef<InventoryItemImageFieldHandle>(null);
 
   function onAiSuggest() {
     setAiError(null);
     setAiHint(null);
     startAi(async () => {
-      const r = await enrichCoralPreviewAction(name, imageUrl || null);
+      let url = imageUrl.trim() || null;
+      const pending = imageFieldRef.current?.getFile();
+      if (pending) {
+        const up = new FormData();
+        up.append("imageFile", pending);
+        const res = await fetch("/api/my-items/upload-image", {
+          method: "POST",
+          body: up,
+          credentials: "include",
+        });
+        if (!res.ok) {
+          const j = (await res.json().catch(() => ({}))) as { error?: string };
+          setAiError(messageForUploadError(j.error));
+          return;
+        }
+        const data = (await res.json()) as { imageUrl: string };
+        setImageUrl(data.imageUrl);
+        imageFieldRef.current?.clearStagedFile();
+        url = data.imageUrl;
+      }
+      if (!url) {
+        setAiError("Add a photo first, or choose an image with “Change image”.");
+        return;
+      }
+      const r = await enrichCoralPreviewAction(name, url);
       setDescription(r.description);
       setAiHint("AI suggested description.");
     });
   }
 
   return (
-    <form action={saveAction} className="flex flex-col gap-4">
+    <form action={saveAction} encType="multipart/form-data" className="flex flex-col gap-4">
+      <InventoryEditBottomNavBridge />
       <CoralInventoryFields
         name={name}
         setName={setName}
         description={description}
         setDescription={setDescription}
         imageUrl={imageUrl}
-        setImageUrl={setImageUrl}
         listingMode={listingMode}
         setListingMode={setListingMode}
         freeToGoodHome={freeToGoodHome}
         setFreeToGoodHome={setFreeToGoodHome}
         coralType={coralType}
         setCoralType={setCoralType}
-        colour={colour}
-        setColour={setColour}
+        colours={colours}
+        setColours={setColours}
         showImageUrlAndAiSuggest
+        openImagePickerFromGlobalEvent
+        imageFieldRef={imageFieldRef}
         aiPending={aiPending}
         onAiSuggest={onAiSuggest}
         aiHint={aiHint}
@@ -106,20 +152,20 @@ export function FishKindEditForm({
   defaults,
 }: {
   saveAction: SaveAction;
-  defaults: SharedInventoryDefaults & { species: string; colour: string; reefSafe: boolean | null };
+  defaults: SharedInventoryDefaults & { species: string; colours: string[]; reefSafe: boolean | null };
 }) {
   const [species, setSpecies] = useState(defaults.species);
-  const [colour, setColour] = useState(
-    defaults.colour && isActiveCoralColour(defaults.colour) ? defaults.colour : "",
-  );
+  const [colours, setColours] = useState(coralColoursToFormValue(defaults.colours));
   const [reefSafe, setReefSafe] = useState<string>(
     defaults.reefSafe === true ? "true" : defaults.reefSafe === false ? "false" : "",
   );
   const [hasMultipleToExchange, setHasMultipleToExchange] = useState(defaults.remainingQuantity > 1);
   const [itemCount, setItemCount] = useState(String(Math.max(2, defaults.remainingQuantity)));
+  const [imageUrl] = useState(defaults.imageUrl);
 
   return (
-    <form action={saveAction} className="flex flex-col gap-4">
+    <form action={saveAction} encType="multipart/form-data" className="flex flex-col gap-4">
+      <InventoryEditBottomNavBridge />
       <label className="form-control w-full">
         <span className="label-text font-medium">Name</span>
         <input
@@ -146,16 +192,10 @@ export function FishKindEditForm({
           className="textarea textarea-bordered w-full rounded-xl"
         />
       </label>
-      <label className="form-control w-full">
-        <span className="label-text font-medium">Image URL</span>
-        <input
-          name="imageUrl"
-          type="url"
-          maxLength={2048}
-          defaultValue={defaults.imageUrl}
-          className="input input-bordered w-full rounded-xl"
-        />
-      </label>
+      <div className="form-control w-full">
+        <span className="label-text font-medium">Photo</span>
+        <InventoryItemImageField committedImageUrl={imageUrl} openOnGlobalPickerEvent />
+      </div>
       <label className="form-control w-full">
         <span className="label-text font-medium">Species</span>
         <input
@@ -166,37 +206,20 @@ export function FishKindEditForm({
           className="input input-bordered w-full rounded-xl"
         />
       </label>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="form-control w-full">
-          <span className="label-text font-medium">Colour</span>
-          <select
-            name="colour"
-            className="select select-bordered w-full rounded-xl"
-            value={colour}
-            onChange={(e) => setColour(e.target.value)}
-          >
-            <option value="">Not specified</option>
-            {CORAL_COLOURS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="form-control w-full">
-          <span className="label-text font-medium">Reef safe</span>
-          <select
-            name="reefSafe"
-            className="select select-bordered w-full rounded-xl"
-            value={reefSafe}
-            onChange={(e) => setReefSafe(e.target.value)}
-          >
-            <option value="">Not specified</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
-        </label>
-      </div>
+      <InventoryColourMultiselect label="Colours" selected={colours} onChange={setColours} />
+      <label className="form-control w-full">
+        <span className="label-text font-medium">Reef safe</span>
+        <select
+          name="reefSafe"
+          className="select select-bordered w-full rounded-xl"
+          value={reefSafe}
+          onChange={(e) => setReefSafe(e.target.value)}
+        >
+          <option value="">Not specified</option>
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+      </label>
       <label className="form-control w-full">
         <span className="label-text font-medium">How you prefer to swap</span>
         <select name="listingMode" defaultValue={defaults.listingMode} className="select select-bordered w-full rounded-xl">
@@ -228,9 +251,11 @@ export function EquipmentKindEditForm({
 }) {
   const [hasMultipleToExchange, setHasMultipleToExchange] = useState(defaults.remainingQuantity > 1);
   const [itemCount, setItemCount] = useState(String(Math.max(2, defaults.remainingQuantity)));
+  const [imageUrl] = useState(defaults.imageUrl);
 
   return (
-    <form action={saveAction} className="flex flex-col gap-4">
+    <form action={saveAction} encType="multipart/form-data" className="flex flex-col gap-4">
+      <InventoryEditBottomNavBridge />
       <label className="form-control w-full">
         <span className="label-text font-medium">Name</span>
         <input
@@ -257,16 +282,10 @@ export function EquipmentKindEditForm({
           className="textarea textarea-bordered w-full rounded-xl"
         />
       </label>
-      <label className="form-control w-full">
-        <span className="label-text font-medium">Image URL</span>
-        <input
-          name="imageUrl"
-          type="url"
-          maxLength={2048}
-          defaultValue={defaults.imageUrl}
-          className="input input-bordered w-full rounded-xl"
-        />
-      </label>
+      <div className="form-control w-full">
+        <span className="label-text font-medium">Photo</span>
+        <InventoryItemImageField committedImageUrl={imageUrl} openOnGlobalPickerEvent />
+      </div>
       <label className="form-control w-full">
         <span className="label-text font-medium">Type</span>
         <select

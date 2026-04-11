@@ -123,7 +123,7 @@ export default async function SharedExchangeItemPage({
             imageUrl: listing.inventoryItem.imageUrl,
             listingMode: listing.inventoryItem.listingMode,
             coralType: listing.inventoryItem.coralType,
-            colour: listing.inventoryItem.colour,
+            colours: listing.inventoryItem.colours,
             freeToGoodHome: listing.inventoryItem.freeToGoodHome,
             profileStatus: listing.inventoryItem.profileStatus,
           }}

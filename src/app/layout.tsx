@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import NextTopLoader from "nextjs-toploader";
 import { AppToaster } from "@/components/app-toaster";
 import { DatabaseBootGate } from "@/components/database-boot-gate";
 import "./globals.css";
@@ -38,6 +39,13 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="fraglight" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-dvh bg-white text-slate-600 font-sans">
+        <NextTopLoader
+          color="#0f766e"
+          height={3}
+          showSpinner={false}
+          shadow="0 0 10px #0f766e,0 0 5px #0f766e"
+          zIndex={1600}
+        />
         <DatabaseBootGate>{children}</DatabaseBootGate>
         <AppToaster />
       </body>

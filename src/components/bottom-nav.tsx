@@ -4,6 +4,8 @@ import { AppLink } from "@/components/app-link";
 import { Suspense, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { getExchangeIdFromPathname } from "@/lib/exchange-path";
+import { useInventoryEditBottomNav } from "@/components/inventory-edit-bottom-nav-context";
+import { INVENTORY_IMAGE_PICKER_OPEN_EVENT } from "@/components/inventory-item-image-field";
 
 type NavIconItem = { key: string; href: string; label: string; kind: "icon"; icon: typeof HomeIcon };
 type NavAvatarItem = { key: string; href: string; label: string; kind: "avatar"; avatarEmoji: string };
@@ -151,12 +153,30 @@ function NavLinks({
   );
 }
 
+function EditItemImageBottomBar() {
+  return (
+    <div className="mx-auto flex w-full justify-center px-3 pt-2 pb-2">
+      <button
+        type="button"
+        className="btn btn-outline touch-manipulation min-h-12 w-full max-w-md rounded-xl border-slate-200 text-slate-800 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
+        onClick={() => window.dispatchEvent(new CustomEvent(INVENTORY_IMAGE_PICKER_OPEN_EVENT))}
+      >
+        Change image
+      </button>
+    </div>
+  );
+}
+
 function BottomNavInner({ profile }: { profile: BottomNavProfile }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { replaceBottomNavWithImagePicker } = useInventoryEditBottomNav();
   const exploreExchangeIdParam = pathname === "/explore" ? searchParams.get("exchangeId") : null;
   if (pathname.startsWith("/admin")) {
     return <AdminNavLinks />;
+  }
+  if (replaceBottomNavWithImagePicker) {
+    return <EditItemImageBottomBar />;
   }
   return <NavLinks exploreExchangeIdParam={exploreExchangeIdParam} profile={profile} />;
 }

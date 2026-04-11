@@ -6,12 +6,10 @@ import { CoralListingMode } from "@/generated/prisma/enums";
 import { createCoralAction } from "@/app/(main)/my-corals/actions";
 import { AddCoralImageBar } from "@/components/add-coral-image-bar";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
+import { prepareInventoryVisionImage } from "@/lib/prepare-inventory-vision-image-client";
 
 type VisionApiResult = {
-  name: string | null;
-  description: string;
-  coralType: string | null;
-  colour: string | null;
+  colours: string[];
   source: "openai" | "stub";
 };
 
@@ -23,26 +21,13 @@ function messageForApiError(code: string | undefined): string {
       return "Photo is too large (max 6 MB). Choose a smaller image.";
     case "invalid-image-type":
       return "Use a JPEG, PNG, or WebP photo.";
+    case "invalid-image":
+      return "Could not read that photo. Try a different image.";
     case "enrichment-failed":
       return "Could not analyze the photo. Try again or fill the form manually.";
     default:
       return "Something went wrong. Try again.";
   }
-}
-
-function readFileAsBase64(file: File): Promise<{ base64: string; mimeType: string }> {
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => {
-      const s = fr.result as string;
-      const comma = s.indexOf(",");
-      const base64 = comma >= 0 ? s.slice(comma + 1) : s;
-      const mime = file.type?.trim().toLowerCase() || "image/jpeg";
-      resolve({ base64, mimeType: mime });
-    };
-    fr.onerror = () => reject(fr.error);
-    fr.readAsDataURL(file);
-  });
 }
 
 export function AddCoralWizard() {
@@ -56,7 +41,7 @@ export function AddCoralWizard() {
   const [listingMode, setListingMode] = useState<CoralListingMode>(CoralListingMode.BOTH);
   const [freeToGoodHome, setFreeToGoodHome] = useState(false);
   const [coralType, setCoralType] = useState("");
-  const [colour, setColour] = useState("");
+  const [colours, setColours] = useState<string[]>([]);
 
   const [verifyBanner, setVerifyBanner] = useState(false);
   const [visionError, setVisionError] = useState<string | null>(null);
@@ -94,12 +79,12 @@ export function AddCoralWizard() {
     setVerifyBanner(false);
     startVision(async () => {
       try {
-        const { base64, mimeType } = await readFileAsBase64(file);
+        const { imageBase64, mimeType } = await prepareInventoryVisionImage(file);
         const res = await fetch("/api/my-corals/vision", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ imageBase64: base64, mimeType }),
+          body: JSON.stringify({ imageBase64, mimeType }),
         });
         if (!res.ok) {
           const j = (await res.json().catch(() => ({}))) as { error?: string };
@@ -107,10 +92,7 @@ export function AddCoralWizard() {
         }
         const result = (await res.json()) as VisionApiResult;
         if (result.source === "openai") {
-          if (result.name) setName(result.name);
-          setDescription(result.description);
-          setCoralType(result.coralType ?? "");
-          setColour(result.colour ?? "");
+          setColours(result.colours ?? []);
           setVerifyBanner(true);
         } else {
           setVisionError(
@@ -159,7 +141,9 @@ export function AddCoralWizard() {
         fd.append("freeToGoodHome", "on");
       }
       fd.append("coralType", coralType);
-      fd.append("colour", colour);
+      for (const c of colours) {
+        fd.append("colour", c);
+      }
 
       startSave(() => {
         createCoralAction(fd)
@@ -256,15 +240,14 @@ export function AddCoralWizard() {
               description={description}
               setDescription={setDescription}
               imageUrl={imageUrl}
-              setImageUrl={() => {}}
               listingMode={listingMode}
               setListingMode={setListingMode}
               freeToGoodHome={freeToGoodHome}
               setFreeToGoodHome={setFreeToGoodHome}
               coralType={coralType}
               setCoralType={setCoralType}
-              colour={colour}
-              setColour={setColour}
+              colours={colours}
+              setColours={setColours}
               showImageUrlAndAiSuggest={false}
               aiPending={false}
               onAiSuggest={() => {}}

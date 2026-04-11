@@ -1,8 +1,13 @@
 "use client";
 
 import { CoralListingMode } from "@/generated/prisma/enums";
-import { CORAL_COLOURS, CORAL_TYPES, isActiveCoralColour } from "@/lib/coral-options";
-import type { ReactNode } from "react";
+import { InventoryColourMultiselect } from "@/components/inventory-colour-multiselect";
+import {
+  InventoryItemImageField,
+  type InventoryItemImageFieldHandle,
+} from "@/components/inventory-item-image-field";
+import { CORAL_TYPES } from "@/lib/coral-options";
+import type { ReactNode, RefObject } from "react";
 
 export type CoralInventoryFieldsProps = {
   name: string;
@@ -10,16 +15,19 @@ export type CoralInventoryFieldsProps = {
   description: string;
   setDescription: (v: string) => void;
   imageUrl: string;
-  setImageUrl: (v: string) => void;
+  /** When showing photo + AI, ref to read pending file and clear after client upload. */
+  imageFieldRef?: RefObject<InventoryItemImageFieldHandle | null>;
   listingMode: CoralListingMode;
   setListingMode: (v: CoralListingMode) => void;
   freeToGoodHome: boolean;
   setFreeToGoodHome: (v: boolean) => void;
   coralType: string;
   setCoralType: (v: string) => void;
-  colour: string;
-  setColour: (v: string) => void;
+  colours: string[];
+  setColours: (v: string[]) => void;
   showImageUrlAndAiSuggest: boolean;
+  /** My-items edit: bottom bar opens the same file picker via a global event. */
+  openImagePickerFromGlobalEvent?: boolean;
   aiPending: boolean;
   onAiSuggest: () => void;
   aiHint: string | null;
@@ -33,16 +41,17 @@ export function CoralInventoryFields({
   description,
   setDescription,
   imageUrl,
-  setImageUrl,
+  imageFieldRef,
   listingMode,
   setListingMode,
   freeToGoodHome,
   setFreeToGoodHome,
   coralType,
   setCoralType,
-  colour,
-  setColour,
+  colours,
+  setColours,
   showImageUrlAndAiSuggest,
+  openImagePickerFromGlobalEvent,
   aiPending,
   onAiSuggest,
   aiHint,
@@ -67,28 +76,26 @@ export function CoralInventoryFields({
       {afterNameFields}
 
       {showImageUrlAndAiSuggest ? (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <label className="form-control w-full flex-1">
-            <span className="label-text font-medium">Image URL (optional)</span>
-            <input
-              name="imageUrl"
-              type="url"
-              maxLength={2048}
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              className="input input-bordered w-full rounded-xl"
-              placeholder="https://… (add later is fine)"
+        <div className="flex flex-col gap-3">
+          <div className="form-control w-full">
+            <span className="label-text font-medium">Photo</span>
+            <InventoryItemImageField
+              ref={imageFieldRef}
+              committedImageUrl={imageUrl}
+              openOnGlobalPickerEvent={openImagePickerFromGlobalEvent}
             />
-          </label>
-          <button
-            type="button"
-            className="btn btn-outline min-h-11 shrink-0 rounded-xl"
-            disabled={aiPending || !name.trim()}
-            onClick={onAiSuggest}
-          >
-            {aiPending ? <span className="loading loading-spinner loading-sm" /> : null}
-            Suggest fields (AI)
-          </button>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <button
+              type="button"
+              className="btn btn-outline min-h-11 w-full shrink-0 rounded-xl sm:w-auto"
+              disabled={aiPending || !name.trim()}
+              onClick={onAiSuggest}
+            >
+              {aiPending ? <span className="loading loading-spinner loading-sm" /> : null}
+              Suggest fields (AI)
+            </button>
+          </div>
         </div>
       ) : (
         <input type="hidden" name="imageUrl" value={imageUrl} readOnly />
@@ -110,7 +117,7 @@ export function CoralInventoryFields({
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="form-control w-full">
+        <label className="form-control w-full sm:col-span-2">
           <span className="label-text font-medium">Type</span>
           <select
             name="coralType"
@@ -126,26 +133,8 @@ export function CoralInventoryFields({
             ))}
           </select>
         </label>
-        <label className="form-control w-full">
-          <span className="label-text font-medium">Colour</span>
-          <select
-            name="colour"
-            className="select select-bordered w-full rounded-xl"
-            value={colour}
-            onChange={(e) => setColour(e.target.value)}
-          >
-            <option value="">Not specified</option>
-            {CORAL_COLOURS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-            {colour.trim() && !isActiveCoralColour(colour) ? (
-              <option value={colour}>{colour} (deprecated)</option>
-            ) : null}
-          </select>
-        </label>
       </div>
+      <InventoryColourMultiselect label="Colours" selected={colours} onChange={setColours} />
 
       <label className="form-control w-full">
         <span className="label-text font-medium">How you prefer to swap</span>

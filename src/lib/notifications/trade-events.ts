@@ -7,7 +7,13 @@ import {
   tradeDetailUrl,
 } from "./dispatch";
 
-export type TradeNotifyKind = "offered" | "countered" | "approved" | "rejected" | "expired";
+export type TradeNotifyKind =
+  | "offered"
+  | "countered"
+  | "approved"
+  | "rejected"
+  | "expired"
+  | "listing_removed";
 
 function eventTypeForKind(kind: TradeNotifyKind): NotificationEventType {
   switch (kind) {
@@ -21,6 +27,8 @@ function eventTypeForKind(kind: TradeNotifyKind): NotificationEventType {
       return "trade.rejected";
     case "expired":
       return "trade.expired";
+    case "listing_removed":
+      return "trade.listing_removed";
   }
 }
 
@@ -34,6 +42,8 @@ function recipientUserIds(kind: TradeNotifyKind, initiatorUserId: string, peerUs
       return [initiatorUserId];
     case "expired":
       return [initiatorUserId, peerUserId];
+    case "listing_removed":
+      return [];
     default:
       return [];
   }
@@ -96,6 +106,16 @@ function messageForKind(
         lines: [`A trade on ${ex} expired before it was completed.`],
         actionLabel: "View trade",
       };
+    case "listing_removed":
+      return {
+        subject: `Trade cancelled — ${ex}`,
+        title: "Trade cancelled",
+        lines: [
+          `${params.actorDisplay} removed an item from this exchange on ${ex}.`,
+          "This pending trade was cancelled.",
+        ],
+        actionLabel: "View trade",
+      };
   }
 }
 
@@ -111,12 +131,18 @@ export function scheduleTradeNotifications(params: {
   peerUserId: string;
   /** Required when kind is `countered` (depends on prior trade status). */
   counterRecipients?: string[];
+  /** Required when kind is `listing_removed`: the other party to notify. */
+  listingRemovedRecipientUserId?: string;
 }): void {
   scheduleNotification(async () => {
     const recipients =
-      params.kind === "countered"
-        ? (params.counterRecipients ?? [])
-        : recipientUserIds(params.kind, params.initiatorUserId, params.peerUserId);
+      params.kind === "listing_removed"
+        ? params.listingRemovedRecipientUserId
+          ? [params.listingRemovedRecipientUserId]
+          : []
+        : params.kind === "countered"
+          ? (params.counterRecipients ?? [])
+          : recipientUserIds(params.kind, params.initiatorUserId, params.peerUserId);
 
     if (recipients.length === 0) {
       return;

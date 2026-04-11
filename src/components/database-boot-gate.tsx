@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useLayoutEffect, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "nextjs-toploader/app";
 import { DatabaseBootReadyProvider } from "@/components/database-boot-context";
 
 const STORAGE_KEY = "reefx_db_warm_ok_at";
@@ -32,13 +32,9 @@ function getSessionMarkedWarmSnapshot(): boolean {
   }
 }
 
-function subscribeSessionMarkedWarm(_onStoreChange: () => void) {
-  return () => {};
-}
-
 function useSessionMarkedWarm(): boolean {
   return useSyncExternalStore(
-    subscribeSessionMarkedWarm,
+    () => () => {},
     getSessionMarkedWarmSnapshot,
     // No sessionStorage on server — assume "warm" so SSR HTML does not include the overlay; cold tabs reconcile on hydrate.
     () => true,

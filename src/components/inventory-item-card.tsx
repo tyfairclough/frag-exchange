@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { CoralListingMode, CoralProfileStatus, InventoryKind } from "@/generated/prisma/enums";
+import { formatColoursLabelSuffix } from "@/lib/coral-options";
 
 export type InventoryItemCardItem = {
   id: string;
@@ -9,7 +10,7 @@ export type InventoryItemCardItem = {
   imageUrl: string | null;
   listingMode: CoralListingMode;
   coralType: string | null;
-  colour: string | null;
+  colours: string[];
   freeToGoodHome: boolean;
   profileStatus: CoralProfileStatus;
   remainingQuantity?: number;
@@ -111,12 +112,17 @@ export function InventoryItemCard({
             <p className="mt-2 text-xs text-base-content/60">
               {listingModeLabel(item.listingMode)}
               {item.kind === InventoryKind.CORAL && item.coralType ? ` · ${item.coralType}` : ""}
-              {item.colour ? ` · ${item.colour}` : ""}
+              {(item.kind === InventoryKind.CORAL || item.kind === InventoryKind.FISH) &&
+              item.colours.length > 0
+                ? formatColoursLabelSuffix(item.colours)
+                : ""}
             </p>
             {extraMeta}
           </div>
         </div>
-        {actions ? <div className="flex flex-wrap gap-2 border-t border-base-content/10 pt-3">{actions}</div> : null}
+        {actions ? (
+          <div className="flex w-full flex-wrap items-center gap-2 border-t border-base-content/10 pt-3">{actions}</div>
+        ) : null}
       </div>
     </article>
   );

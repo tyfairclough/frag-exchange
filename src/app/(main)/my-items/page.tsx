@@ -4,6 +4,7 @@ import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { DeleteCoralButton } from "@/components/delete-coral-button";
 import { InventoryItemCard } from "@/components/inventory-item-card";
+import { ManageItemListingsDialog } from "@/components/manage-item-listings-dialog";
 
 export default async function MyItemsPage({
   searchParams,
@@ -14,10 +15,48 @@ export default async function MyItemsPage({
   const params = (await searchParams) ?? {};
   const error = typeof params.error === "string" ? params.error : undefined;
 
-  const items = await getPrisma().inventoryItem.findMany({
-    where: { userId: user.id },
-    orderBy: { updatedAt: "desc" },
-  });
+  const [items, memberships] = await Promise.all([
+    getPrisma().inventoryItem.findMany({
+      where: { userId: user.id },
+      orderBy: { updatedAt: "desc" },
+    }),
+    getPrisma().exchangeMembership.findMany({
+      where: { userId: user.id },
+      include: {
+        exchange: {
+          select: {
+            id: true,
+            name: true,
+            allowCoral: true,
+            allowFish: true,
+            allowEquipment: true,
+          },
+        },
+      },
+      orderBy: { joinedAt: "desc" },
+    }),
+  ]);
+
+  const now = new Date();
+  const itemIds = items.map((i) => i.id);
+  const activeListings =
+    itemIds.length === 0
+      ? []
+      : await getPrisma().exchangeListing.findMany({
+          where: {
+            inventoryItemId: { in: itemIds },
+            expiresAt: { gt: now },
+          },
+          select: { exchangeId: true, inventoryItemId: true },
+        });
+  const listedExchangeIdsByItem = new Map<string, string[]>();
+  for (const row of activeListings) {
+    const list = listedExchangeIdsByItem.get(row.inventoryItemId) ?? [];
+    list.push(row.exchangeId);
+    listedExchangeIdsByItem.set(row.inventoryItemId, list);
+  }
+
+  const exchangesForListings = memberships.map((m) => m.exchange);
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
@@ -62,10 +101,23 @@ export default async function MyItemsPage({
                 actions={
                   c.profileStatus === CoralProfileStatus.UNLISTED ? (
                     <>
-                      <Link href={`/my-items/${c.id}/edit`} className="btn btn-outline btn-sm min-h-9 rounded-xl">
-                        Edit
-                      </Link>
-                      <DeleteCoralButton itemId={c.id} />
+                      <div className="flex min-w-0 flex-wrap gap-2">
+                        <Link href={`/my-items/${c.id}/edit`} className="btn btn-ghost btn-sm min-h-9 rounded-xl">
+                          Edit
+                        </Link>
+                        {c.remainingQuantity > 0 ? (
+                          <ManageItemListingsDialog
+                            itemId={c.id}
+                            itemKind={c.kind}
+                            remainingQuantity={c.remainingQuantity}
+                            exchanges={exchangesForListings}
+                            listedExchangeIds={listedExchangeIdsByItem.get(c.id) ?? []}
+                          />
+                        ) : null}
+                      </div>
+                      <div className="ml-auto shrink-0">
+                        <DeleteCoralButton itemId={c.id} />
+                      </div>
                     </>
                   ) : (
                     <p className="text-xs text-base-content/60">This item is locked after a completed trade.</p>

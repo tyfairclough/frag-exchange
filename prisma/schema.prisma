@@ -201,8 +201,8 @@ model InventoryItem {
   remainingQuantity Int             @default(1)
   /// Coral taxonomy (when kind = CORAL).
   coralType      String?            @db.VarChar(120)
-  /// Coral + fish colour palette (when kind = CORAL or FISH).
-  colour         String?            @db.VarChar(120)
+  /// Coral + fish colour palette (when kind = CORAL or FISH); empty for equipment.
+  colours        String[]           @default([])
   /// Fish (when kind = FISH).
   species        String?            @db.VarChar(200)
   reefSafe       Boolean?

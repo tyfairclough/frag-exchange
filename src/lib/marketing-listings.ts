@@ -31,7 +31,7 @@ async function fetchRecentPublicExchangeListingsUncached(limit = 8) {
           kind: true,
           coralType: true,
           imageUrl: true,
-          colour: true,
+          colours: true,
         },
       },
       exchange: { select: { id: true, name: true } },

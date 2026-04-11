@@ -4,6 +4,7 @@ import { AppLink } from "@/components/app-link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
+import { InventoryEditBottomNavProvider } from "@/components/inventory-edit-bottom-nav-context";
 import { ExploreHeaderChrome } from "@/components/explore-header-chrome";
 import { signOutAction } from "@/app/auth/actions";
 import { getExchangeIdFromPathname } from "@/lib/exchange-path";
@@ -355,29 +356,41 @@ export function AppShell({
   const hideBottomNav = pathname === "/my-items/new" || pathname === "/my-corals/new";
 
   return (
-    <div
-      className={
-        hideBottomNav
-          ? "flex min-h-dvh flex-col"
-          : "flex min-h-dvh flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))]"
-      }
-    >
-      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/85 sm:px-6">
-        <div className="mx-auto w-full max-w-6xl">
-          {isExplore ? (
-            <>
-              <div className="flex flex-col gap-2 md:hidden">
-                <div className="flex items-center justify-between gap-3">
+    <InventoryEditBottomNavProvider>
+      <div
+        className={
+          hideBottomNav
+            ? "flex min-h-dvh flex-col"
+            : "flex min-h-dvh flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))]"
+        }
+      >
+        <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/85 sm:px-6">
+          <div className="mx-auto w-full max-w-6xl">
+            {isExplore ? (
+              <>
+                <div className="flex flex-col gap-2 md:hidden">
+                  <div className="flex items-center justify-between gap-3">
+                    <ShellBrandLink />
+                    <ShellProfileArea
+                      profile={profile}
+                      showSuperAdminMenu={showSuperAdminMenu}
+                      operatorManagedExchanges={operatorManagedExchanges}
+                    />
+                  </div>
+                  <HeaderExploreChrome />
+                </div>
+                <div className="hidden items-center justify-between gap-3 md:flex">
                   <ShellBrandLink />
+                  <HeaderExploreChrome />
                   <ShellProfileArea
                     profile={profile}
                     showSuperAdminMenu={showSuperAdminMenu}
                     operatorManagedExchanges={operatorManagedExchanges}
                   />
                 </div>
-                <HeaderExploreChrome />
-              </div>
-              <div className="hidden items-center justify-between gap-3 md:flex">
+              </>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
                 <ShellBrandLink />
                 <HeaderExploreChrome />
                 <ShellProfileArea
@@ -386,24 +399,14 @@ export function AppShell({
                   operatorManagedExchanges={operatorManagedExchanges}
                 />
               </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-between gap-3">
-              <ShellBrandLink />
-              <HeaderExploreChrome />
-              <ShellProfileArea
-                profile={profile}
-                showSuperAdminMenu={showSuperAdminMenu}
-                operatorManagedExchanges={operatorManagedExchanges}
-              />
-            </div>
-          )}
-        </div>
-      </header>
+            )}
+          </div>
+        </header>
 
-      <main className="relative flex flex-1 flex-col px-0 sm:px-2">{children}</main>
+        <main className="relative flex flex-1 flex-col px-0 sm:px-2">{children}</main>
 
-      {hideBottomNav ? null : <BottomNav profile={profile} />}
-    </div>
+        {hideBottomNav ? null : <BottomNav profile={profile} />}
+      </div>
+    </InventoryEditBottomNavProvider>
   );
 }

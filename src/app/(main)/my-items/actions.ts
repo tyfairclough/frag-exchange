@@ -12,11 +12,12 @@ import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { enrichCoralFields } from "@/lib/coral-ai";
 import {
+  CoralImageProcessingError,
   CORAL_UPLOAD_MAX_BYTES,
   saveCoralImageToPublic,
   validateImageMime,
 } from "@/lib/coral-upload";
-import { parseCoralColourFromForm, parseCoralTypeFromForm } from "@/lib/coral-options";
+import { parseCoralColoursFromForm, parseCoralTypeFromForm } from "@/lib/coral-options";
 import {
   parseEquipmentCategoryFromForm,
   parseEquipmentConditionFromForm,
@@ -84,11 +85,18 @@ export async function createInventoryItemAction(formData: FormData) {
         redirect(`${MY_ITEMS}/new?error=image-type`);
       }
       const buffer = Buffer.from(await file.arrayBuffer());
-      imageUrl = await saveCoralImageToPublic({
-        userId: user.id,
-        buffer,
-        mimeType: mime,
-      });
+      try {
+        imageUrl = await saveCoralImageToPublic({
+          userId: user.id,
+          buffer,
+          mimeType: mime,
+        });
+      } catch (e) {
+        if (e instanceof CoralImageProcessingError) {
+          redirect(`${MY_ITEMS}/new?error=invalid-image`);
+        }
+        throw e;
+      }
     }
   }
 
@@ -112,58 +120,67 @@ export async function createInventoryItemAction(formData: FormData) {
     remainingQuantity: quantity,
   };
 
+  let createdId: string;
+
   if (kind === InventoryKind.CORAL) {
     const coralType = parseCoralTypeFromForm(str(formData.get("coralType")));
-    const colour = parseCoralColourFromForm(str(formData.get("colour")));
-    await getPrisma().inventoryItem.create({
+    const colours = parseCoralColoursFromForm(formData);
+    const created = await getPrisma().inventoryItem.create({
       data: {
         ...base,
         coralType,
-        colour,
+        colours,
         species: null,
         reefSafe: null,
         equipmentCategory: null,
         equipmentCondition: null,
       },
+      select: { id: true },
     });
+    createdId = created.id;
   } else if (kind === InventoryKind.FISH) {
-    const colour = parseCoralColourFromForm(str(formData.get("colour")));
+    const colours = parseCoralColoursFromForm(formData);
     const species = str(formData.get("species")).slice(0, 200) || null;
     const reefRaw = str(formData.get("reefSafe"));
     const reefSafe =
       reefRaw === "true" ? true : reefRaw === "false" ? false : null;
-    await getPrisma().inventoryItem.create({
+    const created = await getPrisma().inventoryItem.create({
       data: {
         ...base,
         coralType: null,
-        colour,
+        colours,
         species,
         reefSafe,
         equipmentCategory: null,
         equipmentCondition: null,
       },
+      select: { id: true },
     });
+    createdId = created.id;
   } else {
     const equipmentCategory = parseEquipmentCategoryFromForm(str(formData.get("equipmentCategory")));
     const equipmentCondition = parseEquipmentConditionFromForm(str(formData.get("equipmentCondition")));
     if (!equipmentCategory || !equipmentCondition) {
       redirect(`${MY_ITEMS}/new?error=equipment-fields`);
     }
-    await getPrisma().inventoryItem.create({
+    const created = await getPrisma().inventoryItem.create({
       data: {
         ...base,
         coralType: null,
-        colour: null,
+        colours: [],
         species: null,
         reefSafe: null,
         equipmentCategory,
         equipmentCondition,
       },
+      select: { id: true },
     });
+    createdId = created.id;
   }
 
   revalidatePath(MY_ITEMS);
-  redirect(MY_ITEMS);
+  revalidatePath(`${MY_ITEMS}/${createdId}/list-on-exchanges`);
+  redirect(`${MY_ITEMS}/${createdId}/list-on-exchanges`);
 }
 
 /** @deprecated use createInventoryItemAction — kept for transitional imports */
@@ -193,12 +210,39 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
   const name = str(formData.get("name"));
   const description = str(formData.get("description"));
   const imageUrlRaw = str(formData.get("imageUrl"));
-  const imageUrl = imageUrlRaw || null;
+  let imageUrl: string | null = imageUrlRaw || null;
   const listingMode = parseListingMode(str(formData.get("listingMode")));
   const freeToGoodHome = formData.get("freeToGoodHome") === "on";
   const quantity = parseQuantity(str(formData.get("quantity")));
   if (quantity === null) {
     redirect(`${MY_ITEMS}/${itemId}/edit?error=quantity`);
+  }
+
+  const imageFile = formData.get("imageFile");
+  if (imageFile && typeof imageFile === "object" && "arrayBuffer" in imageFile && "size" in imageFile) {
+    const file = imageFile as File;
+    if (file.size > 0) {
+      if (file.size > CORAL_UPLOAD_MAX_BYTES) {
+        redirect(`${MY_ITEMS}/${itemId}/edit?error=image-too-large`);
+      }
+      const mime = (file.type || "").trim().toLowerCase();
+      if (!validateImageMime(mime)) {
+        redirect(`${MY_ITEMS}/${itemId}/edit?error=image-type`);
+      }
+      const buffer = Buffer.from(await file.arrayBuffer());
+      try {
+        imageUrl = await saveCoralImageToPublic({
+          userId: user.id,
+          buffer,
+          mimeType: mime,
+        });
+      } catch (e) {
+        if (e instanceof CoralImageProcessingError) {
+          redirect(`${MY_ITEMS}/${itemId}/edit?error=invalid-image`);
+        }
+        throw e;
+      }
+    }
   }
 
   if (!name) {
@@ -211,7 +255,7 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
 
   if (kind === InventoryKind.CORAL) {
     const coralType = parseCoralTypeFromForm(str(formData.get("coralType")));
-    const colour = parseCoralColourFromForm(str(formData.get("colour")));
+    const colours = parseCoralColoursFromForm(formData);
     await getPrisma().inventoryItem.update({
       where: { id: itemId },
       data: {
@@ -223,7 +267,7 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
         totalQuantity,
         remainingQuantity,
         coralType,
-        colour,
+        colours,
         species: null,
         reefSafe: null,
         equipmentCategory: null,
@@ -231,7 +275,7 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
       },
     });
   } else if (kind === InventoryKind.FISH) {
-    const colour = parseCoralColourFromForm(str(formData.get("colour")));
+    const colours = parseCoralColoursFromForm(formData);
     const species = str(formData.get("species")).slice(0, 200) || null;
     const reefRaw = str(formData.get("reefSafe"));
     const reefSafe =
@@ -247,7 +291,7 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
         totalQuantity,
         remainingQuantity,
         coralType: null,
-        colour,
+        colours,
         species,
         reefSafe,
         equipmentCategory: null,
@@ -271,7 +315,7 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
         totalQuantity,
         remainingQuantity,
         coralType: null,
-        colour: null,
+        colours: [],
         species: null,
         reefSafe: null,
         equipmentCategory,

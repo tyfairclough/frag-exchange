@@ -1,7 +1,12 @@
 import { Buffer } from "node:buffer";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { CORAL_UPLOAD_MAX_BYTES, saveCoralImageToPublic, validateImageMime } from "@/lib/coral-upload";
+import {
+  CoralImageProcessingError,
+  CORAL_UPLOAD_MAX_BYTES,
+  saveCoralImageToPublic,
+  validateImageMime,
+} from "@/lib/coral-upload";
 
 export const runtime = "nodejs";
 
@@ -31,11 +36,17 @@ export async function POST(request: Request) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const imageUrl = await saveCoralImageToPublic({
-    userId: user.id,
-    buffer,
-    mimeType: mime,
-  });
-
-  return NextResponse.json({ imageUrl });
+  try {
+    const imageUrl = await saveCoralImageToPublic({
+      userId: user.id,
+      buffer,
+      mimeType: mime,
+    });
+    return NextResponse.json({ imageUrl });
+  } catch (e) {
+    if (e instanceof CoralImageProcessingError) {
+      return NextResponse.json({ error: "invalid-image" }, { status: 400 });
+    }
+    throw e;
+  }
 }

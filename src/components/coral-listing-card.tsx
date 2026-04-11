@@ -108,9 +108,14 @@ export function CoralListingCard({
             )}
           </div>
           <div className="mt-auto flex flex-wrap gap-1.5">
-            {row.colour ? (
-              <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs text-slate-600">{row.colour}</span>
-            ) : null}
+            {row.colours.map((c) => (
+              <span
+                key={c}
+                className="rounded-full border border-slate-200 px-2 py-0.5 text-xs text-slate-600"
+              >
+                {c}
+              </span>
+            ))}
             {row.distanceKm != null ? (
               <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs text-slate-600">
                 ~{row.distanceKm.toFixed(0)} km

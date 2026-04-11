@@ -5,6 +5,7 @@ export type NotificationEventType =
   | "trade.approved"
   | "trade.rejected"
   | "trade.expired"
+  | "trade.listing_removed"
   | "event.coral_checked_in";
 
 export type ChannelAttemptResult =

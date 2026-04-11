@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useRouter } from "nextjs-toploader/app";
 import { useExploreShell } from "@/components/explore-shell-context";
 import { ExploreColourFilterRow } from "@/components/explore-colour-filter-row";
 import type { DiscoverItemTab } from "@/lib/discover-listings";

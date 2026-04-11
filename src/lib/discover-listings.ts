@@ -31,7 +31,7 @@ export type DiscoverRow = {
   description: string;
   imageUrl: string | null;
   coralType: string | null;
-  colour: string | null;
+  colours: string[];
   species: string | null;
   reefSafe: boolean | null;
   equipmentCategory: EquipmentCategory | null;
@@ -184,9 +184,9 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
   if (searchActive) {
     if (kindScope === InventoryKind.CORAL) {
       if (typesIn.length) itemParts.push({ coralType: { in: typesIn } });
-      if (coloursIn.length) itemParts.push({ colour: { in: coloursIn } });
+      if (coloursIn.length) itemParts.push({ colours: { hasSome: coloursIn } });
     } else if (kindScope === InventoryKind.FISH) {
-      if (coloursIn.length) itemParts.push({ colour: { in: coloursIn } });
+      if (coloursIn.length) itemParts.push({ colours: { hasSome: coloursIn } });
       if (params.reefSafeOnly) itemParts.push({ reefSafe: true });
       if (speciesTrim) itemParts.push({ species: { contains: speciesTrim } });
     } else if (kindScope === InventoryKind.EQUIPMENT) {
@@ -255,7 +255,7 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
       description: item.description,
       imageUrl: item.imageUrl,
       coralType: item.coralType,
-      colour: item.colour,
+      colours: item.colours,
       species: item.species,
       reefSafe: item.reefSafe,
       equipmentCategory: item.equipmentCategory,

@@ -2,7 +2,11 @@ import { Buffer } from "node:buffer";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { enrichInventoryFromImage } from "@/lib/coral-ai";
-import { CORAL_UPLOAD_MAX_BYTES, validateImageMime } from "@/lib/coral-upload";
+import {
+  CORAL_UPLOAD_MAX_BYTES,
+  normalizeInventoryImageBuffer,
+  validateImageMime,
+} from "@/lib/coral-upload";
 
 export const runtime = "nodejs";
 
@@ -39,8 +43,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "image-too-large" }, { status: 400 });
   }
 
+  let normalized: Buffer;
   try {
-    const result = await enrichInventoryFromImage({ imageBase64, mimeType });
+    normalized = await normalizeInventoryImageBuffer(buf);
+  } catch {
+    return NextResponse.json({ error: "invalid-image" }, { status: 400 });
+  }
+
+  try {
+    const result = await enrichInventoryFromImage({
+      imageBase64: normalized.toString("base64"),
+      mimeType: "image/webp",
+    });
     return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: "enrichment-failed" }, { status: 500 });

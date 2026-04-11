@@ -6,6 +6,8 @@ export type AddCoralImageBarPhase = "pick" | "analyze" | "done";
 
 export type AddCoralImageBarHandle = {
   openDesktopFilePicker: () => void;
+  /** Opens gallery (mobile) or desktop file picker — for “change photo” after analysis. */
+  openChangePhotoPicker: () => void;
 };
 
 type Props = {
@@ -14,10 +16,12 @@ type Props = {
   onClear: () => void;
   onSubmitVision: () => void;
   visionDisabled?: boolean;
+  /** When set, “Change photo” in the done phase runs this (e.g. open picker) instead of clearing everything. */
+  onChangePhoto?: () => void;
 };
 
 export const AddCoralImageBar = forwardRef<AddCoralImageBarHandle, Props>(function AddCoralImageBar(
-  { phase, onFileSelected, onClear, onSubmitVision, visionDisabled },
+  { phase, onFileSelected, onClear, onSubmitVision, visionDisabled, onChangePhoto },
   ref,
 ) {
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -26,6 +30,13 @@ export const AddCoralImageBar = forwardRef<AddCoralImageBarHandle, Props>(functi
 
   useImperativeHandle(ref, () => ({
     openDesktopFilePicker: () => desktopRef.current?.click(),
+    openChangePhotoPicker: () => {
+      if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
+        desktopRef.current?.click();
+      } else {
+        galleryRef.current?.click();
+      }
+    },
   }));
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -134,7 +145,7 @@ export const AddCoralImageBar = forwardRef<AddCoralImageBarHandle, Props>(functi
           <button
             type="button"
             className="btn btn-outline btn-block min-h-12 rounded-xl border-slate-200"
-            onClick={onClear}
+            onClick={() => (onChangePhoto ? onChangePhoto() : onClear())}
           >
             Change photo
           </button>

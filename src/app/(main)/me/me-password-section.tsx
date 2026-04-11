@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "nextjs-toploader/app";
 import { toast } from "sonner";
 import { setUserPasswordAction } from "@/app/(main)/me/actions";
 import { sliceForZxcvbn } from "@/lib/zxcvbn-password";

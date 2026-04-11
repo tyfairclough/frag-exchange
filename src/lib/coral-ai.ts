@@ -9,7 +9,7 @@ import {
   EquipmentCondition as EquipmentConditionEnum,
   InventoryKind as InventoryKindEnum,
 } from "@/generated/prisma/enums";
-import { coerceAiColour, coerceAiCoralType } from "@/lib/coral-options";
+import { coerceAiColours, coerceAiCoralType } from "@/lib/coral-options";
 
 export type CoralAiEnrichmentInput = {
   name: string;
@@ -21,7 +21,7 @@ export type CoralAiEnrichmentResult = {
   description: string;
   /** Values aligned with inventory dropdowns when a match is found. */
   coralType: string | null;
-  colour: string | null;
+  colours: string[];
   source: "openai" | "stub";
 };
 
@@ -32,10 +32,7 @@ export type CoralAiVisionInput = {
 };
 
 export type CoralAiVisionResult = {
-  name: string | null;
-  description: string;
-  coralType: string | null;
-  colour: string | null;
+  colours: string[];
   source: "openai" | "stub";
 };
 
@@ -45,7 +42,7 @@ function stubEnrichment(name: string): CoralAiEnrichmentResult {
   return {
     description: `${title}: hobbyist coral listing on REEFX. Add care notes, origin, and what you are looking for in a swap.`,
     coralType: null,
-    colour: null,
+    colours: [],
     source: "stub",
   };
 }
@@ -71,7 +68,7 @@ async function openAiEnrichment(name: string): Promise<CoralAiEnrichmentResult |
         {
           role: "system",
           content:
-            "You help reef hobbyists describe corals for a swap site. Reply with JSON only: {\"description\": string (2-4 sentences, practical), \"coralType\": string|null (Soft, LPS, or SPS when inferable), \"colour\": string|null (a short colour phrase: base colour, metallic, rainbow, multi-colour, etc.)}. Use null when unsure.",
+            'You help reef hobbyists describe corals for a swap site. Reply with JSON only: {"description": string (2-4 sentences, practical), "coralType": string|null (Soft, LPS, or SPS when inferable), "colours": string[] (every distinct visible body/mouth/tip/skeleton colour you can name—use plain words like green, orange, purple; include metallic or rainbow when appropriate; empty array if unsure), "colour": string|null (optional legacy single summary—omit if you use colours)}. Prefer filling "colours" over "colour".',
         },
         {
           role: "user",
@@ -96,6 +93,7 @@ async function openAiEnrichment(name: string): Promise<CoralAiEnrichmentResult |
   let parsed: {
     description?: string;
     coralType?: string | null;
+    colours?: unknown;
     colour?: string | null;
   };
   try {
@@ -114,7 +112,10 @@ async function openAiEnrichment(name: string): Promise<CoralAiEnrichmentResult |
     coralType: coerceAiCoralType(
       typeof parsed.coralType === "string" ? parsed.coralType.trim() || null : null,
     ),
-    colour: coerceAiColour(typeof parsed.colour === "string" ? parsed.colour.trim() || null : null),
+    colours: coerceAiColours(
+      parsed.colours,
+      typeof parsed.colour === "string" ? parsed.colour.trim() || null : null,
+    ),
     source: "openai",
   };
 }
@@ -135,10 +136,7 @@ export async function enrichCoralFields(input: CoralAiEnrichmentInput): Promise<
 
 function stubVision(): CoralAiVisionResult {
   return {
-    name: null,
-    description: "",
-    coralType: null,
-    colour: null,
+    colours: [],
     source: "stub",
   };
 }
@@ -166,14 +164,14 @@ async function openAiVisionEnrichment(input: CoralAiVisionInput): Promise<CoralA
         {
           role: "system",
           content:
-            "You identify reef aquarium corals from photos for a hobbyist swap site. Reply with JSON only: {\"name\": string|null (the listing title hobbyists would use: common name or well-known trade name, NOT Latin binomial alone; when you can tell a colour morph, strain, or variety name, include it in name e.g. \"Walt Disney mushroom\", \"Rainbow acan lord\", \"green tip torch\"; null if unsure), \"description\": string (2-4 practical sentences: appearance, care hints, swap context), \"coralType\": string|null (exactly one of: Soft, LPS, SPS when inferable), \"colour\": string|null (short phrase: base colour, metallic, rainbow, multi-colour, etc.)}. Use null when unsure.",
+            'You describe visible colours in reef aquarium coral photos for a hobbyist swap site. Do not identify species, strain, or coral type. Reply with JSON only: {"colours": string[] (every distinct visible colour region: polyps, tips, base, mouth, skeleton—plain words like green, orange, purple; include metallic or rainbow when appropriate; empty array if unsure), "colour": string|null (optional legacy single summary—omit if you use colours)}.',
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Identify this coral from the image. Put a hobbyist-friendly common or trade name in name, including morph/strain when recognizable.",
+              text: "List the distinct visible colours in this photo.",
             },
             {
               type: "image_url",
@@ -198,9 +196,7 @@ async function openAiVisionEnrichment(input: CoralAiVisionInput): Promise<CoralA
   }
 
   let parsed: {
-    name?: string | null;
-    description?: string;
-    coralType?: string | null;
+    colours?: unknown;
     colour?: string | null;
   };
   try {
@@ -209,20 +205,11 @@ async function openAiVisionEnrichment(input: CoralAiVisionInput): Promise<CoralA
     return null;
   }
 
-  const description = typeof parsed.description === "string" ? parsed.description.trim() : "";
-  if (!description) {
-    return null;
-  }
-
-  const nameRaw = typeof parsed.name === "string" ? parsed.name.trim() || null : null;
-
   return {
-    name: nameRaw && nameRaw.length > 120 ? nameRaw.slice(0, 120) : nameRaw,
-    description,
-    coralType: coerceAiCoralType(
-      typeof parsed.coralType === "string" ? parsed.coralType.trim() || null : null,
+    colours: coerceAiColours(
+      parsed.colours,
+      typeof parsed.colour === "string" ? parsed.colour.trim() || null : null,
     ),
-    colour: coerceAiColour(typeof parsed.colour === "string" ? parsed.colour.trim() || null : null),
     source: "openai",
   };
 }
@@ -242,7 +229,7 @@ export type InventoryAiVisionResult = {
   name: string | null;
   description: string;
   coralType: string | null;
-  colour: string | null;
+  colours: string[];
   species: string | null;
   reefSafe: boolean | null;
   equipmentCategory: EquipmentCategory | null;
@@ -293,7 +280,7 @@ function stubInventoryVision(): InventoryAiVisionResult {
     name: null,
     description: "",
     coralType: null,
-    colour: null,
+    colours: [],
     species: null,
     reefSafe: null,
     equipmentCategory: null,
@@ -325,14 +312,14 @@ async function openAiInventoryVision(input: CoralAiVisionInput): Promise<Invento
         {
           role: "system",
           content:
-            'You classify reef-hobby listings from photos. Reply JSON only: {"itemKind":"CORAL"|"FISH"|"EQUIPMENT"|null, "name":string|null (max 120 chars: for CORAL and FISH this is the listing title—use the common hobby name or familiar trade name, not Latin alone; when a colour morph, strain, or variety is recognizable, work it into name e.g. "Bounce mushroom", "Rainbow acan", "snowflake clownfish", "yellow tang"; for EQUIPMENT use a short product-style label), "description":string (2-4 sentences), "coralType":string|null (Soft|LPS|SPS for CORAL), "colour":string|null (short; for CORAL/FISH), "species":string|null (FISH only: scientific binomial when confident, else null—do not put Latin in name when a good common name exists), "reefSafe":boolean|null (FISH: true if reef-safe), "equipmentCategory":string|null (EQUIPMENT: one of Lights|Pumps|Monitors & Controllers|Filtration|Dosing|Other), "equipmentCondition":string|null (EQUIPMENT: one of Like new|Good condition|Working|Spares & Repairs)}. Use null when unsure. If the photo is not aquarium-related, still pick the closest kind.',
+            'You classify reef-hobby listings from photos. Reply JSON only: {"itemKind":"CORAL"|"FISH"|"EQUIPMENT"|null, "name":string|null, "description":string, "coralType":string|null, "colours":string[], "colour":string|null, "species":string|null, "reefSafe":boolean|null, "equipmentCategory":string|null, "equipmentCondition":string|null}. Rules: For CORAL only—do not guess species, strain, or Soft/LPS/SPS; set name, description, and coralType to null; list every distinct visible colour region (polyps, tips, base, mouth, skeleton) in "colours" using plain words; empty array if unsure. For FISH—name is a common hobby listing title (max 120 chars); description 2-4 sentences; "colours" for body/fin/tip/marking colours; species binomial when confident; reefSafe when inferable. For EQUIPMENT—short product-style name; description 2-4 sentences; equipmentCategory and equipmentCondition; "colours" empty. Prefer "colours" over legacy "colour" for CORAL and FISH.',
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Classify this listing photo for a swap marketplace. For corals and fish, name must be a common hobbyist listing title and include morph/strain when you can identify it.",
+              text: "Classify this listing photo for a swap marketplace.",
             },
             { type: "image_url", image_url: { url: dataUrl } },
           ],
@@ -358,6 +345,7 @@ async function openAiInventoryVision(input: CoralAiVisionInput): Promise<Invento
     name?: string | null;
     description?: string;
     coralType?: string | null;
+    colours?: unknown;
     colour?: string | null;
     species?: string | null;
     reefSafe?: boolean | null;
@@ -370,20 +358,41 @@ async function openAiInventoryVision(input: CoralAiVisionInput): Promise<Invento
     return null;
   }
 
+  const itemKind = coerceAiInventoryKind(
+    typeof parsed.itemKind === "string" ? parsed.itemKind : null,
+  );
+
   const description = typeof parsed.description === "string" ? parsed.description.trim() : "";
-  if (!description) {
+  if (itemKind !== InventoryKindEnum.CORAL && !description) {
     return null;
   }
 
   const nameRaw = typeof parsed.name === "string" ? parsed.name.trim() || null : null;
-  const itemKind = coerceAiInventoryKind(
-    typeof parsed.itemKind === "string" ? parsed.itemKind : null,
-  );
 
   const reefSafe: boolean | null =
     typeof parsed.reefSafe === "boolean"
       ? parsed.reefSafe
       : null;
+
+  const colours = coerceAiColours(
+    parsed.colours,
+    typeof parsed.colour === "string" ? parsed.colour.trim() || null : null,
+  );
+
+  if (itemKind === InventoryKindEnum.CORAL) {
+    return {
+      itemKind,
+      name: null,
+      description: "",
+      coralType: null,
+      colours,
+      species: null,
+      reefSafe: null,
+      equipmentCategory: null,
+      equipmentCondition: null,
+      source: "openai",
+    };
+  }
 
   return {
     itemKind,
@@ -392,7 +401,7 @@ async function openAiInventoryVision(input: CoralAiVisionInput): Promise<Invento
     coralType: coerceAiCoralType(
       typeof parsed.coralType === "string" ? parsed.coralType.trim() || null : null,
     ),
-    colour: coerceAiColour(typeof parsed.colour === "string" ? parsed.colour.trim() || null : null),
+    colours,
     species:
       typeof parsed.species === "string"
         ? parsed.species.trim().slice(0, 200) || null

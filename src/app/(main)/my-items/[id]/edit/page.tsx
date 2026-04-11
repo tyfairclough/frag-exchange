@@ -4,7 +4,7 @@ import { CoralProfileStatus, InventoryKind } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { updateInventoryItemAction } from "@/app/(main)/my-items/actions";
-import { coralColourToFormValue, coralTypeToFormValue } from "@/lib/coral-options";
+import { coralColoursToFormValue, coralTypeToFormValue } from "@/lib/coral-options";
 import {
   CoralKindEditForm,
   EquipmentKindEditForm,
@@ -68,6 +68,21 @@ export default async function EditItemPage({
           Enter a valid quantity.
         </p>
       ) : null}
+      {error === "image-too-large" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Photo is too large (max 6 MB). Choose a smaller image.
+        </p>
+      ) : null}
+      {error === "image-type" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Use a JPEG, PNG, or WebP photo.
+        </p>
+      ) : null}
+      {error === "invalid-image" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Could not process that photo. Try a different image.
+        </p>
+      ) : null}
 
       {item.profileStatus === CoralProfileStatus.UNLISTED ? (
         item.kind === InventoryKind.CORAL ? (
@@ -81,7 +96,7 @@ export default async function EditItemPage({
               freeToGoodHome: item.freeToGoodHome,
               remainingQuantity: item.remainingQuantity,
               coralType: coralTypeToFormValue(item.coralType),
-              colour: coralColourToFormValue(item.colour),
+              colours: coralColoursToFormValue(item.colours),
             }}
           />
         ) : item.kind === InventoryKind.FISH ? (
@@ -95,7 +110,7 @@ export default async function EditItemPage({
               freeToGoodHome: item.freeToGoodHome,
               remainingQuantity: item.remainingQuantity,
               species: item.species ?? "",
-              colour: coralColourToFormValue(item.colour),
+              colours: coralColoursToFormValue(item.colours),
               reefSafe: item.reefSafe,
             }}
           />

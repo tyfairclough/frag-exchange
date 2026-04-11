@@ -21,6 +21,7 @@ import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/comp
 import { getRequestOrigin } from "@/lib/request-origin";
 import { buildShareLinks, buildShareMessage, buildSharedItemPath } from "@/lib/item-share";
 import { ItemShareActions } from "@/components/item-share-actions";
+import { formatColoursLabelSuffix } from "@/lib/coral-options";
 
 function reefersLabel(count: number): string {
   return count === 1 ? "1 reefer" : `${count} reefers`;
@@ -371,7 +372,11 @@ export default async function ExchangeDetailPage({
                               {l.inventoryItem.kind === InventoryKind.CORAL && l.inventoryItem.coralType
                                 ? ` · ${l.inventoryItem.coralType}`
                                 : ""}
-                              {l.inventoryItem.colour ? ` · ${l.inventoryItem.colour}` : ""}
+                              {(l.inventoryItem.kind === InventoryKind.CORAL ||
+                                l.inventoryItem.kind === InventoryKind.FISH) &&
+                              l.inventoryItem.colours.length > 0
+                                ? formatColoursLabelSuffix(l.inventoryItem.colours)
+                                : ""}
                             </p>
                             <p className="mt-2 text-xs text-slate-500">
                               Listed until{" "}
@@ -452,7 +457,10 @@ export default async function ExchangeDetailPage({
                               <p className="mt-2 text-xs text-base-content/60">
                                 {listingModeLabel(c.listingMode)}
                                 {c.kind === InventoryKind.CORAL && c.coralType ? ` · ${c.coralType}` : ""}
-                                {c.colour ? ` · ${c.colour}` : ""}
+                                {(c.kind === InventoryKind.CORAL || c.kind === InventoryKind.FISH) &&
+                                c.colours.length > 0
+                                  ? formatColoursLabelSuffix(c.colours)
+                                  : ""}
                               </p>
                               <p className="mt-2 text-xs text-slate-500">
                                 Not listed here, or listing expired - you can list again.
