@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AppLink } from "@/components/app-link";
 
 export const MARKETING_NAVY = "#0B1E3B";
 export const MARKETING_CTA_GREEN = "#22B41C";
@@ -24,7 +24,7 @@ export function MarketingSiteHeader() {
   return (
     <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2.5">
+        <AppLink href="/" className="flex items-center gap-2.5">
           <CoralLogo className="shrink-0" />
           <span className="text-lg font-semibold tracking-tight sm:text-xl" style={{ color: MARKETING_NAVY }}>
             REEFX
@@ -35,13 +35,13 @@ export function MarketingSiteHeader() {
           >
             Beta
           </span>
-        </Link>
-        <Link
+        </AppLink>
+        <AppLink
           href="/auth/login"
           className="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
         >
           Sign-in
-        </Link>
+        </AppLink>
       </div>
     </header>
   );
@@ -55,12 +55,12 @@ export function MarketingSiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="flex flex-col gap-10 lg:flex-row lg:justify-between">
           <div>
-            <Link href="/" className="flex items-center gap-2">
+            <AppLink href="/" className="flex items-center gap-2">
               <CoralLogo className="h-8 w-8 shrink-0" />
               <span className="text-base font-semibold" style={{ color: MARKETING_NAVY }}>
                 REEFX
               </span>
-            </Link>
+            </AppLink>
             <p className="mt-3 text-xs text-slate-500">© {new Date().getFullYear()} REEFX</p>
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:gap-12">
@@ -70,18 +70,18 @@ export function MarketingSiteFooter() {
               </p>
               <ul className="mt-3 space-y-2 text-sm">
                 <li>
-                  <Link
+                  <AppLink
                     href="/exchanges/browse?tab=events"
                     className="hover:underline"
                     style={{ color: MARKETING_LINK_BLUE }}
                   >
                     Upcoming events
-                  </Link>
+                  </AppLink>
                 </li>
                 <li>
-                  <Link href="/auth/login" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
+                  <AppLink href="/auth/login" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
                     Add your event
-                  </Link>
+                  </AppLink>
                 </li>
               </ul>
             </div>
@@ -91,14 +91,14 @@ export function MarketingSiteFooter() {
               </p>
               <ul className="mt-3 space-y-2 text-sm">
                 <li>
-                  <Link href="/#pricing" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
+                  <AppLink href="/#pricing" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
                     Free for hobbyists
-                  </Link>
+                  </AppLink>
                 </li>
                 <li>
-                  <Link href="/auth/login" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
+                  <AppLink href="/auth/login" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
                     Add REEFX to your event
-                  </Link>
+                  </AppLink>
                 </li>
               </ul>
             </div>
@@ -108,9 +108,9 @@ export function MarketingSiteFooter() {
               </p>
               <ul className="mt-3 space-y-2 text-sm">
                 <li>
-                  <Link href="/#swap-guide" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
+                  <AppLink href="/#swap-guide" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
                     FAQs
-                  </Link>
+                  </AppLink>
                 </li>
                 <li>
                   {contactEmail ? (
@@ -118,9 +118,9 @@ export function MarketingSiteFooter() {
                       Contact us
                     </a>
                   ) : (
-                    <Link href="/auth/login" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
+                    <AppLink href="/auth/login" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
                       Contact us
-                    </Link>
+                    </AppLink>
                   )}
                 </li>
               </ul>
@@ -131,14 +131,14 @@ export function MarketingSiteFooter() {
               </p>
               <ul className="mt-3 space-y-2 text-sm">
                 <li>
-                  <Link href="/legal/terms" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
+                  <AppLink href="/legal/terms" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
                     Terms
-                  </Link>
+                  </AppLink>
                 </li>
                 <li>
-                  <Link href="/legal/privacy" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
+                  <AppLink href="/legal/privacy" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
                     Privacy
-                  </Link>
+                  </AppLink>
                 </li>
               </ul>
             </div>

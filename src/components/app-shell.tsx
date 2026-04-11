@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { AppLink } from "@/components/app-link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
@@ -142,7 +142,7 @@ function ShellBrandLink() {
   const shellLogoUrl = exchangeId ? exchangeLogoUrl : null;
 
   return (
-    <Link
+    <AppLink
       href="/exchanges"
       className="flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-lg px-1 py-2 text-lg font-semibold tracking-tight text-slate-900"
     >
@@ -166,7 +166,7 @@ function ShellBrandLink() {
         />
       )}
       <ShellTitleInner />
-    </Link>
+    </AppLink>
   );
 }
 
@@ -260,7 +260,7 @@ function ShellProfileMenu({
           className="absolute right-0 z-50 mt-1 min-w-[10rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
         >
           <li role="none">
-            <Link
+            <AppLink
               href="/me"
               role="menuitem"
               aria-current={meActive ? "page" : undefined}
@@ -268,11 +268,11 @@ function ShellProfileMenu({
               onClick={() => setOpen(false)}
             >
               Me
-            </Link>
+            </AppLink>
           </li>
           {operatorManagedExchanges.length > 0 ? (
             <li role="none">
-              <Link
+              <AppLink
                 href={manageExchangeHref}
                 role="menuitem"
                 aria-current={operatorActive ? "page" : undefined}
@@ -280,12 +280,12 @@ function ShellProfileMenu({
                 onClick={() => setOpen(false)}
               >
                 Manage exchange
-              </Link>
+              </AppLink>
             </li>
           ) : null}
           {showAdminLink ? (
             <li role="none">
-              <Link
+              <AppLink
                 href="/admin"
                 role="menuitem"
                 aria-current={adminActive ? "page" : undefined}
@@ -293,7 +293,7 @@ function ShellProfileMenu({
                 onClick={() => setOpen(false)}
               >
                 Admin
-              </Link>
+              </AppLink>
             </li>
           ) : null}
           <li role="none">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { isDevMagicLinkViaEmail } from "@/lib/dev-magic-link-mode";
+import { ensureDatabaseReady } from "@/lib/db-warm";
 
 export default async function CheckEmailPage({
   searchParams,
@@ -8,6 +9,7 @@ export default async function CheckEmailPage({
   searchParams: Promise<{ email?: string; debugToken?: string }>;
 }) {
   const params = await searchParams;
+  await ensureDatabaseReady();
   const debugHref =
     process.env.NODE_ENV === "development" && !isDevMagicLinkViaEmail() && params.debugToken
       ? `/auth/verify?token=${encodeURIComponent(params.debugToken)}`

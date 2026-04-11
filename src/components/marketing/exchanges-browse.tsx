@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AppLink } from "@/components/app-link";
 import { joinPublicExchangeFormAction } from "@/app/(main)/exchanges/actions";
 import type { PublicBrowseEventRow, PublicBrowseGroupRow } from "@/lib/public-exchange-browse";
 import { MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
@@ -24,7 +24,7 @@ function TabLink({
   active: boolean;
 }) {
   return (
-    <Link
+    <AppLink
       href={href}
       className={`pb-2 text-sm font-medium transition-colors sm:text-base ${
         active ? "border-b-[3px]" : "border-b-[3px] border-transparent text-slate-500 hover:text-slate-700"
@@ -37,7 +37,7 @@ function TabLink({
       aria-current={active ? "page" : undefined}
     >
       {label}
-    </Link>
+    </AppLink>
   );
 }
 
@@ -52,14 +52,14 @@ function JoinExchangeControl({
 }) {
   if (isMember) {
     return (
-      <Link
+      <AppLink
         href={`/exchanges/${exchangeId}`}
         className="inline-flex items-center gap-1 text-sm font-semibold hover:underline"
         style={{ color: MARKETING_LINK_BLUE }}
       >
         Open
         <span aria-hidden>→</span>
-      </Link>
+      </AppLink>
     );
   }
   if (isLoggedIn) {
@@ -79,14 +79,14 @@ function JoinExchangeControl({
   }
   const loginHref = `/auth/login?next=${encodeURIComponent(`/exchanges/${exchangeId}`)}`;
   return (
-    <Link
+    <AppLink
       href={loginHref}
       className="inline-flex items-center gap-1 text-sm font-semibold hover:underline"
       style={{ color: MARKETING_LINK_BLUE }}
     >
       Join exchange
       <span aria-hidden>→</span>
-    </Link>
+    </AppLink>
   );
 }
 

@@ -4,6 +4,7 @@ import { ExchangeVisibility } from "@/generated/prisma/enums";
 import { InventoryItemCard } from "@/components/inventory-item-card";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
+import { ensureDatabaseReady } from "@/lib/db-warm";
 import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { canViewExchangeDirectory } from "@/lib/super-admin";
 import { buildSharedItemPath } from "@/lib/item-share";
@@ -15,6 +16,7 @@ export async function generateMetadata({
   params: Promise<{ exchangeId: string; itemId: string }>;
 }): Promise<Metadata> {
   const { exchangeId, itemId } = await params;
+  await ensureDatabaseReady();
   const listing = await getPrisma().exchangeListing.findUnique({
     where: { exchangeId_inventoryItemId: { exchangeId, inventoryItemId: itemId } },
     include: { exchange: true, inventoryItem: true },

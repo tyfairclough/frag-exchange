@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AppLink } from "@/components/app-link";
 import {
   MARKETING_CTA_GREEN,
   MARKETING_LINK_BLUE,
@@ -43,13 +43,13 @@ function ListingCard({ row }: { row: ListingRow }) {
           {typeLabel}
         </span>
         <p className="line-clamp-2 text-[0.65rem] leading-snug text-slate-500">{exchange.name}</p>
-        <Link
+        <AppLink
           href="/auth/login"
           className="mt-1 text-xs font-semibold hover:underline"
           style={{ color: MARKETING_LINK_BLUE }}
         >
           Sign in to view
-        </Link>
+        </AppLink>
       </div>
     </article>
   );
@@ -72,19 +72,19 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
             Join events and local exchanges to swap corals, for free, with fellow reefers.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Link
+            <AppLink
               href="/exchanges/browse?tab=groups"
               className="inline-flex min-h-12 items-center justify-center rounded-full px-8 text-center text-sm font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.99]"
               style={{ backgroundColor: MARKETING_CTA_GREEN }}
             >
               Join an exchange
-            </Link>
-            <Link
+            </AppLink>
+            <AppLink
               href="/auth/login"
               className="inline-flex min-h-12 items-center justify-center rounded-full border border-slate-300 bg-white px-8 text-center text-sm font-medium text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
             >
               Sign-in
-            </Link>
+            </AppLink>
           </div>
         </div>
         <div className="relative mx-auto flex w-full max-w-md flex-col justify-end lg:max-w-none">
@@ -165,13 +165,13 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
               </p>
               <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{step.body}</p>
               {"link" in step && step.link ? (
-                <Link
+                <AppLink
                   href={step.link.href}
                   className="mt-3 text-sm font-bold hover:underline"
                   style={{ color: MARKETING_LINK_BLUE }}
                 >
                   {step.link.label}
-                </Link>
+                </AppLink>
               ) : null}
             </li>
           ))}

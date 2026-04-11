@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { AppLink } from "@/components/app-link";
 import { Suspense, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { getExchangeIdFromPathname } from "@/lib/exchange-path";
@@ -36,7 +36,7 @@ function AdminNavLinks() {
           href === "/admin" ? pathname === "/admin" : pathname === href || pathname.startsWith(`${href}/`);
         return (
           <li key={key} className="flex-1">
-            <Link
+            <AppLink
               href={href}
               aria-current={active ? "page" : undefined}
               className={`touch-manipulation flex min-h-12 min-w-12 flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-2 transition-colors active:bg-slate-200 ${
@@ -47,7 +47,7 @@ function AdminNavLinks() {
             >
               <Icon />
               <span className="text-[0.65rem] font-medium leading-none">{label}</span>
-            </Link>
+            </AppLink>
           </li>
         );
       })}
@@ -131,7 +131,7 @@ function NavLinks({
           ) : null;
         return (
           <li key={key} className="flex-1">
-            <Link
+            <AppLink
               href={href}
               {...(key === "me" ? { "aria-label": `Profile: ${profile.aliasLabel}` } : {})}
               aria-current={active ? "page" : undefined}
@@ -143,7 +143,7 @@ function NavLinks({
             >
               {glyph}
               <span className="text-[0.65rem] font-medium leading-none">{label}</span>
-            </Link>
+            </AppLink>
           </li>
         );
       })}

@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { consumeAuthNextCookie } from "@/lib/auth-next-cookie";
 import { consumeMagicLink, createSession } from "@/lib/auth";
+import { ensureDatabaseReadyUncached } from "@/lib/db-warm";
 import { setOnboardingNextCookie } from "@/lib/onboarding-next-cookie";
 import { getRequestOrigin } from "@/lib/request-origin";
 
 export async function GET(request: Request) {
   const base = await getRequestOrigin();
+
+  await ensureDatabaseReadyUncached();
 
   const { searchParams } = new URL(request.url);
   const token = searchParams.get("token");
