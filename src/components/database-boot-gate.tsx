@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { DatabaseBootReadyProvider } from "@/components/database-boot-context";
 
@@ -15,6 +15,34 @@ function readClientConfig() {
     ttlMs: Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : 12 * 60 * 1000,
     maxMs: Number.isFinite(maxMs) && maxMs > 0 ? maxMs : 50_000,
   };
+}
+
+/** Synchronous read of session warm marker so the first client paint can skip the overlay (avoids flash before useLayoutEffect). */
+function getSessionMarkedWarmSnapshot(): boolean {
+  try {
+    const { ttlMs } = readClientConfig();
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return false;
+    }
+    const t = Number(raw);
+    return Number.isFinite(t) && Date.now() - t < ttlMs;
+  } catch {
+    return false;
+  }
+}
+
+function subscribeSessionMarkedWarm(_onStoreChange: () => void) {
+  return () => {};
+}
+
+function useSessionMarkedWarm(): boolean {
+  return useSyncExternalStore(
+    subscribeSessionMarkedWarm,
+    getSessionMarkedWarmSnapshot,
+    // No sessionStorage on server — assume "warm" so SSR HTML does not include the overlay; cold tabs reconcile on hydrate.
+    () => true,
+  );
 }
 
 async function pollHealthUntilOk(maxMs: number): Promise<boolean> {
@@ -44,6 +72,7 @@ type GateStatus = "checking" | "ready" | "failed";
 export function DatabaseBootGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [status, setStatus] = useState<GateStatus>("checking");
+  const sessionMarkedWarm = useSessionMarkedWarm();
 
   const runGate = useCallback(() => {
     const { ttlMs, maxMs } = readClientConfig();
@@ -85,8 +114,8 @@ export function DatabaseBootGate({ children }: { children: React.ReactNode }) {
     runGate();
   }, [runGate]);
 
-  const bootReady = status === "ready";
-  const showOverlay = status === "checking" || status === "failed";
+  const bootReady = sessionMarkedWarm || status === "ready";
+  const showOverlay = !sessionMarkedWarm && (status === "checking" || status === "failed");
 
   return (
     <DatabaseBootReadyProvider ready={bootReady}>

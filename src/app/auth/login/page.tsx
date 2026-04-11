@@ -1,5 +1,6 @@
 import { requestMagicLinkAction, signInWithPasswordAction } from "@/app/auth/actions";
-import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { MARKETING_CTA_GREEN, MARKETING_NAVY, MarketingSiteHeaderBrandOnly } from "@/components/marketing/marketing-chrome";
+import { PasswordInputWithToggle } from "@/components/password-input-with-toggle";
 import { ensureDatabaseReady } from "@/lib/db-warm";
 import { getSecondaryAuthProviders } from "@/lib/auth/providers";
 
@@ -31,6 +32,7 @@ export default async function LoginPage({
         backgroundSize: "auto 50vh",
       }}
     >
+      <MarketingSiteHeaderBrandOnly />
       <section className="mx-auto grid w-full max-w-6xl flex-1 gap-8 px-4 py-8 sm:px-6 sm:py-12 lg:grid-cols-2 lg:items-center lg:gap-10">
         <section className="order-1 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-black/5 sm:p-7">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl" style={{ color: MARKETING_NAVY }}>
@@ -64,13 +66,7 @@ export default async function LoginPage({
             <div className="order-4 space-y-3">
               <label className="block w-full">
                 <span className="mb-1 block text-sm font-medium text-slate-700">Password</span>
-                <input
-                  name="password"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                />
+                <PasswordInputWithToggle />
               </label>
               <button
                 className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-medium text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"

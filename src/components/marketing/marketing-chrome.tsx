@@ -20,6 +20,21 @@ export function CoralLogo({ className }: { className?: string }) {
   );
 }
 
+export function MarketingSiteHeaderBrandOnly() {
+  return (
+    <header className="shrink-0 border-b border-slate-200/80 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center px-4 py-4 sm:px-6">
+        <AppLink href="/" className="flex items-center gap-2.5">
+          <CoralLogo className="shrink-0" />
+          <span className="text-lg font-semibold tracking-tight sm:text-xl" style={{ color: MARKETING_NAVY }}>
+            REEFX
+          </span>
+        </AppLink>
+      </div>
+    </header>
+  );
+}
+
 export function MarketingSiteHeader() {
   return (
     <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur">
