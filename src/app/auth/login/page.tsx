@@ -1,5 +1,6 @@
 import { requestMagicLinkAction, signInWithPasswordAction } from "@/app/auth/actions";
 import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { ensureDatabaseReady } from "@/lib/db-warm";
 import { getSecondaryAuthProviders } from "@/lib/auth/providers";
 
 const loginErrors: Record<string, string> = {
@@ -18,6 +19,7 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const params = await searchParams;
+  await ensureDatabaseReady();
   const errorMessage = params.error ? loginErrors[params.error] ?? "Something went wrong. Try again." : null;
   const plannedProviders = getSecondaryAuthProviders();
 

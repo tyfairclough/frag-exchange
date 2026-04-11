@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { expireDueTradesAndNotify } from "@/lib/trade-expire-notify";
+import { ensureDatabaseReadyUncached } from "@/lib/db-warm";
 import { getPrisma } from "@/lib/db";
 import { removeExpiredExchangeListings } from "@/lib/listing-expiry-job";
 
@@ -50,6 +51,8 @@ async function runHousekeeping(req: Request) {
       { status: 500 },
     );
   }
+
+  await ensureDatabaseReadyUncached();
 
   const now = new Date();
   const db = getPrisma();

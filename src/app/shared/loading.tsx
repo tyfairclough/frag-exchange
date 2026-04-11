@@ -1,5 +1,5 @@
 import { DatabaseStartingFallback } from "@/components/database-starting";
 
-export default function MainLoading() {
+export default function SharedLoading() {
   return <DatabaseStartingFallback />;
 }

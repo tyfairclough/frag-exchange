@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PublicHomepage } from "@/components/marketing/public-homepage";
 import { getCurrentUser } from "@/lib/auth";
+import { ensureDatabaseReady } from "@/lib/db-warm";
 import { getRecentPublicExchangeListings } from "@/lib/marketing-listings";
 
 export const metadata: Metadata = {
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function RootHomePage() {
+  await ensureDatabaseReady();
   const user = await getCurrentUser();
   if (user) {
     if (!user.onboardingCompletedAt) {

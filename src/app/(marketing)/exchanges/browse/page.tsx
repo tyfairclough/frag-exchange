@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ExchangesBrowseView } from "@/components/marketing/exchanges-browse";
 import { MarketingSiteFooter, MarketingSiteHeader } from "@/components/marketing/marketing-chrome";
 import { getCurrentUser } from "@/lib/auth";
+import { ensureDatabaseReady } from "@/lib/db-warm";
 import { getPrisma } from "@/lib/db";
 import { getPublicBrowseEvents, getPublicBrowseGroups } from "@/lib/public-exchange-browse";
 
@@ -19,6 +20,8 @@ export default async function PublicExchangesBrowsePage({
 }) {
   const params = await searchParams;
   const tab = params.tab === "groups" ? "groups" : "events";
+
+  await ensureDatabaseReady();
 
   const [user, events, groups] = await Promise.all([
     getCurrentUser(),

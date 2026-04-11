@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AppLink } from "@/components/app-link";
 import { InventoryKind } from "@/generated/prisma/enums";
 import type { DiscoverRow } from "@/lib/discover-listings";
 import { EQUIPMENT_CATEGORY_LABELS } from "@/lib/equipment-options";
@@ -49,7 +49,7 @@ export function CoralListingCard({
         </span>
       ) : null}
       {tradeEnabled ? (
-        <Link
+        <AppLink
           href={tradeHref}
           className="absolute inset-0 z-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
           aria-label={`Start trade for ${row.name} from ${row.owner.alias ?? "member"}`}
@@ -97,12 +97,12 @@ export function CoralListingCard({
               {row.name}
             </h3>
             {sellerLinkEnabled ? (
-              <Link
+              <AppLink
                 href={sellerHref}
                 className={`${ownerPillClass} transition-colors hover:border-slate-300 hover:bg-slate-50${tradeEnabled ? " pointer-events-auto" : ""}`}
               >
                 {ownerPillInner}
-              </Link>
+              </AppLink>
             ) : (
               <span className={ownerPillClass}>{ownerPillInner}</span>
             )}

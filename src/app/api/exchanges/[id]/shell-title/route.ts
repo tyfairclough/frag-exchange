@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ExchangeVisibility } from "@/generated/prisma/enums";
 import { getCurrentUser } from "@/lib/auth";
+import { ensureDatabaseReadyUncached } from "@/lib/db-warm";
 import { getPrisma } from "@/lib/db";
 import { isSuperAdmin } from "@/lib/super-admin";
 
@@ -8,6 +9,7 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  await ensureDatabaseReadyUncached();
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
