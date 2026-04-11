@@ -1,12 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { CoralProfileStatus, InventoryKind } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { listingExpiresAtFrom } from "@/lib/listing-duration";
 import { getGroupAddressGate } from "@/lib/group-address-gate";
+import { MARKETING_LISTINGS_CACHE_TAG } from "@/lib/marketing-listings";
 
 function str(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -84,6 +85,7 @@ export async function addExchangeListingFormAction(formData: FormData) {
   revalidatePath(`/exchanges/${exchangeId}/trade`);
   revalidatePath(`/exchanges/${exchangeId}/trades`);
   revalidatePath("/explore");
+  revalidateTag(MARKETING_LISTINGS_CACHE_TAG, "max");
   redirect(`/exchanges/${exchangeId}?listed=1&item=${encodeURIComponent(inventoryItemId)}`);
 }
 
@@ -115,5 +117,6 @@ export async function removeExchangeListingFormAction(formData: FormData) {
   revalidatePath(`/exchanges/${exchangeId}/trade`);
   revalidatePath(`/exchanges/${exchangeId}/trades`);
   revalidatePath("/explore");
+  revalidateTag(MARKETING_LISTINGS_CACHE_TAG, "max");
   redirect(`/exchanges/${exchangeId}?unlisted=1`);
 }
