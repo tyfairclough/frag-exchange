@@ -1,7 +1,7 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, type NextProxy } from "next/server";
 import { AUTH_NEXT_COOKIE, getSafeInternalNextPath } from "@/lib/safe-next-path";
 
-export function middleware(request: NextRequest) {
+export const proxy: NextProxy = (request: NextRequest) => {
   if (request.nextUrl.pathname !== "/auth/login") {
     return NextResponse.next();
   }
@@ -27,7 +27,7 @@ export function middleware(request: NextRequest) {
   }
 
   return res;
-}
+};
 
 export const config = {
   matcher: ["/auth/login"],
