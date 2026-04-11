@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -27,17 +28,6 @@ function reefersLabel(count: number): string {
   return count === 1 ? "1 reefer" : `${count} reefers`;
 }
 
-function kindLabel(kind: InventoryKind) {
-  switch (kind) {
-    case InventoryKind.CORAL:
-      return "Coral";
-    case InventoryKind.FISH:
-      return "Fish";
-    default:
-      return "Equipment";
-  }
-}
-
 function listingModeLabel(mode: CoralListingMode) {
   switch (mode) {
     case CoralListingMode.POST:
@@ -47,6 +37,12 @@ function listingModeLabel(mode: CoralListingMode) {
     default:
       return "Post or meet";
   }
+}
+
+/** Matches `InventoryItemCard` quantity badge: ghost style, x[count], only when count is greater than 1. */
+function remainingQuantityBadge(remainingQuantity: number): ReactNode {
+  if (remainingQuantity <= 1) return null;
+  return <span className="badge badge-ghost badge-sm">x{remainingQuantity}</span>;
 }
 
 const detailErrors: Record<string, string> = {
@@ -354,15 +350,16 @@ export default async function ExchangeDetailPage({
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="badge badge-ghost badge-sm">{kindLabel(l.inventoryItem.kind)}</span>
-                              <h3 className="font-semibold text-base-content">{l.inventoryItem.name}</h3>
-                              <span className="badge badge-outline badge-sm">
-                                {l.inventoryItem.remainingQuantity} remaining
-                              </span>
-                              {l.inventoryItem.freeToGoodHome ? (
-                                <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
-                              ) : null}
+                            <div className="flex min-w-0 items-center gap-2">
+                              <h3 className="min-w-0 flex-1 truncate font-semibold text-base-content">
+                                {l.inventoryItem.name}
+                              </h3>
+                              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                {remainingQuantityBadge(l.inventoryItem.remainingQuantity)}
+                                {l.inventoryItem.freeToGoodHome ? (
+                                  <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
+                                ) : null}
+                              </div>
                             </div>
                             <p className="mt-1 line-clamp-2 text-sm text-base-content/70">
                               {l.inventoryItem.description || "No description yet."}
@@ -443,13 +440,14 @@ export default async function ExchangeDetailPage({
                               )}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="badge badge-ghost badge-sm">{kindLabel(c.kind)}</span>
-                                <h3 className="font-semibold text-base-content">{c.name}</h3>
-                                <span className="badge badge-outline badge-sm">{c.remainingQuantity} remaining</span>
-                                {c.freeToGoodHome ? (
-                                  <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
-                                ) : null}
+                              <div className="flex min-w-0 items-center gap-2">
+                                <h3 className="min-w-0 flex-1 truncate font-semibold text-base-content">{c.name}</h3>
+                                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                  {remainingQuantityBadge(c.remainingQuantity)}
+                                  {c.freeToGoodHome ? (
+                                    <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
+                                  ) : null}
+                                </div>
                               </div>
                               <p className="mt-1 line-clamp-2 text-sm text-base-content/70">
                                 {c.description || "No description yet."}

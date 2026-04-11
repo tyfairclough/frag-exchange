@@ -9,7 +9,7 @@ export function DeleteCoralButton({ itemId }: { itemId: string }) {
   return (
     <button
       type="button"
-      className="btn btn-ghost btn-error btn-sm min-h-9 rounded-xl"
+      className="inline-flex min-h-9 items-center justify-center gap-1 rounded-full border border-rose-300 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:pointer-events-none disabled:opacity-50"
       disabled={pending}
       onClick={() => {
         if (typeof window !== "undefined" && window.confirm("Delete this item from your inventory?")) {

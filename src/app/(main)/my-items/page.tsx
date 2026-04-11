@@ -102,7 +102,7 @@ export default async function MyItemsPage({
                   c.profileStatus === CoralProfileStatus.UNLISTED ? (
                     <>
                       <div className="flex min-w-0 flex-wrap gap-2">
-                        <Link href={`/my-items/${c.id}/edit`} className="btn btn-ghost btn-sm min-h-9 rounded-xl">
+                        <Link href={`/my-items/${c.id}/edit`} className="btn btn-ghost btn-sm !h-9 !min-h-9 shrink-0 rounded-xl">
                           Edit
                         </Link>
                         {c.remainingQuantity > 0 ? (

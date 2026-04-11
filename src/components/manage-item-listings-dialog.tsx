@@ -360,7 +360,7 @@ export function ManageItemListingsDialog({
           setSession((s) => s + 1);
           setOpen(true);
         }}
-        className="btn btn-ghost btn-sm min-h-9 rounded-xl"
+        className="btn btn-ghost btn-sm !h-9 !min-h-9 shrink-0 rounded-xl"
       >
         Manage listings
       </button>

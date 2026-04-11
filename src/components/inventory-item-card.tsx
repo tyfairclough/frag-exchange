@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 import { CoralListingMode, CoralProfileStatus, InventoryKind } from "@/generated/prisma/enums";
-import { formatColoursLabelSuffix } from "@/lib/coral-options";
-
 export type InventoryItemCardItem = {
   id: string;
   kind: InventoryKind;
@@ -15,17 +13,6 @@ export type InventoryItemCardItem = {
   profileStatus: CoralProfileStatus;
   remainingQuantity?: number;
 };
-
-function kindLabel(kind: InventoryKind) {
-  switch (kind) {
-    case InventoryKind.CORAL:
-      return "Coral";
-    case InventoryKind.FISH:
-      return "Fish";
-    default:
-      return "Equipment";
-  }
-}
 
 function listingModeLabel(mode: CoralListingMode) {
   switch (mode) {
@@ -43,11 +30,11 @@ export type InventoryItemCardProps = {
   /** Footer row (e.g. Edit / Delete). Omit to hide the action bar. */
   actions?: ReactNode;
   /**
-   * When true, show Traded / Unlisted like My items.
-   * When false (e.g. trade picker), those badges are hidden.
+   * When true, show Traded when the item is traded.
+   * When false (e.g. trade picker), the badge is hidden.
    */
   showListingStatusBadge?: boolean;
-  /** When true, show quantity badge in the format x[count]. */
+  /** When true, show x[count] when remaining quantity is greater than 1. */
   showQuantityBadge?: boolean;
   /** Extra line under the meta row (e.g. exchange listing copy). */
   extraMeta?: ReactNode;
@@ -91,32 +78,22 @@ export function InventoryItemCard({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="badge badge-ghost badge-sm">{kindLabel(item.kind)}</span>
-              <TitleTag className="font-semibold text-base-content">{item.name}</TitleTag>
-              {showListingStatusBadge ? (
-                item.profileStatus === CoralProfileStatus.TRADED ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <TitleTag className="min-w-0 flex-1 truncate font-semibold text-base-content">{item.name}</TitleTag>
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                {showListingStatusBadge && item.profileStatus === CoralProfileStatus.TRADED ? (
                   <span className="badge badge-neutral badge-sm">Traded</span>
-                ) : (
-                  <span className="badge badge-ghost badge-sm">Unlisted</span>
-                )
-              ) : null}
-              {showQuantityBadge && item.remainingQuantity != null ? (
-                <span className="badge badge-ghost badge-sm">x{item.remainingQuantity}</span>
-              ) : null}
-              {item.freeToGoodHome ? (
-                <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
-              ) : null}
+                ) : null}
+                {showQuantityBadge && item.remainingQuantity != null && item.remainingQuantity > 1 ? (
+                  <span className="badge badge-ghost badge-sm">x{item.remainingQuantity}</span>
+                ) : null}
+                {item.freeToGoodHome ? (
+                  <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
+                ) : null}
+              </div>
             </div>
             <p className="mt-1 line-clamp-2 text-sm text-base-content/70">{item.description || "No description yet."}</p>
-            <p className="mt-2 text-xs text-base-content/60">
-              {listingModeLabel(item.listingMode)}
-              {item.kind === InventoryKind.CORAL && item.coralType ? ` · ${item.coralType}` : ""}
-              {(item.kind === InventoryKind.CORAL || item.kind === InventoryKind.FISH) &&
-              item.colours.length > 0
-                ? formatColoursLabelSuffix(item.colours)
-                : ""}
-            </p>
+            <p className="mt-2 text-xs text-base-content/60">{listingModeLabel(item.listingMode)}</p>
             {extraMeta}
           </div>
         </div>
