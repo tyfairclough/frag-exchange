@@ -5,6 +5,10 @@ import { CoralListingMode } from "@/generated/prisma/enums";
 import { enrichCoralPreviewAction } from "@/app/(main)/my-items/actions";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
 import type { InventoryItemImageFieldHandle } from "@/components/inventory-item-image-field";
+import {
+  prepareInventoryImageForUpload,
+  replaceFormDataImageFileWithNormalized,
+} from "@/lib/prepare-inventory-vision-image-client";
 
 function messageForUploadError(code: string | undefined): string {
   switch (code) {
@@ -55,7 +59,21 @@ export function CoralInventoryForm({ saveAction, defaults }: Props) {
   const [aiHint, setAiHint] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiPending, startAiTransition] = useTransition();
+  const [submitting, setSubmitting] = useState(false);
   const imageFieldRef = useRef<InventoryItemImageFieldHandle>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const fd = new FormData(e.currentTarget);
+      await replaceFormDataImageFileWithNormalized(fd);
+      await saveAction(fd);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function runAiSuggest() {
     setAiError(null);
@@ -65,8 +83,9 @@ export function CoralInventoryForm({ saveAction, defaults }: Props) {
         let url = imageUrl.trim() || null;
         const pending = imageFieldRef.current?.getFile();
         if (pending) {
+          const uploadFile = await prepareInventoryImageForUpload(pending);
           const up = new FormData();
-          up.append("imageFile", pending);
+          up.append("imageFile", uploadFile);
           const res = await fetch("/api/my-items/upload-image", {
             method: "POST",
             body: up,
@@ -102,7 +121,7 @@ export function CoralInventoryForm({ saveAction, defaults }: Props) {
   }
 
   return (
-    <form action={saveAction} encType="multipart/form-data" className="flex flex-col gap-4">
+    <form onSubmit={(e) => void handleSubmit(e)} encType="multipart/form-data" className="flex flex-col gap-4">
       <CoralInventoryFields
         name={name}
         setName={setName}
@@ -125,7 +144,7 @@ export function CoralInventoryForm({ saveAction, defaults }: Props) {
         aiError={aiError}
       />
 
-      <button type="submit" className="btn btn-primary min-h-11 rounded-xl">
+      <button type="submit" className="btn btn-primary min-h-11 rounded-xl" disabled={submitting}>
         Save coral
       </button>
     </form>

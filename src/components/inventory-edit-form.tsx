@@ -18,6 +18,10 @@ import {
   type InventoryItemImageFieldHandle,
 } from "@/components/inventory-item-image-field";
 import { InventoryEditBottomNavBridge } from "@/components/inventory-edit-bottom-nav-context";
+import {
+  prepareInventoryImageForUpload,
+  replaceFormDataImageFileWithNormalized,
+} from "@/lib/prepare-inventory-vision-image-client";
 import { useRef, useState, useTransition } from "react";
 
 type SaveAction = (formData: FormData) => void | Promise<void>;
@@ -63,7 +67,21 @@ export function CoralKindEditForm({
   const [aiPending, startAi] = useTransition();
   const [aiHint, setAiHint] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const imageFieldRef = useRef<InventoryItemImageFieldHandle>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const fd = new FormData(e.currentTarget);
+      await replaceFormDataImageFileWithNormalized(fd);
+      await saveAction(fd);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function onAiSuggest() {
     setAiError(null);
@@ -72,8 +90,9 @@ export function CoralKindEditForm({
       let url = imageUrl.trim() || null;
       const pending = imageFieldRef.current?.getFile();
       if (pending) {
+        const uploadFile = await prepareInventoryImageForUpload(pending);
         const up = new FormData();
-        up.append("imageFile", pending);
+        up.append("imageFile", uploadFile);
         const res = await fetch("/api/my-items/upload-image", {
           method: "POST",
           body: up,
@@ -100,7 +119,7 @@ export function CoralKindEditForm({
   }
 
   return (
-    <form action={saveAction} encType="multipart/form-data" className="flex flex-col gap-4">
+    <form onSubmit={(e) => void handleSubmit(e)} encType="multipart/form-data" className="flex flex-col gap-4">
       <InventoryEditBottomNavBridge />
       <CoralInventoryFields
         name={name}
@@ -140,7 +159,7 @@ export function CoralKindEditForm({
           </>
         }
       />
-      <button type="submit" className="btn btn-primary min-h-11 rounded-xl">
+      <button type="submit" className="btn btn-primary min-h-11 rounded-xl" disabled={submitting}>
         Save
       </button>
     </form>
@@ -162,9 +181,23 @@ export function FishKindEditForm({
   const [hasMultipleToExchange, setHasMultipleToExchange] = useState(defaults.remainingQuantity > 1);
   const [itemCount, setItemCount] = useState(String(Math.max(2, defaults.remainingQuantity)));
   const [imageUrl] = useState(defaults.imageUrl);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const fd = new FormData(e.currentTarget);
+      await replaceFormDataImageFileWithNormalized(fd);
+      await saveAction(fd);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
-    <form action={saveAction} encType="multipart/form-data" className="flex flex-col gap-4">
+    <form onSubmit={(e) => void handleSubmit(e)} encType="multipart/form-data" className="flex flex-col gap-4">
       <InventoryEditBottomNavBridge />
       <label className="form-control w-full">
         <span className="label-text font-medium">Name</span>
@@ -232,7 +265,7 @@ export function FishKindEditForm({
         <input type="checkbox" name="freeToGoodHome" defaultChecked={defaults.freeToGoodHome} className="checkbox" />
         <span className="text-sm">Free to good home</span>
       </label>
-      <button type="submit" className="btn btn-primary min-h-11 rounded-xl">
+      <button type="submit" className="btn btn-primary min-h-11 rounded-xl" disabled={submitting}>
         Save
       </button>
     </form>
@@ -252,9 +285,23 @@ export function EquipmentKindEditForm({
   const [hasMultipleToExchange, setHasMultipleToExchange] = useState(defaults.remainingQuantity > 1);
   const [itemCount, setItemCount] = useState(String(Math.max(2, defaults.remainingQuantity)));
   const [imageUrl] = useState(defaults.imageUrl);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const fd = new FormData(e.currentTarget);
+      await replaceFormDataImageFileWithNormalized(fd);
+      await saveAction(fd);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
-    <form action={saveAction} encType="multipart/form-data" className="flex flex-col gap-4">
+    <form onSubmit={(e) => void handleSubmit(e)} encType="multipart/form-data" className="flex flex-col gap-4">
       <InventoryEditBottomNavBridge />
       <label className="form-control w-full">
         <span className="label-text font-medium">Name</span>
@@ -328,7 +375,7 @@ export function EquipmentKindEditForm({
         <input type="checkbox" name="freeToGoodHome" defaultChecked={defaults.freeToGoodHome} className="checkbox" />
         <span className="text-sm">Free to good home</span>
       </label>
-      <button type="submit" className="btn btn-primary min-h-11 rounded-xl">
+      <button type="submit" className="btn btn-primary min-h-11 rounded-xl" disabled={submitting}>
         Save
       </button>
     </form>

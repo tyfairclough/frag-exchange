@@ -6,7 +6,10 @@ import { CoralListingMode } from "@/generated/prisma/enums";
 import { createCoralAction } from "@/app/(main)/my-corals/actions";
 import { AddCoralImageBar } from "@/components/add-coral-image-bar";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
-import { prepareInventoryVisionImage } from "@/lib/prepare-inventory-vision-image-client";
+import {
+  prepareInventoryImageForUpload,
+  prepareInventoryVisionImage,
+} from "@/lib/prepare-inventory-vision-image-client";
 
 type VisionApiResult = {
   colours: string[];
@@ -115,8 +118,9 @@ export function AddCoralWizard() {
     let uploadedImageUrl = "";
     try {
       if (file && file.size > 0) {
+        const uploadFile = await prepareInventoryImageForUpload(file);
         const up = new FormData();
-        up.append("imageFile", file);
+        up.append("imageFile", uploadFile);
         const upRes = await fetch("/api/my-corals/upload-image", {
           method: "POST",
           body: up,

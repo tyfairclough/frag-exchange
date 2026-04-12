@@ -15,7 +15,10 @@ import {
   EQUIPMENT_CONDITION_LABELS,
   EQUIPMENT_CONDITION_VALUES,
 } from "@/lib/equipment-options";
-import { prepareInventoryVisionImage } from "@/lib/prepare-inventory-vision-image-client";
+import {
+  prepareInventoryImageForUpload,
+  prepareInventoryVisionImage,
+} from "@/lib/prepare-inventory-vision-image-client";
 import { InventoryItemImagePreview } from "@/components/inventory-item-image-field";
 
 function messageForApiError(code: string | undefined): string {
@@ -306,8 +309,9 @@ export function AddItemWizard() {
     let uploadedImageUrl = "";
     try {
       if (file && file.size > 0) {
+        const uploadFile = await prepareInventoryImageForUpload(file);
         const up = new FormData();
-        up.append("imageFile", file);
+        up.append("imageFile", uploadFile);
         const upRes = await fetch("/api/my-items/upload-image", {
           method: "POST",
           body: up,
