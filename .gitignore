@@ -26,6 +26,7 @@
 
 # Cursor agent debug logs
 .cursor/debug-*.log
+/debug-*.log
 
 # debug
 npm-debug.log*

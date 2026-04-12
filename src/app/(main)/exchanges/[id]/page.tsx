@@ -315,8 +315,7 @@ export default async function ExchangeDetailPage({
               </div>
               <Link
                 href={listingsHref}
-                className="inline-flex min-h-9 w-fit shrink-0 items-center rounded-full px-3 text-xs font-semibold text-white transition hover:opacity-95"
-                style={{ backgroundColor: MARKETING_CTA_GREEN }}
+                className="inline-flex min-h-9 w-fit shrink-0 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
               >
                 Manage listings
               </Link>
