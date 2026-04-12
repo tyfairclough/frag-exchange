@@ -1,48 +1,23 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
-  CoralListingMode,
   CoralProfileStatus,
   ExchangeKind,
   ExchangeMembershipRole,
   ExchangeVisibility,
-  InventoryKind,
 } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { EventDateHighlight } from "@/app/(main)/exchanges/components/event-datetime-highlight";
 import { canManageEventDesk, canViewExchangeDirectory, isSuperAdmin } from "@/lib/super-admin";
 import { joinPublicExchangeFormAction } from "@/app/(main)/exchanges/actions";
-import {
-  addExchangeListingFormAction,
-  removeExchangeListingFormAction,
-} from "@/app/(main)/exchanges/listing-actions";
 import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { getRequestOrigin } from "@/lib/request-origin";
-import { buildShareLinks, buildShareMessage, buildSharedItemPath } from "@/lib/item-share";
-import { ItemShareActions } from "@/components/item-share-actions";
-import { formatColoursLabelSuffix } from "@/lib/coral-options";
+import { expireDueTradesAndNotify } from "@/lib/trade-expire-notify";
+import { tradeBucketsFromGroupBy } from "@/lib/exchange-hub-stats";
 
 function reefersLabel(count: number): string {
   return count === 1 ? "1 reefer" : `${count} reefers`;
-}
-
-function listingModeLabel(mode: CoralListingMode) {
-  switch (mode) {
-    case CoralListingMode.POST:
-      return "Post";
-    case CoralListingMode.MEET:
-      return "Meet";
-    default:
-      return "Post or meet";
-  }
-}
-
-/** Matches `InventoryItemCard` quantity badge: ghost style, x[count], only when count is greater than 1. */
-function remainingQuantityBadge(remainingQuantity: number): ReactNode {
-  if (remainingQuantity <= 1) return null;
-  return <span className="badge badge-ghost badge-sm">x{remainingQuantity}</span>;
 }
 
 const detailErrors: Record<string, string> = {
@@ -97,52 +72,60 @@ export default async function ExchangeDetailPage({
   const errorMessage = sp.error ? detailErrors[sp.error] ?? "Something went wrong." : null;
 
   const now = new Date();
-  const myListableItems =
-    membership && canView
-      ? await getPrisma().inventoryItem.findMany({
-          where: {
+
+  if (membership && canView && (sp.listed === "1" || sp.unlisted === "1")) {
+    const q = new URLSearchParams();
+    if (sp.listed === "1") q.set("listed", "1");
+    if (sp.unlisted === "1") q.set("unlisted", "1");
+    const itemTrim = sp.item?.trim();
+    if (itemTrim) q.set("item", itemTrim);
+    redirect(`/exchanges/${encodeURIComponent(id)}/listings?${q.toString()}`);
+  }
+
+  let exchangeWideActiveListingCount = 0;
+  let myActiveListingCount = 0;
+  let tradeBuckets = { complete: 0, pending: 0, cancelled: 0 };
+
+  if (membership && canView) {
+    const baseUrl = await getRequestOrigin();
+    await expireDueTradesAndNotify(getPrisma(), { baseUrl, now, exchangeId: exchange.id });
+
+    const [wideCount, mineCount, tradeStatusRows] = await Promise.all([
+      getPrisma().exchangeListing.count({
+        where: {
+          exchangeId: exchange.id,
+          expiresAt: { gt: now },
+          inventoryItem: {
+            profileStatus: CoralProfileStatus.UNLISTED,
+            remainingQuantity: { gt: 0 },
+          },
+        },
+      }),
+      getPrisma().exchangeListing.count({
+        where: {
+          exchangeId: exchange.id,
+          expiresAt: { gt: now },
+          inventoryItem: {
             userId: user.id,
             profileStatus: CoralProfileStatus.UNLISTED,
             remainingQuantity: { gt: 0 },
           },
-          orderBy: { updatedAt: "desc" },
-        })
-      : [];
-  const myListingsHere =
-    membership && canView
-      ? await getPrisma().exchangeListing.findMany({
-          where: {
-            exchangeId: exchange.id,
-            inventoryItem: { userId: user.id },
-          },
-          include: { inventoryItem: true },
-          orderBy: { listedAt: "desc" },
-        })
-      : [];
-  const activeListingByItemId = new Map(
-    myListingsHere.filter((l) => l.expiresAt > now).map((l) => [l.inventoryItemId, l]),
-  );
-  const listedItemId = sp.item?.trim() || "";
-  const justListed = sp.listed === "1" && listedItemId ? activeListingByItemId.get(listedItemId) ?? null : null;
-  const hasShareableListings = justListed !== null || activeListingByItemId.size > 0;
-  const shareOrigin = hasShareableListings ? await getRequestOrigin() : null;
-  const sharePath = justListed ? buildSharedItemPath(exchange.id, justListed.inventoryItemId) : null;
-  const shareUrl = sharePath && shareOrigin ? `${shareOrigin}${sharePath}` : null;
-  const shareMessage =
-    justListed && shareUrl ? buildShareMessage(justListed.inventoryItem.name, exchange.name) : null;
-  const shareLinks = shareMessage && shareUrl ? buildShareLinks({ message: shareMessage, absoluteUrl: shareUrl }) : null;
-  const myUnlistedItemsForExchange = myListableItems.filter((c) => {
-    if (activeListingByItemId.has(c.id)) {
-      return false;
-    }
-    if (c.kind === InventoryKind.CORAL) {
-      return exchange.allowCoral;
-    }
-    if (c.kind === InventoryKind.FISH) {
-      return exchange.allowFish;
-    }
-    return exchange.allowEquipment;
-  });
+        },
+      }),
+      getPrisma().trade.groupBy({
+        by: ["status"],
+        where: {
+          exchangeId: exchange.id,
+          OR: [{ initiatorUserId: user.id }, { peerUserId: user.id }],
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    exchangeWideActiveListingCount = wideCount;
+    myActiveListingCount = mineCount;
+    tradeBuckets = tradeBucketsFromGroupBy(tradeStatusRows);
+  }
 
   if (!canView) {
     return (
@@ -158,6 +141,10 @@ export default async function ExchangeDetailPage({
       </div>
     );
   }
+
+  const exploreHref = `/explore?exchangeId=${encodeURIComponent(exchange.id)}`;
+  const tradesHref = `/exchanges/${encodeURIComponent(exchange.id)}/trades`;
+  const listingsHref = `/exchanges/${encodeURIComponent(exchange.id)}/listings`;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -179,29 +166,6 @@ export default async function ExchangeDetailPage({
         </div>
       ) : null}
 
-      {sp.listed === "1" ? (
-        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          <p>Item listed on this exchange (90-day window). Others can find it in Explore.</p>
-          {shareLinks && shareUrl ? (
-            <>
-              <p className="mt-2 text-xs text-emerald-900/80">Share this listing with friends:</p>
-              <ItemShareActions
-                whatsappUrl={shareLinks.whatsapp}
-                facebookUrl={shareLinks.facebook}
-                bandUrl={shareLinks.band}
-                copyUrl={shareUrl}
-              />
-            </>
-          ) : null}
-        </div>
-      ) : null}
-
-      {sp.unlisted === "1" ? (
-        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Coral removed from this exchange.
-        </div>
-      ) : null}
-
       <header className="space-y-2">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -217,8 +181,9 @@ export default async function ExchangeDetailPage({
           <div className="flex flex-wrap gap-2">
             {membership ? (
               <Link
-                href={`/explore?exchangeId=${encodeURIComponent(exchange.id)}`}
-                className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                href={exploreHref}
+                className="inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold text-white transition hover:opacity-95"
+                style={{ backgroundColor: MARKETING_CTA_GREEN }}
               >
                 Explore this exchange
               </Link>
@@ -300,184 +265,55 @@ export default async function ExchangeDetailPage({
       ) : null}
 
       {membership ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="space-y-4">
-            <div className="flex flex-nowrap items-start justify-start gap-3 text-left">
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href={`/exchanges/${encodeURIComponent(exchange.id)}/trades`}
-                  className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-                >
-                  Trades
-                </Link>
-              </div>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="exchange-dashboard-heading">
+          <h2 id="exchange-dashboard-heading" className="text-sm font-semibold" style={{ color: MARKETING_NAVY }}>
+            At a glance
+          </h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Items on the exchange</p>
+              <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{exchangeWideActiveListingCount}</p>
+              <p className="mt-1 text-xs text-slate-600">All active listings (including yours)</p>
+              <Link
+                href={exploreHref}
+                className="mt-3 inline-flex min-h-9 w-fit items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+              >
+                Explore listings
+              </Link>
             </div>
 
-            <h2 className="text-sm font-semibold" style={{ color: MARKETING_NAVY }}>
-              Your listings here
-            </h2>
-            <p className="text-xs text-slate-500">
-              Profile items can sit on multiple exchanges until a trade completes. Each listing expires after 90 days (renew by listing
-              again).
-            </p>
-
-            {activeListingByItemId.size === 0 ? (
-              <p className="text-sm text-slate-600">No active listings on this exchange yet.</p>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {[...activeListingByItemId.values()].map((l) => (
-                  <li key={l.id}>
-                    {(() => {
-                      const cardSharePath = buildSharedItemPath(exchange.id, l.inventoryItemId);
-                      const cardShareUrl = shareOrigin ? `${shareOrigin}${cardSharePath}` : null;
-                      const cardShareMessage = cardShareUrl
-                        ? buildShareMessage(l.inventoryItem.name, exchange.name)
-                        : null;
-                      const cardShareLinks =
-                        cardShareMessage && cardShareUrl
-                          ? buildShareLinks({ message: cardShareMessage, absoluteUrl: cardShareUrl })
-                          : null;
-                      return (
-                        <article className="card border border-base-content/10 bg-base-100 shadow-sm">
-                      <div className="card-body gap-3 p-4">
-                        <div className="flex gap-3">
-                          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-base-200 text-2xl text-base-content/40">
-                            {l.inventoryItem.imageUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element -- arbitrary hobbyist image URLs
-                              <img src={l.inventoryItem.imageUrl} alt="" className="h-full w-full object-cover" />
-                            ) : (
-                              <span aria-hidden>🪸</span>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <h3 className="min-w-0 flex-1 truncate font-semibold text-base-content">
-                                {l.inventoryItem.name}
-                              </h3>
-                              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                                {remainingQuantityBadge(l.inventoryItem.remainingQuantity)}
-                                {l.inventoryItem.freeToGoodHome ? (
-                                  <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
-                                ) : null}
-                              </div>
-                            </div>
-                            <p className="mt-2 text-xs text-base-content/60">
-                              {listingModeLabel(l.inventoryItem.listingMode)}
-                              {l.inventoryItem.kind === InventoryKind.CORAL && l.inventoryItem.coralType
-                                ? ` · ${l.inventoryItem.coralType}`
-                                : ""}
-                              {(l.inventoryItem.kind === InventoryKind.CORAL ||
-                                l.inventoryItem.kind === InventoryKind.FISH) &&
-                              l.inventoryItem.colours.length > 0
-                                ? formatColoursLabelSuffix(l.inventoryItem.colours)
-                                : ""}
-                            </p>
-                            <p className="mt-2 text-xs text-slate-500">
-                              Listed until{" "}
-                              <time dateTime={l.expiresAt.toISOString()}>
-                                {l.expiresAt.toLocaleDateString(undefined, { dateStyle: "medium" })}
-                              </time>
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex h-fit flex-nowrap items-end justify-between gap-0 border-t border-base-content/10 pt-3">
-                          {cardShareLinks && cardShareUrl ? (
-                            <ItemShareActions
-                              whatsappUrl={cardShareLinks.whatsapp}
-                              facebookUrl={cardShareLinks.facebook}
-                              bandUrl={cardShareLinks.band}
-                              copyUrl={cardShareUrl}
-                            />
-                          ) : null}
-                          <form action={removeExchangeListingFormAction} className="flex h-9 items-start justify-end">
-                            <input type="hidden" name="exchangeId" value={exchange.id} />
-                            <input type="hidden" name="inventoryItemId" value={l.inventoryItemId} />
-                            <button
-                              type="submit"
-                              className="inline-flex min-h-9 items-center rounded-full border border-rose-300 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
-                            >
-                              Remove
-                            </button>
-                          </form>
-                        </div>
-                      </div>
-                        </article>
-                      );
-                    })()}
-                  </li>
-                ))}
+            <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your trades</p>
+              <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                <li>
+                  <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.complete}</span> complete
+                </li>
+                <li>
+                  <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.pending}</span> pending
+                </li>
+                <li>
+                  <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.cancelled}</span> cancelled
+                </li>
               </ul>
-            )}
+              <Link
+                href={tradesHref}
+                className="mt-3 inline-flex min-h-9 w-fit items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+              >
+                View trades
+              </Link>
+            </div>
 
-            <div className="border-t border-slate-200 pt-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your unlisted items</h3>
-              {myListableItems.length === 0 ? (
-                <p className="mt-2 text-sm text-slate-600">
-                  Add items under{" "}
-                  <Link href="/my-items" className="font-semibold hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
-                    My items
-                  </Link>{" "}
-                  first.
-                </p>
-              ) : myUnlistedItemsForExchange.length === 0 ? (
-                <p className="mt-2 text-sm text-slate-600">All of your available items are already listed on this exchange.</p>
-              ) : (
-                <ul className="mt-2 flex flex-col gap-3">
-                  {myUnlistedItemsForExchange.map((c) => (
-                    <li key={c.id}>
-                      <article className="card border border-base-content/10 bg-base-100 shadow-sm">
-                        <div className="card-body gap-3 p-4">
-                          <div className="flex gap-3">
-                            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-base-200 text-2xl text-base-content/40">
-                              {c.imageUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element -- arbitrary hobbyist image URLs
-                                <img src={c.imageUrl} alt="" className="h-full w-full object-cover" />
-                              ) : (
-                                <span aria-hidden>🪸</span>
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex min-w-0 items-center gap-2">
-                                <h3 className="min-w-0 flex-1 truncate font-semibold text-base-content">{c.name}</h3>
-                                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                                  {remainingQuantityBadge(c.remainingQuantity)}
-                                  {c.freeToGoodHome ? (
-                                    <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <p className="mt-2 text-xs text-base-content/60">
-                                {listingModeLabel(c.listingMode)}
-                                {c.kind === InventoryKind.CORAL && c.coralType ? ` · ${c.coralType}` : ""}
-                                {(c.kind === InventoryKind.CORAL || c.kind === InventoryKind.FISH) &&
-                                c.colours.length > 0
-                                  ? formatColoursLabelSuffix(c.colours)
-                                  : ""}
-                              </p>
-                              <p className="mt-2 text-xs text-slate-500">
-                                Not listed here, or listing expired - you can list again.
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex h-fit flex-nowrap items-end justify-between gap-0 border-t border-base-content/10 pt-3">
-                            <form action={addExchangeListingFormAction} className="flex h-9 items-start justify-end">
-                              <input type="hidden" name="exchangeId" value={exchange.id} />
-                              <input type="hidden" name="inventoryItemId" value={c.id} />
-                              <button
-                                type="submit"
-                                className="inline-flex min-h-9 items-center rounded-full px-4 text-sm font-semibold text-white transition hover:opacity-95"
-                                style={{ backgroundColor: MARKETING_CTA_GREEN }}
-                              >
-                                List here
-                              </button>
-                            </form>
-                          </div>
-                        </div>
-                      </article>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your listings here</p>
+              <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{myActiveListingCount}</p>
+              <p className="mt-1 text-xs text-slate-600">Items you have listed on this exchange.</p>
+              <Link
+                href={listingsHref}
+                className="mt-3 inline-flex min-h-9 w-fit items-center rounded-full px-3 text-xs font-semibold text-white transition hover:opacity-95"
+                style={{ backgroundColor: MARKETING_CTA_GREEN }}
+              >
+                Manage listings
+              </Link>
             </div>
           </div>
         </section>

@@ -177,6 +177,7 @@ export async function completeOnboardingAction(formData: FormData) {
     revalidatePath("/exchanges");
     revalidatePath("/exchanges/browse");
     revalidatePath(`/exchanges/${autoJoin.exchangeId}`);
+    revalidatePath(`/exchanges/${autoJoin.exchangeId}/listings`);
     redirect(autoJoin.destination);
   }
 

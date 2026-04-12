@@ -34,6 +34,7 @@ export type ListingActionError =
 
 function revalidateListingMutation(exchangeId: string) {
   revalidatePath(`/exchanges/${exchangeId}`);
+  revalidatePath(`/exchanges/${exchangeId}/listings`);
   revalidatePath(`/exchanges/${exchangeId}/trade`);
   revalidatePath(`/exchanges/${exchangeId}/trades`);
   revalidatePath("/explore");
@@ -53,7 +54,7 @@ async function addExchangeListingCore(
   if (!member) {
     return { ok: false, error: "forbidden" };
   }
-  const addressGate = await getGroupAddressGate(exchangeId, userId, `/exchanges/${exchangeId}`);
+  const addressGate = await getGroupAddressGate(exchangeId, userId, `/exchanges/${exchangeId}/listings`);
   if (addressGate.blocked) {
     return { ok: false, error: "address" };
   }
@@ -122,15 +123,15 @@ export async function addExchangeListingFormAction(formData: FormData) {
       case "invalid":
         redirect("/exchanges?error=listing-invalid");
       case "forbidden":
-        redirect(`/exchanges/${exchangeId}?error=listing-forbidden`);
+        redirect(`/exchanges/${exchangeId}/listings?error=listing-forbidden`);
       case "address": {
-        const gate = await getGroupAddressGate(exchangeId, user.id, `/exchanges/${exchangeId}`);
-        redirect(gate.redirectPath ?? `/exchanges/${exchangeId}?error=address-required-group`);
+        const gate = await getGroupAddressGate(exchangeId, user.id, `/exchanges/${exchangeId}/listings`);
+        redirect(gate.redirectPath ?? `/exchanges/${exchangeId}/listings?error=address-required-group`);
       }
       case "item":
-        redirect(`/exchanges/${exchangeId}?error=listing-coral`);
+        redirect(`/exchanges/${exchangeId}/listings?error=listing-coral`);
       case "kind":
-        redirect(`/exchanges/${exchangeId}?error=listing-kind`);
+        redirect(`/exchanges/${exchangeId}/listings?error=listing-kind`);
       default:
         redirect("/exchanges?error=listing-invalid");
     }
@@ -138,7 +139,7 @@ export async function addExchangeListingFormAction(formData: FormData) {
 
   revalidateListingMutation(exchangeId);
   revalidatePath("/my-items");
-  redirect(`/exchanges/${exchangeId}?listed=1&item=${encodeURIComponent(inventoryItemId)}`);
+  redirect(`/exchanges/${exchangeId}/listings?listed=1&item=${encodeURIComponent(inventoryItemId)}`);
 }
 
 async function removeExchangeListingCore(
@@ -156,7 +157,7 @@ async function removeExchangeListingCore(
   if (!item) {
     return { ok: false, error: "item" };
   }
-  const addressGate = await getGroupAddressGate(exchangeId, userId, `/exchanges/${exchangeId}`);
+  const addressGate = await getGroupAddressGate(exchangeId, userId, `/exchanges/${exchangeId}/listings`);
   if (addressGate.blocked) {
     return { ok: false, error: "address" };
   }
@@ -222,10 +223,10 @@ export async function removeExchangeListingFormAction(formData: FormData) {
   if (!r.ok) {
     switch (r.error) {
       case "item":
-        redirect(`/exchanges/${exchangeId}?error=listing-coral`);
+        redirect(`/exchanges/${exchangeId}/listings?error=listing-coral`);
       case "address": {
-        const gate = await getGroupAddressGate(exchangeId, user.id, `/exchanges/${exchangeId}`);
-        redirect(gate.redirectPath ?? `/exchanges/${exchangeId}?error=address-required-group`);
+        const gate = await getGroupAddressGate(exchangeId, user.id, `/exchanges/${exchangeId}/listings`);
+        redirect(gate.redirectPath ?? `/exchanges/${exchangeId}/listings?error=address-required-group`);
       }
       case "rate_limit":
         redirect("/exchanges?error=trade-rate-limit");
@@ -236,5 +237,5 @@ export async function removeExchangeListingFormAction(formData: FormData) {
 
   revalidateListingMutation(exchangeId);
   revalidatePath("/my-items");
-  redirect(`/exchanges/${exchangeId}?unlisted=1`);
+  redirect(`/exchanges/${exchangeId}/listings?unlisted=1`);
 }
