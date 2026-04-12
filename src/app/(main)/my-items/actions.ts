@@ -346,7 +346,16 @@ export async function deleteInventoryItemAction(itemId: string) {
     redirect(`${MY_ITEMS}?error=locked`);
   }
 
-  await getPrisma().inventoryItem.delete({ where: { id: itemId } });
+  await getPrisma().$transaction(async (tx) => {
+    await tx.trade.deleteMany({
+      where: {
+        inventoryLines: {
+          some: { inventoryItemId: itemId },
+        },
+      },
+    });
+    await tx.inventoryItem.delete({ where: { id: itemId } });
+  });
 
   revalidatePath(MY_ITEMS);
   redirect(MY_ITEMS);
