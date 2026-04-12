@@ -11,7 +11,8 @@ export const metadata: Metadata = {
     "REEFX — join public exchanges and reefing events to list, discover, and trade coral frags with fellow hobbyists — free for members.",
 };
 
-export const revalidate = 60;
+/** Avoid static prerender at build time when DATABASE_URL is not available (e.g. CI). */
+export const dynamic = "force-dynamic";
 
 export default async function RootHomePage() {
   await ensureDatabaseReady();
