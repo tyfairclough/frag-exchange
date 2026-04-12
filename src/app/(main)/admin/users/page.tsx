@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { UserGlobalRole } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
+import { AdminDeleteUserDialog } from "@/app/(main)/admin/users/admin-delete-user-dialog";
 import { updateUserGlobalRoleAction } from "@/app/(main)/admin/users/actions";
 import { MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { requireSuperAdmin } from "@/lib/require-super-admin";
 
 const PAGE_SIZE = 25;
 
@@ -10,19 +12,22 @@ const userErrors: Record<string, string> = {
   invalid: "That request was not valid.",
   "not-found": "User not found.",
   "last-admin": "You cannot remove the last super admin account.",
+  "delete-self": "You cannot delete your own account.",
+  "delete-failed": "Could not delete that user. Please try again.",
 };
 
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; error?: string; updated?: string }>;
+  searchParams: Promise<{ page?: string; error?: string; updated?: string; deleted?: string }>;
 }) {
   const params = await searchParams;
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const skip = (page - 1) * PAGE_SIZE;
 
+  const actor = await requireSuperAdmin();
   const db = getPrisma();
-  const [users, total] = await Promise.all([
+  const [users, total, superAdminCount] = await Promise.all([
     db.user.findMany({
       orderBy: { createdAt: "desc" },
       skip,
@@ -36,6 +41,7 @@ export default async function AdminUsersPage({
       },
     }),
     db.user.count(),
+    db.user.count({ where: { globalRole: UserGlobalRole.SUPER_ADMIN } }),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -64,6 +70,12 @@ export default async function AdminUsersPage({
       {params.updated ? (
         <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           User updated.
+        </div>
+      ) : null}
+
+      {params.deleted ? (
+        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          User deleted.
         </div>
       ) : null}
 
@@ -96,29 +108,40 @@ export default async function AdminUsersPage({
                   {u.createdAt.toISOString().slice(0, 10)}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  {u.globalRole === UserGlobalRole.SUPER_ADMIN ? (
-                    <form action={updateUserGlobalRoleAction} className="inline">
-                      <input type="hidden" name="userId" value={u.id} />
-                      <input type="hidden" name="globalRole" value={UserGlobalRole.MEMBER} />
-                      <button
-                        type="submit"
-                        className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                      >
-                        Make member
-                      </button>
-                    </form>
-                  ) : (
-                    <form action={updateUserGlobalRoleAction} className="inline">
-                      <input type="hidden" name="userId" value={u.id} />
-                      <input type="hidden" name="globalRole" value={UserGlobalRole.SUPER_ADMIN} />
-                      <button
-                        type="submit"
-                        className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                      >
-                        Make super admin
-                      </button>
-                    </form>
-                  )}
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {u.globalRole === UserGlobalRole.SUPER_ADMIN ? (
+                      <form action={updateUserGlobalRoleAction} className="inline">
+                        <input type="hidden" name="userId" value={u.id} />
+                        <input type="hidden" name="globalRole" value={UserGlobalRole.MEMBER} />
+                        <button
+                          type="submit"
+                          className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Make member
+                        </button>
+                      </form>
+                    ) : (
+                      <form action={updateUserGlobalRoleAction} className="inline">
+                        <input type="hidden" name="userId" value={u.id} />
+                        <input type="hidden" name="globalRole" value={UserGlobalRole.SUPER_ADMIN} />
+                        <button
+                          type="submit"
+                          className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Make super admin
+                        </button>
+                      </form>
+                    )}
+                    {u.id === actor.id ? null : (
+                      <AdminDeleteUserDialog
+                        userId={u.id}
+                        email={u.email}
+                        disabled={
+                          u.globalRole === UserGlobalRole.SUPER_ADMIN && superAdminCount <= 1
+                        }
+                      />
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

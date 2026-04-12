@@ -269,47 +269,53 @@ export default async function ExchangeDetailPage({
           <h2 id="exchange-dashboard-heading" className="text-sm font-semibold" style={{ color: MARKETING_NAVY }}>
             At a glance
           </h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Items on the exchange</p>
-              <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{exchangeWideActiveListingCount}</p>
-              <p className="mt-1 text-xs text-slate-600">All active listings (including yours)</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3 sm:items-stretch">
+            <div className="flex min-h-0 min-w-0 flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <div className="flex flex-col">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Items on the exchange</p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{exchangeWideActiveListingCount}</p>
+                <p className="mt-1 text-xs text-slate-600">All active listings (including yours)</p>
+              </div>
               <Link
                 href={exploreHref}
-                className="mt-3 inline-flex min-h-9 w-fit items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                className="inline-flex min-h-9 w-fit shrink-0 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
               >
                 Explore listings
               </Link>
             </div>
 
-            <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your trades</p>
-              <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                <li>
-                  <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.complete}</span> complete
-                </li>
-                <li>
-                  <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.pending}</span> pending
-                </li>
-                <li>
-                  <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.cancelled}</span> cancelled
-                </li>
-              </ul>
+            <div className="flex min-h-0 min-w-0 flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <div className="flex flex-col">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your trades</p>
+                <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                  <li>
+                    <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.complete}</span> complete
+                  </li>
+                  <li>
+                    <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.pending}</span> pending
+                  </li>
+                  <li>
+                    <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.cancelled}</span> cancelled
+                  </li>
+                </ul>
+              </div>
               <Link
                 href={tradesHref}
-                className="mt-3 inline-flex min-h-9 w-fit items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                className="inline-flex min-h-9 w-fit shrink-0 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
               >
                 View trades
               </Link>
             </div>
 
-            <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your listings here</p>
-              <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{myActiveListingCount}</p>
-              <p className="mt-1 text-xs text-slate-600">Items you have listed on this exchange.</p>
+            <div className="flex min-h-0 min-w-0 flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <div className="flex flex-col">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your listings here</p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{myActiveListingCount}</p>
+                <p className="mt-1 text-xs text-slate-600">Items you have listed on this exchange.</p>
+              </div>
               <Link
                 href={listingsHref}
-                className="mt-3 inline-flex min-h-9 w-fit items-center rounded-full px-3 text-xs font-semibold text-white transition hover:opacity-95"
+                className="inline-flex min-h-9 w-fit shrink-0 items-center rounded-full px-3 text-xs font-semibold text-white transition hover:opacity-95"
                 style={{ backgroundColor: MARKETING_CTA_GREEN }}
               >
                 Manage listings
