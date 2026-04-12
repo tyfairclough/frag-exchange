@@ -11,7 +11,6 @@ export const metadata: Metadata = {
   description: "Browse public REEFX events and groups. Join to list and swap corals.",
 };
 
-/** Avoid static prerender at build time when DATABASE_URL is not available (e.g. CI). */
 export const dynamic = "force-dynamic";
 
 export default async function PublicExchangesBrowsePage({

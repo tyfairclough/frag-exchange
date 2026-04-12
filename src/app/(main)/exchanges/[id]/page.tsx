@@ -361,9 +361,6 @@ export default async function ExchangeDetailPage({
                                 ) : null}
                               </div>
                             </div>
-                            <p className="mt-1 line-clamp-2 text-sm text-base-content/70">
-                              {l.inventoryItem.description || "No description yet."}
-                            </p>
                             <p className="mt-2 text-xs text-base-content/60">
                               {listingModeLabel(l.inventoryItem.listingMode)}
                               {l.inventoryItem.kind === InventoryKind.CORAL && l.inventoryItem.coralType
@@ -384,6 +381,14 @@ export default async function ExchangeDetailPage({
                           </div>
                         </div>
                         <div className="flex h-fit flex-nowrap items-end justify-between gap-0 border-t border-base-content/10 pt-3">
+                          {cardShareLinks && cardShareUrl ? (
+                            <ItemShareActions
+                              whatsappUrl={cardShareLinks.whatsapp}
+                              facebookUrl={cardShareLinks.facebook}
+                              bandUrl={cardShareLinks.band}
+                              copyUrl={cardShareUrl}
+                            />
+                          ) : null}
                           <form action={removeExchangeListingFormAction} className="flex h-9 items-start justify-end">
                             <input type="hidden" name="exchangeId" value={exchange.id} />
                             <input type="hidden" name="inventoryItemId" value={l.inventoryItemId} />
@@ -394,14 +399,6 @@ export default async function ExchangeDetailPage({
                               Remove
                             </button>
                           </form>
-                          {cardShareLinks && cardShareUrl ? (
-                            <ItemShareActions
-                              whatsappUrl={cardShareLinks.whatsapp}
-                              facebookUrl={cardShareLinks.facebook}
-                              bandUrl={cardShareLinks.band}
-                              copyUrl={cardShareUrl}
-                            />
-                          ) : null}
                         </div>
                       </div>
                         </article>
@@ -449,9 +446,6 @@ export default async function ExchangeDetailPage({
                                   ) : null}
                                 </div>
                               </div>
-                              <p className="mt-1 line-clamp-2 text-sm text-base-content/70">
-                                {c.description || "No description yet."}
-                              </p>
                               <p className="mt-2 text-xs text-base-content/60">
                                 {listingModeLabel(c.listingMode)}
                                 {c.kind === InventoryKind.CORAL && c.coralType ? ` · ${c.coralType}` : ""}

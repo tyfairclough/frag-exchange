@@ -4,7 +4,6 @@ import { PasswordInputWithToggle } from "@/components/password-input-with-toggle
 import { ensureDatabaseReady } from "@/lib/db-warm";
 import { getSecondaryAuthProviders } from "@/lib/auth/providers";
 
-/** Avoid static prerender at build time when DATABASE_URL is not available (e.g. CI). */
 export const dynamic = "force-dynamic";
 
 const loginErrors: Record<string, string> = {

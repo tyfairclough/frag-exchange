@@ -7,7 +7,6 @@ import { getPrisma } from "@/lib/db";
 import { isSuperAdmin } from "@/lib/super-admin";
 import { redirect } from "next/navigation";
 
-/** Avoid static prerender at build time when DATABASE_URL is not available (e.g. CI). */
 export const dynamic = "force-dynamic";
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {

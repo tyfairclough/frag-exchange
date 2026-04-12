@@ -71,9 +71,10 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
 | Script               | Purpose                                      |
 | -------------------- | -------------------------------------------- |
 | `npm run dev`        | Next dev server                              |
-| `npm run build`      | `prisma generate` + production Next build   |
+| `npm run build`      | `prisma migrate deploy`, then `prisma generate` + production Next build (needs DB env; Hostinger deploy) |
+| `npm run build:no-migrate` | `prisma generate` + Next build only (e.g. CI without DB) |
 | `npm run start`      | Production server (`next start`)             |
-| `npm run db:migrate` | `prisma migrate deploy` (CI / production)   |
+| `npm run db:migrate` | `prisma migrate deploy` (also invoked by `build`) |
 | `npm run db:migrate:dev` | Create/apply migrations in development |
 | `npm run db:up`          | Start local Postgres (Docker Compose)       |
 | `npm run db:down`        | Stop local database containers               |
@@ -88,7 +89,7 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
 
 ## Deploy (Hostinger)
 
-See **[docs/deploy-hostinger.md](./docs/deploy-hostinger.md)** for panel settings, `DATABASE_URL`, build/start commands, and running migrations on deploy.
+See **[docs/deploy-hostinger.md](./docs/deploy-hostinger.md)** for panel settings, `DATABASE_URL` / `DIRECT_URL` at **build** time, and build/start commands. **`npm run build`** applies pending Prisma migrations before compiling Next — no separate SSH migrate step on shared hosting.
 
 ## Neon branch reset workflow
 
