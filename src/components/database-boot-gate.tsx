@@ -128,10 +128,10 @@ export function DatabaseBootGate({ children }: { children: React.ReactNode }) {
             <>
               <span className="loading loading-spinner loading-lg text-primary" aria-hidden />
               <h2 id="db-boot-checking-title" className="text-lg font-semibold text-base-content">
-                Connecting to the database
+                Waking up
               </h2>
               <p id="db-boot-checking-desc" className="max-w-sm text-sm text-base-content/70">
-                Your data store may be waking from sleep. This usually takes a few seconds.
+                REEFX was taking a nap. Please wait a moment while we wake up.
               </p>
             </>
           ) : (

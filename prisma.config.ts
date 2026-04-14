@@ -3,11 +3,17 @@
 import dotenv from "dotenv";
 import { defineConfig } from "prisma/config";
 
+// Match Next.js env precedence: later files override earlier ones (dotenv default is first-wins).
 dotenv.config({ path: ".env" });
 if (process.env.NODE_ENV !== "production") {
-  dotenv.config({ path: ".env.development" });
+  dotenv.config({ path: ".env.development", override: true });
+  dotenv.config({ path: ".env.local", override: true });
+  dotenv.config({ path: ".env.development.local", override: true });
+} else {
+  dotenv.config({ path: ".env.production", override: true });
+  dotenv.config({ path: ".env.local", override: true });
+  dotenv.config({ path: ".env.production.local", override: true });
 }
-dotenv.config({ path: ".env.local" });
 
 const databaseUrl = process.env["DATABASE_URL"];
 const directUrl = process.env["DIRECT_URL"];
