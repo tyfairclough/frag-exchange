@@ -41,6 +41,52 @@ function TabLink({
   );
 }
 
+function groupExchangeItemTypesLine(row: PublicBrowseGroupRow): string {
+  const parts: string[] = [];
+  if (row.allowCoral) {
+    parts.push("Coral");
+  }
+  if (row.allowFish) {
+    parts.push("Fish");
+  }
+  if (row.allowEquipment) {
+    parts.push("Gear");
+  }
+  return parts.length > 0 ? parts.join(", ") : "—";
+}
+
+function GroupExchangeCell({ row }: { row: PublicBrowseGroupRow }) {
+  const desc = row.description?.trim();
+  return (
+    <div className="flex min-w-0 items-start gap-3">
+      {row.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- exchange logos / uploaded URLs
+        <img
+          src={row.logoUrl}
+          alt=""
+          aria-hidden
+          className="mt-0.5 h-10 w-10 shrink-0 rounded-md object-cover ring-1 ring-slate-200/80"
+        />
+      ) : (
+        <div
+          className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-400 ring-1 ring-slate-200/80"
+          aria-hidden
+        >
+          {row.name.slice(0, 1).toUpperCase()}
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="font-medium" style={{ color: MARKETING_NAVY }}>
+          {row.name}
+        </p>
+        {desc ? (
+          <p className="mt-1 line-clamp-2 text-sm font-normal leading-snug text-slate-600">{desc}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function JoinExchangeControl({
   exchangeId,
   isLoggedIn,
@@ -198,6 +244,7 @@ function GroupsTables({
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <th className="pb-3 pr-4 font-semibold">Group</th>
               <th className="pb-3 pr-4 font-semibold">Exchange</th>
               <th className="pb-3 pr-4 font-semibold">Reefers / Corals</th>
               <th className="pb-3 text-right font-semibold" />
@@ -206,8 +253,11 @@ function GroupsTables({
           <tbody>
             {groups.map((row) => (
               <tr key={row.id} className="border-b border-slate-100 last:border-0">
-                <td className="py-3.5 pr-4 font-medium" style={{ color: MARKETING_NAVY }}>
-                  {row.name}
+                <td className="max-w-md py-3.5 pr-4 align-top">
+                  <GroupExchangeCell row={row} />
+                </td>
+                <td className="max-w-[12rem] py-3.5 pr-4 align-top text-slate-600">
+                  {groupExchangeItemTypesLine(row)}
                 </td>
                 <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-slate-600">
                   {row.memberCount}/{row.activeListingCount}
@@ -231,7 +281,10 @@ function GroupsTables({
             className="rounded-xl border border-slate-200/80 bg-slate-50/80 p-4"
             style={{ color: MARKETING_NAVY }}
           >
-            <p className="font-semibold">{row.name}</p>
+            <GroupExchangeCell row={row} />
+            <p className="mt-3 text-sm text-slate-600">
+              <span className="font-medium text-slate-500">Exchange</span> {groupExchangeItemTypesLine(row)}
+            </p>
             <p className="mt-2 text-sm tabular-nums text-slate-600">
               <span className="font-medium text-slate-500">Reefers / Corals</span> {row.memberCount}/
               {row.activeListingCount}

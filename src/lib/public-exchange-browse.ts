@@ -11,6 +11,12 @@ export type PublicBrowseEventRow = {
 export type PublicBrowseGroupRow = {
   id: string;
   name: string;
+  description: string | null;
+  /** Best available logo URL for list thumbnails. */
+  logoUrl: string | null;
+  allowCoral: boolean;
+  allowFish: boolean;
+  allowEquipment: boolean;
   memberCount: number;
   activeListingCount: number;
 };
@@ -55,6 +61,13 @@ export async function getPublicBrowseGroups(): Promise<PublicBrowseGroupRow[]> {
     select: {
       id: true,
       name: true,
+      description: true,
+      logo40Url: true,
+      logo80Url: true,
+      logo512Url: true,
+      allowCoral: true,
+      allowFish: true,
+      allowEquipment: true,
       _count: { select: { memberships: true } },
     },
   });
@@ -78,6 +91,11 @@ export async function getPublicBrowseGroups(): Promise<PublicBrowseGroupRow[]> {
     .map((r) => ({
       id: r.id,
       name: r.name,
+      description: r.description?.trim() ? r.description.trim() : null,
+      logoUrl: r.logo80Url ?? r.logo512Url ?? r.logo40Url ?? null,
+      allowCoral: r.allowCoral,
+      allowFish: r.allowFish,
+      allowEquipment: r.allowEquipment,
       memberCount: r._count.memberships,
       activeListingCount: listingByExchange.get(r.id) ?? 0,
     }))

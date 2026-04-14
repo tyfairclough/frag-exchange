@@ -547,6 +547,7 @@ export function ExploreHeaderChrome() {
     coralColours: coralColourOptions,
   } = model;
   const itemTabOptions = itemTabOptionsFor(model.allowedItemTabs);
+  const showItemTypeFilter = itemTabOptions.length > 1;
   const fallbackTab = itemTabOptions[0]?.[0] ?? "coral";
   const tab = itemTabOptions.some(([id]) => id === draft.itemTab) ? draft.itemTab : fallbackTab;
   const isGroup = exchangeKind === "GROUP";
@@ -594,25 +595,27 @@ export function ExploreHeaderChrome() {
         <p className="text-center text-sm font-semibold text-[var(--color-black)]">{countLabel}</p>
       </div>
 
-      <div className="border-b border-slate-100 bg-white px-3 py-2 sm:px-4">
-        <div className="mx-auto flex w-full max-w-lg gap-1 rounded-full bg-slate-100 p-1">
-          {itemTabOptions.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={`flex-1 rounded-full px-2 py-2 text-center text-xs font-semibold sm:text-sm ${
-                tab === id ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-              }`}
-              onClick={() => switchItemTab(id)}
-            >
-              {label}
-            </button>
-          ))}
+      {showItemTypeFilter ? (
+        <div className="border-b border-slate-100 bg-white px-3 py-2 sm:px-4">
+          <div className="mx-auto flex w-full max-w-lg gap-1 rounded-full bg-slate-100 p-1">
+            {itemTabOptions.map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`flex-1 rounded-full px-2 py-2 text-center text-xs font-semibold sm:text-sm ${
+                  tab === id ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                }`}
+                onClick={() => switchItemTab(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mx-auto mt-2 max-w-lg text-center text-[0.65rem] text-slate-500">
+            Tab picks filters. Tap &quot;Show results&quot; to apply kind and filters.
+          </p>
         </div>
-        <p className="mx-auto mt-2 max-w-lg text-center text-[0.65rem] text-slate-500">
-          Tab picks filters. Tap &quot;Show results&quot; to apply kind and filters.
-        </p>
-      </div>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-white)] px-3 py-4 text-[var(--color-black)] sm:px-4">
         <div className="mx-auto flex w-full max-w-lg flex-col gap-2">
@@ -957,7 +960,7 @@ export function ExploreHeaderChrome() {
     </div>
   );
 
-  const itemTabRow = (
+  const itemTabRow = showItemTypeFilter ? (
     <div
       className={`tabs tabs-border hidden w-fit max-w-full items-center gap-1 overflow-hidden rounded-2xl px-1 transition-all duration-300 motion-reduce:transition-none md:flex ${
         isDesktopCompact
@@ -981,7 +984,7 @@ export function ExploreHeaderChrome() {
         </button>
       ))}
     </div>
-  );
+  ) : null;
 
   const desktopItemTabSegment = (
     <div className="relative">
@@ -1019,12 +1022,14 @@ export function ExploreHeaderChrome() {
 
   const desktopCoralPill = (
     <div className="flex max-w-full items-stretch rounded-full border border-slate-200/90 bg-white shadow-sm">
-      {isDesktopCompact ? desktopItemTabSegment : null}
-      <div className={`relative ${isDesktopCompact ? "border-l border-slate-200/80" : ""}`}>
+      {isDesktopCompact && showItemTypeFilter ? desktopItemTabSegment : null}
+      <div
+        className={`relative ${isDesktopCompact && showItemTypeFilter ? "border-l border-slate-200/80" : ""}`}
+      >
         <button
           type="button"
           className={`flex h-full min-w-[7rem] flex-col items-start justify-center px-4 py-2 text-left hover:bg-slate-50 ${
-            isDesktopCompact ? "" : "rounded-l-full"
+            !isDesktopCompact || !showItemTypeFilter ? "rounded-l-full" : ""
           }`}
           onClick={() => setOpenMenu((m) => (m === "type" ? null : "type"))}
           aria-expanded={openMenu === "type"}
@@ -1141,11 +1146,17 @@ export function ExploreHeaderChrome() {
 
   const desktopFishPill = (
     <div className="flex max-w-full items-stretch rounded-full border border-slate-200/90 bg-white shadow-sm">
-      {isDesktopCompact ? desktopItemTabSegment : null}
-      <div className={`relative ${isDesktopCompact ? "border-l border-slate-200/80" : "border-l-0"}`}>
+      {isDesktopCompact && showItemTypeFilter ? desktopItemTabSegment : null}
+      <div
+        className={`relative ${
+          isDesktopCompact && showItemTypeFilter ? "border-l border-slate-200/80" : "border-l-0"
+        }`}
+      >
         <button
           type="button"
-          className="flex h-full min-w-[7rem] flex-col items-start justify-center px-4 py-2 text-left hover:bg-slate-50"
+          className={`flex h-full min-w-[7rem] flex-col items-start justify-center px-4 py-2 text-left hover:bg-slate-50 ${
+            !isDesktopCompact || !showItemTypeFilter ? "rounded-l-full" : ""
+          }`}
           onClick={() => setOpenMenu((m) => (m === "colour" ? null : "colour"))}
           aria-expanded={openMenu === "colour"}
         >
@@ -1255,12 +1266,14 @@ export function ExploreHeaderChrome() {
 
   const desktopEquipmentPill = (
     <div className="flex max-w-full items-stretch rounded-full border border-slate-200/90 bg-white shadow-sm">
-      {isDesktopCompact ? desktopItemTabSegment : null}
-      <div className={`relative ${isDesktopCompact ? "border-l border-slate-200/80" : ""}`}>
+      {isDesktopCompact && showItemTypeFilter ? desktopItemTabSegment : null}
+      <div
+        className={`relative ${isDesktopCompact && showItemTypeFilter ? "border-l border-slate-200/80" : ""}`}
+      >
         <button
           type="button"
           className={`flex h-full min-w-[7rem] flex-col items-start justify-center px-4 py-2 text-left hover:bg-slate-50 ${
-            isDesktopCompact ? "" : "rounded-l-full"
+            !isDesktopCompact || !showItemTypeFilter ? "rounded-l-full" : ""
           }`}
           onClick={() => setOpenMenu((m) => (m === "equipCat" ? null : "equipCat"))}
           aria-expanded={openMenu === "equipCat"}

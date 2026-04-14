@@ -27,6 +27,8 @@ model User {
   globalRole                UserGlobalRole       @default(MEMBER)
   /// Bcrypt hash for optional password sign-in (magic link remains supported when null).
   passwordHash              String?              @db.VarChar(255)
+  /// Free text: kinds of items the user wants to trade (profiles / recommendations later).
+  tradeSeekingNotes         String?              @db.Text
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
   address                   UserAddress?

@@ -10,6 +10,10 @@ import { sendPasswordChangedNoticeEmail } from "@/lib/send-password-changed-emai
 import { consumeRateLimitToken } from "@/lib/rate-limit";
 import { refreshTownCenterForUserAddress } from "@/lib/town-geocode";
 import { sliceForZxcvbn } from "@/lib/zxcvbn-password";
+import {
+  MAX_TRADE_SEEKING_WORDS,
+  tradeSeekingWordCount,
+} from "@/lib/trade-seeking-notes";
 
 function str(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -118,6 +122,33 @@ export async function setUserPasswordAction(
   }
 
   revalidatePath("/me");
+  return { ok: true };
+}
+
+export async function updateTradeSeekingNotesAction(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await requireUser();
+  const raw = formData.get("tradeSeekingNotes");
+  const value = typeof raw === "string" ? raw : "";
+  const normalized = value.trim();
+
+  if (tradeSeekingWordCount(normalized) > MAX_TRADE_SEEKING_WORDS) {
+    return {
+      ok: false,
+      error: `Use at most ${MAX_TRADE_SEEKING_WORDS} words.`,
+    };
+  }
+
+  const stored = normalized === "" ? null : normalized;
+
+  await getPrisma().user.update({
+    where: { id: user.id },
+    data: { tradeSeekingNotes: stored },
+  });
+
+  revalidatePath("/me");
+  revalidatePath("/me/preferences");
   return { ok: true };
 }
 

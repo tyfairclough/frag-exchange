@@ -1,6 +1,7 @@
 import { ContactPreference } from "@/generated/prisma/client";
 import Link from "next/link";
 import { MeAddressSection } from "@/app/(main)/me/me-address-section";
+import { MeHubNav } from "@/app/(main)/me/me-hub-nav";
 import { MeAvatarSection } from "@/app/(main)/me/me-avatar-section";
 import { MePasswordSection } from "@/app/(main)/me/me-password-section";
 import { requireUser } from "@/lib/auth";
@@ -20,14 +21,7 @@ export default async function MePage() {
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
       <h1 className="text-xl font-semibold text-base-content">Me</h1>
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Link href="/exchanges" className="btn btn-outline min-h-11 rounded-xl">
-          Exchanges
-        </Link>
-        <Link href="/my-items" className="btn btn-outline min-h-11 rounded-xl">
-          My items
-        </Link>
-      </div>
+      <MeHubNav />
       <section className="card border border-base-content/10 bg-base-100 shadow-sm">
         <div className="card-body p-5 text-sm">
           <div className="flex items-center gap-3">
