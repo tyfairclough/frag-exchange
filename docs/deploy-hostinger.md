@@ -16,6 +16,8 @@ Add **at least**:
 | `DATABASE_URL`   | Neon **pooled** Postgres URL for app runtime, e.g. `postgresql://...-pooler...`. Never commit. Local **`.env.development`** is **ignored in production**; production must get `DATABASE_URL` from this panel. |
 | `DIRECT_URL`     | Neon **direct** Postgres URL for Prisma migration/introspection (`prisma migrate deploy`). **Required at build time** — see section 3. |
 | `NODE_ENV`       | Usually `production` (often set automatically).                            |
+| `UPLOADS_STORAGE_PATH` | Absolute path to persistent uploads root that backs `uploads.reefx.net` (must be writable by the Node process and outside the app deploy directory). |
+| `UPLOADS_PUBLIC_BASE_URL` | Public base URL for uploaded assets (for this setup: `https://uploads.reefx.net`). |
 
 Optional Next defaults apply; add others only when you introduce features that need them.
 
@@ -43,6 +45,15 @@ If the panel offers a **custom start** field, align it exactly with your `packag
 
 Do **not** commit `.env`; store secrets only in the panel or your secret manager.
 
+## 4b. Persistent uploads storage
+
+REEFX user uploads are runtime-generated files and must not be written into the app's own `public/` deploy folder.
+
+- Point `UPLOADS_STORAGE_PATH` to a directory that survives releases (for example, a domain document root or mounted persistent volume).
+- Ensure the Node process user has read/write permissions on `UPLOADS_STORAGE_PATH`.
+- Serve that directory from `UPLOADS_PUBLIC_BASE_URL` (for this project: `https://uploads.reefx.net`).
+- Keep the uploads directory outside the Node.js app release path so redeploys do not delete files.
+
 ## 5. Database source
 
 Use **Neon Postgres** as the primary database. Prisma schema provider is **`postgresql`** and runtime uses Prisma's native Postgres engine with `DATABASE_URL` (pooled) + `DIRECT_URL` (direct).
@@ -64,6 +75,8 @@ The endpoint returns JSON counts (`listingsRemoved`, `tradesExpired`). Without `
 ## 7. Checklist
 
 - [ ] `DATABASE_URL` and **`DIRECT_URL`** set in the Node.js app environment (and available to the **build** step)  
+- [ ] `UPLOADS_STORAGE_PATH` points to persistent storage outside deploy artifacts, and Node can write there  
+- [ ] `UPLOADS_PUBLIC_BASE_URL` is set to `https://uploads.reefx.net` and correctly serves uploaded files  
 - [ ] `npm run build` succeeds on the server — build logs should show Prisma applying migrations (or “already in sync”) before `next build`  
 - [ ] `npm run start` matches panel port / proxy settings  
 - [ ] `/api/health` returns `{ "ok": true, "database": "up" }` when DB is reachable  

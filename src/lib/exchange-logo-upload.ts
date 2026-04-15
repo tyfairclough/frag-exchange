@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
+import { getUploadsDiskPath, toUploadsPublicUrl } from "@/lib/uploads-storage";
 
 export const EXCHANGE_LOGO_UPLOAD_MAX_BYTES = 6 * 1024 * 1024;
 
@@ -37,24 +38,24 @@ export async function saveExchangeLogoToPublic(params: {
   }
 
   const id = crypto.randomUUID();
-  const publicDir = path.join(process.cwd(), "public", "exchange-logos", params.exchangeId);
-  await mkdir(publicDir, { recursive: true });
+  const uploadsDir = getUploadsDiskPath("exchange-logos", params.exchangeId);
+  await mkdir(uploadsDir, { recursive: true });
 
   const file40 = `${id}-40.webp`;
   const file80 = `${id}-80.webp`;
   const file512 = `${id}-512.webp`;
 
   await Promise.all([
-    writeWebpVariant({ outputPath: path.join(publicDir, file40), source: params.buffer, size: 40 }),
-    writeWebpVariant({ outputPath: path.join(publicDir, file80), source: params.buffer, size: 80 }),
-    writeWebpVariant({ outputPath: path.join(publicDir, file512), source: params.buffer, size: 512 }),
+    writeWebpVariant({ outputPath: path.join(uploadsDir, file40), source: params.buffer, size: 40 }),
+    writeWebpVariant({ outputPath: path.join(uploadsDir, file80), source: params.buffer, size: 80 }),
+    writeWebpVariant({ outputPath: path.join(uploadsDir, file512), source: params.buffer, size: 512 }),
   ]);
 
   const logoUpdatedAt = new Date();
   return {
-    logo40Url: `/${path.posix.join("exchange-logos", params.exchangeId, file40)}`,
-    logo80Url: `/${path.posix.join("exchange-logos", params.exchangeId, file80)}`,
-    logo512Url: `/${path.posix.join("exchange-logos", params.exchangeId, file512)}`,
+    logo40Url: toUploadsPublicUrl("exchange-logos", params.exchangeId, file40),
+    logo80Url: toUploadsPublicUrl("exchange-logos", params.exchangeId, file80),
+    logo512Url: toUploadsPublicUrl("exchange-logos", params.exchangeId, file512),
     logoUpdatedAt,
   };
 }

@@ -5,6 +5,7 @@ import {
   INVENTORY_IMAGE_MAX_EDGE,
   INVENTORY_IMAGE_WEBP_QUALITY,
 } from "@/lib/inventory-image-spec";
+import { getUploadsDiskPath, toUploadsPublicUrl } from "@/lib/uploads-storage";
 
 export const CORAL_UPLOAD_MAX_BYTES = 6 * 1024 * 1024;
 
@@ -48,13 +49,13 @@ export async function saveCoralImageToPublic(params: {
 
   const id = crypto.randomUUID();
   const fileName = `${id}.webp`;
-  const publicDir = path.join(process.cwd(), "public", "coral-uploads", params.userId);
-  await mkdir(publicDir, { recursive: true });
+  const uploadsDir = getUploadsDiskPath("coral-uploads", params.userId);
+  await mkdir(uploadsDir, { recursive: true });
 
-  const diskPath = path.join(publicDir, fileName);
+  const diskPath = path.join(uploadsDir, fileName);
   await writeFile(diskPath, out);
 
-  return `/${path.posix.join("coral-uploads", params.userId, fileName)}`;
+  return toUploadsPublicUrl("coral-uploads", params.userId, fileName);
 }
 
 export function validateImageMime(mime: string): boolean {
