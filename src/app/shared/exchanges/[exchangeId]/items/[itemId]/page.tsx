@@ -7,7 +7,7 @@ import { getPrisma } from "@/lib/db";
 import { ensureDatabaseReady } from "@/lib/db-warm";
 import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { canViewExchangeDirectory } from "@/lib/super-admin";
-import { buildSharedItemPath } from "@/lib/item-share";
+import { buildSharedItemPath, getShareItemTypeLabel } from "@/lib/item-share";
 import { joinExchangeAndStartTradeAction } from "./actions";
 
 export async function generateMetadata({
@@ -24,8 +24,10 @@ export async function generateMetadata({
   if (!listing) {
     return { title: "Listing unavailable" };
   }
-  const title = `${listing.inventoryItem.name} on ${listing.exchange.name}`;
-  const description = listing.inventoryItem.description?.trim() || `Listed on ${listing.exchange.name}.`;
+  const title = `${listing.inventoryItem.name} on the ${listing.exchange.name} exchange`;
+  const intro = `I am sharing this ${getShareItemTypeLabel(listing.inventoryItem.kind)} on the swap site REEFX, check it out 🐠`;
+  const itemDescription = listing.inventoryItem.description?.trim();
+  const description = [intro, itemDescription || `Listed on ${listing.exchange.name}.`].join(" ");
   const url = buildSharedItemPath(exchangeId, itemId);
   return {
     title,

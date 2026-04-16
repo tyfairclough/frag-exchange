@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PosthogConsentResetButton } from "@/components/posthog-consent-reset-button";
 import {
   LEGAL_COMPANY_NUMBER,
   LEGAL_CONTACT_EMAIL,
@@ -110,9 +111,9 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong className="font-medium text-slate-800">Analytics and similar technologies:</strong> usage and
-              diagnostic information collected through Google Analytics and similar tools, which may include device and
-              browser data, approximate location, and on-site behaviour (subject to your cookie choices where
-              applicable).
+              diagnostic information collected through PostHog, Google Analytics, and similar tools where used, which may
+              include device and browser data, approximate location, and on-site behaviour (subject to your cookie
+              choices where applicable).
             </li>
           </ul>
         </section>
@@ -197,6 +198,11 @@ export default function PrivacyPage() {
             <li>
               <strong className="font-medium text-slate-800">Google</strong> — analytics and related measurement tools
               (for example Google Analytics).
+            </li>
+            <li>
+              <strong className="font-medium text-slate-800">PostHog</strong> — product analytics on the web app (EU
+              region where configured), including page views and related usage events when you opt in to analytics
+              cookies.
             </li>
           </ul>
           <p>
@@ -302,9 +308,93 @@ export default function PrivacyPage() {
           </p>
           <h2 className="text-base font-semibold text-slate-900">13. Cookies and similar technologies</h2>
           <p>
-            We use cookies and similar technologies that are necessary for the Service to function, and where applicable
-            analytics tools (such as Google Analytics) that may use cookies or identifiers. Where required, we will ask
-            for your consent before using non-essential cookies and provide a way to change your preferences.
+            We use cookies and similar technologies that are necessary for the Service to function, and — only if you
+            accept analytics cookies in the in-app banner — PostHog cookies and local storage for product analytics.
+            Other analytics tools (such as Google Analytics) may use cookies or identifiers where implemented. Where
+            required, we ask for your consent before using non-essential cookies.
+          </p>
+          <h3 className="mt-6 text-sm font-semibold text-slate-900">13.1 Strictly necessary (no consent required)</h3>
+          <p className="text-sm">
+            These are required to operate the Service (for example authentication session cookies). They are not used for
+            optional analytics or marketing.
+          </p>
+          <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200/80">
+            <table className="min-w-full text-left text-xs text-slate-600 sm:text-sm">
+              <thead className="bg-slate-50 text-slate-900">
+                <tr>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold sm:px-4">Cookie / storage</th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold sm:px-4">Provider</th>
+                  <th className="px-3 py-2 font-semibold sm:px-4">Purpose</th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold sm:px-4">Typical duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] sm:px-4 sm:text-xs">
+                    Session / auth cookies (names vary)
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 sm:px-4">REEFX</td>
+                  <td className="px-3 py-2 sm:px-4">Keep you signed in and secure the Service.</td>
+                  <td className="whitespace-nowrap px-3 py-2 sm:px-4">Session or up to ~30 days</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3 className="mt-8 text-sm font-semibold text-slate-900">13.2 Analytics (consent required)</h3>
+          <p className="text-sm">
+            PostHog is only loaded with analytics persistence after you click &quot;Accept analytics&quot; on the cookie
+            banner. Cookie and storage names depend on your browser and our PostHog project key; they commonly include
+            the prefixes below.
+          </p>
+          <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200/80">
+            <table className="min-w-full text-left text-xs text-slate-600 sm:text-sm">
+              <thead className="bg-slate-50 text-slate-900">
+                <tr>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold sm:px-4">Cookie / storage key</th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold sm:px-4">Provider</th>
+                  <th className="px-3 py-2 font-semibold sm:px-4">Purpose</th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold sm:px-4">Typical duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr>
+                  <td className="px-3 py-2 font-mono text-[11px] sm:px-4 sm:text-xs">
+                    ph_phc_&lt;project_key&gt;_posthog (cookie and/or localStorage)
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 sm:px-4">PostHog</td>
+                  <td className="px-3 py-2 sm:px-4">
+                    Distinct ID, session, and SDK state for product analytics (for example page views).
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 sm:px-4">Up to ~1 year (per PostHog defaults)</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-mono text-[11px] sm:px-4 sm:text-xs">
+                    __ph_opt_in_out_phc_&lt;project_key&gt; (cookie)
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 sm:px-4">PostHog</td>
+                  <td className="px-3 py-2 sm:px-4">Records whether you have opted in or out of PostHog capturing.</td>
+                  <td className="whitespace-nowrap px-3 py-2 sm:px-4">Up to ~1 year</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-mono text-[11px] sm:px-4 sm:text-xs">ph_* (related SDK keys)</td>
+                  <td className="whitespace-nowrap px-3 py-2 sm:px-4">PostHog</td>
+                  <td className="px-3 py-2 sm:px-4">
+                    Supporting analytics data (for example feature flag cache) as implemented by the SDK.
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 sm:px-4">Varies; often session to ~1 year</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3 className="mt-8 text-sm font-semibold text-slate-900">13.3 Changing your preferences</h3>
+          <p className="text-sm">
+            When you first visit REEFX, you can accept or decline analytics cookies using the banner at the bottom of
+            the screen. To withdraw consent or choose again, clear site data for REEFX in your browser settings, or use
+            the button below (this clears PostHog&apos;s opt-in/opt-out state for this browser and reloads the page so
+            the banner can appear again).
+          </p>
+          <p className="text-sm">
+            <PosthogConsentResetButton />
           </p>
         </section>
 

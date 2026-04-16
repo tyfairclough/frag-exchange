@@ -72,7 +72,14 @@ export async function ExchangeMemberListingsPanel({
   const sharePath = justListed ? buildSharedItemPath(exchange.id, justListed.inventoryItemId) : null;
   const shareUrl = sharePath && shareOrigin ? `${shareOrigin}${sharePath}` : null;
   const shareMessage =
-    justListed && shareUrl ? buildShareMessage(justListed.inventoryItem.name, exchange.name) : null;
+    justListed && shareUrl
+      ? buildShareMessage({
+          kind: justListed.inventoryItem.kind,
+          itemName: justListed.inventoryItem.name,
+          exchangeName: exchange.name,
+          description: justListed.inventoryItem.description,
+        })
+      : null;
   const shareLinks = shareMessage && shareUrl ? buildShareLinks({ message: shareMessage, absoluteUrl: shareUrl }) : null;
 
   const myUnlistedItemsForExchange = myListableItems.filter((c) => {
@@ -122,7 +129,14 @@ export async function ExchangeMemberListingsPanel({
           {[...activeListingByItemId.values()].map((l) => {
             const cardSharePath = buildSharedItemPath(exchange.id, l.inventoryItemId);
             const cardShareUrl = shareOrigin ? `${shareOrigin}${cardSharePath}` : null;
-            const cardShareMessage = cardShareUrl ? buildShareMessage(l.inventoryItem.name, exchange.name) : null;
+            const cardShareMessage = cardShareUrl
+              ? buildShareMessage({
+                  kind: l.inventoryItem.kind,
+                  itemName: l.inventoryItem.name,
+                  exchangeName: exchange.name,
+                  description: l.inventoryItem.description,
+                })
+              : null;
             const cardShareLinks =
               cardShareMessage && cardShareUrl
                 ? buildShareLinks({ message: cardShareMessage, absoluteUrl: cardShareUrl })

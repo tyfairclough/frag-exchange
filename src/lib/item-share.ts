@@ -1,9 +1,34 @@
+import { InventoryKind } from "@/generated/prisma/enums";
+
 export function buildSharedItemPath(exchangeId: string, itemId: string): string {
   return `/shared/exchanges/${encodeURIComponent(exchangeId)}/items/${encodeURIComponent(itemId)}`;
 }
 
-export function buildShareMessage(itemName: string, exchangeName: string): string {
-  return `${itemName} listed in ${exchangeName}.`;
+export function getShareItemTypeLabel(kind: InventoryKind): string {
+  switch (kind) {
+    case InventoryKind.CORAL:
+      return "coral";
+    case InventoryKind.FISH:
+      return "marine fish";
+    default:
+      return "aquarium gear";
+  }
+}
+
+export function buildShareMessage(params: {
+  kind: InventoryKind;
+  itemName: string;
+  exchangeName: string;
+  description?: string | null;
+}): string {
+  const description = params.description?.trim();
+  const messageLines = [
+    `I am sharing this ${getShareItemTypeLabel(params.kind)} on the swap site REEFX, check it out 🐠`,
+    `${params.itemName} on the ${params.exchangeName} exchange`,
+    ...(description ? [description] : []),
+    "www.reefx.net",
+  ];
+  return messageLines.join("\n");
 }
 
 export function buildShareLinks(params: {
