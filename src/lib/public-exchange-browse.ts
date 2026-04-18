@@ -1,4 +1,8 @@
 import { ExchangeKind, ExchangeVisibility } from "@/generated/prisma/enums";
+import {
+  exchangeLogoSrcSetForListThumbnail,
+  exchangeLogoUrlForListThumbnail,
+} from "@/lib/exchange-logo-urls";
 import { getPrisma } from "@/lib/db";
 
 export type PublicBrowseEventRow = {
@@ -14,6 +18,8 @@ export type PublicBrowseGroupRow = {
   description: string | null;
   /** Best available logo URL for list thumbnails. */
   logoUrl: string | null;
+  /** When present, use with `logoUrl` as `img` `srcSet` for density-aware loading. */
+  logoSrcSet: string | undefined;
   allowCoral: boolean;
   allowFish: boolean;
   allowEquipment: boolean;
@@ -88,16 +94,24 @@ export async function getPublicBrowseGroups(): Promise<PublicBrowseGroupRow[]> {
   const listingByExchange = new Map(listingAgg.map((g) => [g.exchangeId, g._count._all]));
 
   return rows
-    .map((r) => ({
+    .map((r) => {
+      const logos = {
+        logo40Url: r.logo40Url,
+        logo80Url: r.logo80Url,
+        logo512Url: r.logo512Url,
+      };
+      return {
       id: r.id,
       name: r.name,
       description: r.description?.trim() ? r.description.trim() : null,
-      logoUrl: r.logo80Url ?? r.logo512Url ?? r.logo40Url ?? null,
+      logoUrl: exchangeLogoUrlForListThumbnail(logos),
+      logoSrcSet: exchangeLogoSrcSetForListThumbnail(logos),
       allowCoral: r.allowCoral,
       allowFish: r.allowFish,
       allowEquipment: r.allowEquipment,
       memberCount: r._count.memberships,
       activeListingCount: listingByExchange.get(r.id) ?? 0,
-    }))
+    };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 }

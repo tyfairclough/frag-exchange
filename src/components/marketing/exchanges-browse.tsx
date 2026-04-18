@@ -63,6 +63,7 @@ function GroupExchangeCell({ row }: { row: PublicBrowseGroupRow }) {
         // eslint-disable-next-line @next/next/no-img-element -- exchange logos / uploaded URLs
         <img
           src={row.logoUrl}
+          srcSet={row.logoSrcSet}
           alt=""
           aria-hidden
           className="mt-0.5 h-10 w-10 shrink-0 rounded-md object-cover ring-1 ring-slate-200/80"

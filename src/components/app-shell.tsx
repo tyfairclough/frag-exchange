@@ -83,7 +83,7 @@ function ShellTitleInner() {
         if (!res.ok) {
           return null;
         }
-        return (await res.json()) as { title?: string; logoUrl?: string | null };
+        return (await res.json()) as { title?: string; logoUrl?: string | null; logoSrcSet?: string };
       })
       .then((payload) => {
         if (payload?.title) {
@@ -120,6 +120,7 @@ function ShellBrandLink() {
   const pathname = usePathname();
   const exchangeId = pathname === "/explore" ? null : getExchangeIdFromPathname(pathname);
   const [exchangeLogoUrl, setExchangeLogoUrl] = useState<string | null>(null);
+  const [exchangeLogoSrcSet, setExchangeLogoSrcSet] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (!exchangeId) {
@@ -130,17 +131,20 @@ function ShellBrandLink() {
       signal: controller.signal,
       cache: "no-store",
     })
-      .then(async (res) => (res.ok ? ((await res.json()) as { logoUrl?: string | null }) : null))
+      .then(async (res) => (res.ok ? ((await res.json()) as { logoUrl?: string | null; logoSrcSet?: string }) : null))
       .then((payload) => {
         setExchangeLogoUrl(payload?.logoUrl ?? null);
+        setExchangeLogoSrcSet(payload?.logoSrcSet);
       })
       .catch(() => {
         setExchangeLogoUrl(null);
+        setExchangeLogoSrcSet(undefined);
       });
     return () => controller.abort();
   }, [exchangeId]);
 
   const shellLogoUrl = exchangeId ? exchangeLogoUrl : null;
+  const shellLogoSrcSet = exchangeId ? exchangeLogoSrcSet : undefined;
 
   return (
     <AppLink
@@ -150,6 +154,7 @@ function ShellBrandLink() {
       {shellLogoUrl ? (
         <img
           src={shellLogoUrl}
+          srcSet={shellLogoSrcSet}
           alt=""
           width={40}
           height={40}

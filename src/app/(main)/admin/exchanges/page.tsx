@@ -2,6 +2,10 @@ import Link from "next/link";
 import { ExchangeKind, ExchangeVisibility } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import {
+  exchangeLogoSrcSetForListThumbnail,
+  exchangeLogoUrlForListThumbnail,
+} from "@/lib/exchange-logo-urls";
 
 function reefersLabel(count: number): string {
   return count === 1 ? "1 reefer" : `${count} reefers`;
@@ -37,14 +41,23 @@ export default async function AdminExchangesPage() {
         <p className="text-sm text-slate-600">No exchanges yet.</p>
       ) : (
         <ul className="space-y-3">
-          {exchanges.map((ex) => (
+          {exchanges.map((ex) => {
+            const listLogoUrl = exchangeLogoUrlForListThumbnail(ex);
+            const listLogoSrcSet = exchangeLogoSrcSetForListThumbnail(ex);
+            return (
             <li key={ex.id}>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300">
                 <div className="flex flex-row flex-wrap items-start justify-between gap-3 gap-y-2">
                   <Link href={`/exchanges/${ex.id}`} className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      {ex.logo40Url ? (
-                        <img src={ex.logo40Url} alt="" aria-hidden className="h-10 w-10 shrink-0 rounded-md object-cover" />
+                      {listLogoUrl ? (
+                        <img
+                          src={listLogoUrl}
+                          srcSet={listLogoSrcSet}
+                          alt=""
+                          aria-hidden
+                          className="h-10 w-10 shrink-0 rounded-md object-cover"
+                        />
                       ) : (
                         <img src="/reefx_logo.svg" alt="" aria-hidden className="h-10 w-10 shrink-0 object-contain" />
                       )}
@@ -67,7 +80,8 @@ export default async function AdminExchangesPage() {
                 </div>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

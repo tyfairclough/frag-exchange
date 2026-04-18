@@ -17,6 +17,10 @@ import { EventDateHighlight } from "@/app/(main)/exchanges/components/event-date
 import { OperatorExchangeDeleteDialog } from "@/app/(main)/operator/components/operator-exchange-delete-dialog";
 import { OperatorExchangeTabs } from "@/app/(main)/operator/components/operator-exchange-tabs";
 import { MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import {
+  exchangeLogoSrcSetForListThumbnail,
+  exchangeLogoUrlForListThumbnail,
+} from "@/lib/exchange-logo-urls";
 
 function tradeStatusLabel(status: TradeStatus): string {
   switch (status) {
@@ -110,6 +114,8 @@ export default async function OperatorExchangeDashboardPage({
   ];
 
   const reefersCount = exchange.memberships.length;
+  const headerLogoUrl = exchangeLogoUrlForListThumbnail(exchange);
+  const headerLogoSrcSet = exchangeLogoSrcSetForListThumbnail(exchange);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -149,8 +155,14 @@ export default async function OperatorExchangeDashboardPage({
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            {exchange.logo80Url ? (
-              <img src={exchange.logo80Url} alt="" aria-hidden className="h-10 w-10 rounded-md object-cover" />
+            {headerLogoUrl ? (
+              <img
+                src={headerLogoUrl}
+                srcSet={headerLogoSrcSet}
+                alt=""
+                aria-hidden
+                className="h-10 w-10 rounded-md object-cover"
+              />
             ) : (
               <img src="/reefx_logo.svg" alt="" aria-hidden className="h-10 w-10 object-contain" />
             )}

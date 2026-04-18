@@ -6,6 +6,10 @@ import { hashExchangeInviteToken } from "@/lib/exchange-invite-token-hash";
 import { joinPublicExchangeFormAction } from "@/app/(main)/exchanges/actions";
 import { ExchangesWelcomeBannerDismiss } from "@/app/(main)/exchanges/components/exchanges-welcome-banner-dismiss";
 import { MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import {
+  exchangeLogoSrcSetForListThumbnail,
+  exchangeLogoUrlForListThumbnail,
+} from "@/lib/exchange-logo-urls";
 
 function reefersLabel(count: number): string {
   return count === 1 ? "1 reefer" : `${count} reefers`;
@@ -189,12 +193,20 @@ export default async function ExchangesPage({
           <ul className="space-y-3">
             {myMemberships.map((m) => {
               const exchangeHref = `/exchanges/${m.exchange.id}`;
+              const listLogoUrl = exchangeLogoUrlForListThumbnail(m.exchange);
+              const listLogoSrcSet = exchangeLogoSrcSetForListThumbnail(m.exchange);
               return (
                 <li key={m.id}>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
                     <div className="flex flex-row flex-wrap items-center justify-between gap-3">
-                      {m.exchange.logo40Url ? (
-                        <img src={m.exchange.logo40Url} alt="" aria-hidden className="h-10 w-10 shrink-0 rounded-md object-cover" />
+                      {listLogoUrl ? (
+                        <img
+                          src={listLogoUrl}
+                          srcSet={listLogoSrcSet}
+                          alt=""
+                          aria-hidden
+                          className="h-10 w-10 shrink-0 rounded-md object-cover"
+                        />
                       ) : (
                         <img src="/reefx_logo.svg" alt="" aria-hidden className="h-10 w-10 shrink-0 object-contain" />
                       )}
@@ -241,12 +253,21 @@ export default async function ExchangesPage({
           </p>
         ) : (
           <ul className="space-y-3">
-            {joinablePublicExchanges.map((ex) => (
+            {joinablePublicExchanges.map((ex) => {
+              const listLogoUrl = exchangeLogoUrlForListThumbnail(ex);
+              const listLogoSrcSet = exchangeLogoSrcSetForListThumbnail(ex);
+              return (
               <li key={ex.id}>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
                   <div className="flex flex-row flex-wrap items-center justify-between gap-3">
-                    {ex.logo40Url ? (
-                      <img src={ex.logo40Url} alt="" aria-hidden className="h-10 w-10 shrink-0 rounded-md object-cover" />
+                    {listLogoUrl ? (
+                      <img
+                        src={listLogoUrl}
+                        srcSet={listLogoSrcSet}
+                        alt=""
+                        aria-hidden
+                        className="h-10 w-10 shrink-0 rounded-md object-cover"
+                      />
                     ) : (
                       <img src="/reefx_logo.svg" alt="" aria-hidden className="h-10 w-10 shrink-0 object-contain" />
                     )}
@@ -278,7 +299,8 @@ export default async function ExchangesPage({
                   </div>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </section>

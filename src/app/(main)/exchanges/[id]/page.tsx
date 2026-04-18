@@ -15,6 +15,10 @@ import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/comp
 import { getRequestOrigin } from "@/lib/request-origin";
 import { expireDueTradesAndNotify } from "@/lib/trade-expire-notify";
 import { tradeBucketsFromGroupBy } from "@/lib/exchange-hub-stats";
+import {
+  exchangeLogoSrcSetForListThumbnail,
+  exchangeLogoUrlForListThumbnail,
+} from "@/lib/exchange-logo-urls";
 
 function reefersLabel(count: number): string {
   return count === 1 ? "1 reefer" : `${count} reefers`;
@@ -145,6 +149,8 @@ export default async function ExchangeDetailPage({
   const exploreHref = `/explore?exchangeId=${encodeURIComponent(exchange.id)}`;
   const tradesHref = `/exchanges/${encodeURIComponent(exchange.id)}/trades`;
   const listingsHref = `/exchanges/${encodeURIComponent(exchange.id)}/listings`;
+  const headerLogoUrl = exchangeLogoUrlForListThumbnail(exchange);
+  const headerLogoSrcSet = exchangeLogoSrcSetForListThumbnail(exchange);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -169,8 +175,14 @@ export default async function ExchangeDetailPage({
       <header className="space-y-2">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            {exchange.logo80Url ? (
-              <img src={exchange.logo80Url} alt="" aria-hidden className="h-10 w-10 rounded-md object-cover" />
+            {headerLogoUrl ? (
+              <img
+                src={headerLogoUrl}
+                srcSet={headerLogoSrcSet}
+                alt=""
+                aria-hidden
+                className="h-10 w-10 rounded-md object-cover"
+              />
             ) : (
               <img src="/reefx_logo.svg" alt="" aria-hidden className="h-10 w-10 object-contain" />
             )}

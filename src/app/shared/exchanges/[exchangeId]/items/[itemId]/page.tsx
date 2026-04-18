@@ -9,6 +9,10 @@ import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/comp
 import { canViewExchangeDirectory } from "@/lib/super-admin";
 import { buildSharedItemPath, getShareItemTypeLabel } from "@/lib/item-share";
 import { joinExchangeAndStartTradeAction } from "./actions";
+import {
+  exchangeLogoSrcSetForListThumbnail,
+  exchangeLogoUrlForListThumbnail,
+} from "@/lib/exchange-logo-urls";
 
 export async function generateMetadata({
   params,
@@ -82,15 +86,23 @@ export default async function SharedExchangeItemPage({
   const sharedPath = buildSharedItemPath(listing.exchangeId, listing.inventoryItemId);
   const loginHref = `/auth/login?next=${encodeURIComponent(sharedPath)}`;
   const tradeHref = `/exchanges/${encodeURIComponent(listing.exchangeId)}/trade?with=${encodeURIComponent(listing.inventoryItem.userId)}&focus=${encodeURIComponent(listing.inventoryItemId)}`;
+  const headerLogoUrl = exchangeLogoUrlForListThumbnail(listing.exchange);
+  const headerLogoSrcSet = exchangeLogoSrcSetForListThumbnail(listing.exchange);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            {listing.exchange.logo80Url ? (
+            {headerLogoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- arbitrary exchange logos / uploaded URLs
-              <img src={listing.exchange.logo80Url} alt="" aria-hidden className="h-10 w-10 rounded-md object-cover" />
+              <img
+                src={headerLogoUrl}
+                srcSet={headerLogoSrcSet}
+                alt=""
+                aria-hidden
+                className="h-10 w-10 rounded-md object-cover"
+              />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element -- static public brand asset
               <img src="/reefx_logo.svg" alt="" aria-hidden className="h-10 w-10 object-contain" />
