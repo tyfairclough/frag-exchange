@@ -399,7 +399,7 @@ async function parseCandidatesWithAi(
       }),
       timeoutPromise,
     ]);
-  } catch (e) {
+  } catch {
     return [];
   }
   if (!res.ok) return [];

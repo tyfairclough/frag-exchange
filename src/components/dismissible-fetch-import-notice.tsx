@@ -1,23 +1,52 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "reefx:dismiss-fetch-import-notice";
 
-export function DismissibleFetchImportNotice() {
-  const [visible, setVisible] = useState(true);
+const listeners = new Set<() => void>();
 
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(STORAGE_KEY) === "1") {
-        setVisible(false);
-      }
-    } catch {
-      /* ignore */
+function subscribe(onStoreChange: () => void) {
+  listeners.add(onStoreChange);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY || e.key === null) onStoreChange();
+  };
+  if (typeof window !== "undefined") {
+    window.addEventListener("storage", onStorage);
+  }
+  return () => {
+    listeners.delete(onStoreChange);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("storage", onStorage);
     }
-  }, []);
+  };
+}
 
-  if (!visible) return null;
+function getSnapshot(): boolean {
+  try {
+    return typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function getServerSnapshot(): boolean {
+  return false;
+}
+
+function markDismissed() {
+  try {
+    localStorage.setItem(STORAGE_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+  listeners.forEach((l) => l());
+}
+
+export function DismissibleFetchImportNotice() {
+  const dismissed = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  if (dismissed) return null;
 
   return (
     <div className="flex h-fit items-center justify-center gap-2 rounded-xl border border-info/30 bg-info/10 p-3 text-sm text-info">
@@ -28,14 +57,7 @@ export function DismissibleFetchImportNotice() {
         type="button"
         className="btn btn-ghost btn-xs shrink-0 rounded-lg text-info hover:bg-info/20"
         aria-label="Dismiss notice"
-        onClick={() => {
-          try {
-            localStorage.setItem(STORAGE_KEY, "1");
-          } catch {
-            /* ignore */
-          }
-          setVisible(false);
-        }}
+        onClick={markDismissed}
       >
         ✕
       </button>
