@@ -72,22 +72,31 @@ export function canFetchSourceUrl(rawUrl: string): { ok: true; url: URL } | { ok
   return { ok: true, url };
 }
 
+const MAX_IMPORT_JOB_ITEMS = 2000;
+
 export async function createInventoryImportJob(params: {
   userId: string;
   sourceUrl: string;
   maxPages: number;
-  maxDepth: number;
+  maxItems?: number | null;
+  maxDepth?: number;
 }): Promise<{ id: string }> {
   const valid = canFetchSourceUrl(params.sourceUrl);
   if (!valid.ok) {
     throw new Error(valid.error);
   }
+  const maxItems =
+    params.maxItems == null
+      ? null
+      : Math.min(Math.max(Math.trunc(params.maxItems), 1), MAX_IMPORT_JOB_ITEMS);
   const dbPayload = {
     userId: params.userId,
     sourceUrl: valid.url.toString(),
     sourceHost: valid.url.host,
     maxPages: Math.min(Math.max(params.maxPages, 1), 60),
-    maxDepth: Math.min(Math.max(params.maxDepth, 0), 3),
+    maxItems,
+    /** Legacy column; crawl no longer uses depth — only listing pagination + linked product URLs. */
+    maxDepth: Math.min(Math.max(params.maxDepth ?? 0, 0), 3),
     crawlDelayMs: 250,
     status: InventoryImportJobStatus.QUEUED,
   };
@@ -202,24 +211,85 @@ function isLikelyStaticAssetUrl(u: URL): boolean {
   return STATIC_ASSET_PATH.test(u.pathname);
 }
 
-function collectSameOriginLinks(origin: string, current: URL, html: string): string[] {
-  const links = new Set<string>();
-  const hrefRegex = /href\s*=\s*["']([^"']+)["']/gi;
-  let match: RegExpExecArray | null = null;
-  while ((match = hrefRegex.exec(html))) {
-    const raw = match[1];
-    if (!raw || raw.startsWith("#") || raw.startsWith("mailto:") || raw.startsWith("tel:")) continue;
+/** Pagination only — same-origin, non-asset targets (next page, rel=next, common shop patterns). */
+function extractPaginationLinks(origin: string, resolvedPageUrl: string, html: string): string[] {
+  const base = new URL(resolvedPageUrl);
+  const out = new Set<string>();
+
+  const push = (raw: string | undefined) => {
+    if (!raw) return;
     try {
-      const next = new URL(raw, current);
-      if (next.origin !== origin) continue;
-      if (isLikelyStaticAssetUrl(next)) continue;
-      next.hash = "";
-      links.add(next.toString());
+      const u = new URL(raw.trim().replace(/&amp;/g, "&"), base);
+      if (u.origin !== origin) return;
+      if (isLikelyStaticAssetUrl(u)) return;
+      u.hash = "";
+      if (u.href === base.href) return;
+      out.add(u.href);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const linkRelNext =
+    /<link\b[^>]*\brel\s*=\s*["']next["'][^>]*>/gi;
+  let lm: RegExpExecArray | null;
+  while ((lm = linkRelNext.exec(html))) {
+    const tag = lm[0];
+    const hrefM = /\bhref\s*=\s*["']([^"']+)["']/i.exec(tag);
+    if (hrefM) push(hrefM[1]);
+  }
+  const linkHrefFirst =
+    /<link\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*\brel\s*=\s*["']next["'][^>]*>/gi;
+  while ((lm = linkHrefFirst.exec(html))) {
+    push(lm[1]);
+  }
+
+  const aTagRe = /<a\b([^>]+)>/gi;
+  while ((lm = aTagRe.exec(html))) {
+    const attrs = lm[1];
+    const relNext = /\brel\s*=\s*["']next["']/i.test(attrs);
+    const classNext =
+      /\bclass\s*=\s*["'][^"']*\b(next|pagination__next|pagination-next|pager__next|page-next|wc-forward)\b[^"']*["']/i.test(
+        attrs,
+      );
+    const ariaNext =
+      /\baria-label\s*=\s*["'][^"']*\b(next\s+page|go\s+to\s+next|older\s+posts?)\b[^"']*["']/i.test(attrs) ||
+      /\baria-label\s*=\s*["'][^"']*›[^"']*["']/i.test(attrs);
+    if (!relNext && !classNext && !ariaNext) continue;
+    const hrefM = /\bhref\s*=\s*["']([^"']+)["']/i.exec(attrs);
+    if (hrefM) push(hrefM[1]);
+  }
+
+  return [...out];
+}
+
+function collectDetailUrlsFromListingItems(
+  items: ParsedCandidate[],
+  listingPageUrl: string,
+  origin: string,
+  listingUrls: Set<string>,
+): string[] {
+  const listing = new URL(listingPageUrl);
+  listing.hash = "";
+  const out = new Set<string>();
+
+  for (const item of items) {
+    const raw = item.saleExternalUrl?.trim();
+    if (!raw) continue;
+    let u: URL;
+    try {
+      u = new URL(raw.replace(/&amp;/g, "&"), listingPageUrl);
     } catch {
       continue;
     }
+    if (u.origin !== origin) continue;
+    if (isLikelyStaticAssetUrl(u)) continue;
+    u.hash = "";
+    if (u.href === listing.href) continue;
+    if (listingUrls.has(u.href)) continue;
+    out.add(u.href);
   }
-  return [...links];
+  return [...out];
 }
 
 type FetchedPage = { html: string; finalUrl: string; isHtml: boolean };
@@ -269,11 +339,19 @@ type ParsedCandidate = {
   saleExternalUrl?: string | null;
 };
 
-async function parseCandidatesWithAi(text: string, pageUrl: string): Promise<ParsedCandidate[]> {
+async function parseCandidatesWithAi(
+  text: string,
+  pageUrl: string,
+  mode: "listing" | "detail" = "listing",
+): Promise<ParsedCandidate[]> {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) return [];
   const model = process.env.CORAL_AI_MODEL?.trim() || "gpt-4o-mini";
   const payload = text.length > MAX_AI_TEXT_LENGTH ? text.slice(0, MAX_AI_TEXT_LENGTH) : text;
+  const systemListing =
+    'Extract retail listing items from page text. If IMAGE_URLS_FOUND_IN_HTML is present, each item imageUrl must be copied exactly from that list (the best match for that row\'s product image) or null — do not invent URLs. For each grid/listing row, set saleExternalUrl to the product detail page URL when clearly present in the row/snippet, otherwise null. Return JSON only: {"items":[{"title":string,"snippet":string,"kind":"CORAL"|"FISH"|"IGNORE","confidence":number,"name":string,"description":string,"imageUrl":string|null,"coralType":string|null,"colours":string[],"species":string|null,"reefSafe":boolean|null,"salePriceMinor":number|null,"saleCurrencyCode":string|null,"saleExternalUrl":string|null}]}. Include only likely individual listing rows/cards from this page.';
+  const systemDetail =
+    'This is a single product detail page. Extract at most one primary retail item. If IMAGE_URLS_FOUND_IN_HTML is present, imageUrl must be copied exactly from that list or null. Set saleExternalUrl to this page URL. Return JSON only: {"items":[{"title":string,"snippet":string,"kind":"CORAL"|"FISH"|"IGNORE","confidence":number,"name":string,"description":string,"imageUrl":string|null,"coralType":string|null,"colours":string[],"species":string|null,"reefSafe":boolean|null,"salePriceMinor":number|null,"saleCurrencyCode":string|null,"saleExternalUrl":string|null}]} — use an empty items array if there is no clear product.';
   const bodyStr = JSON.stringify({
     model,
     temperature: 0.2,
@@ -281,8 +359,7 @@ async function parseCandidatesWithAi(text: string, pageUrl: string): Promise<Par
     messages: [
       {
         role: "system",
-        content:
-          'Extract retail listing items from page text. If IMAGE_URLS_FOUND_IN_HTML is present, each item imageUrl must be copied exactly from that list (the best match for that row\'s product image) or null — do not invent URLs. Return JSON only: {"items":[{"title":string,"snippet":string,"kind":"CORAL"|"FISH"|"IGNORE","confidence":number,"name":string,"description":string,"imageUrl":string|null,"coralType":string|null,"colours":string[],"species":string|null,"reefSafe":boolean|null,"salePriceMinor":number|null,"saleCurrencyCode":string|null,"saleExternalUrl":string|null}]}. Include only likely individual listing rows/cards from this page.',
+        content: mode === "detail" ? systemDetail : systemListing,
       },
       {
         role: "user",
@@ -339,6 +416,361 @@ async function parseCandidatesWithAi(text: string, pageUrl: string): Promise<Par
 
 function makeSourceHash(pageUrl: string, name: string, kind: string): string {
   return createHash("sha256").update(`${pageUrl}|${kind}|${name.toLowerCase()}`).digest("hex");
+}
+
+function isParsedCandidateShape(value: unknown): value is ParsedCandidate {
+  if (!value || typeof value !== "object") return false;
+  const o = value as Record<string, unknown>;
+  const k = o.kind;
+  if (k !== "CORAL" && k !== "FISH" && k !== "IGNORE") return false;
+  return true;
+}
+
+async function upsertOneInventoryImportCandidateFromAi(params: {
+  jobId: string;
+  userId: string;
+  pageUrl: string;
+  item: ParsedCandidate;
+}): Promise<{ found: number; ready: number }> {
+  const { jobId, userId, pageUrl, item } = params;
+  if (item.kind !== "CORAL" && item.kind !== "FISH") {
+    await appendImportEvent({
+      jobId,
+      stage: InventoryImportEventStage.SKIP,
+      message: "Skipped non-fish/non-coral candidate.",
+      meta: { url: pageUrl, kind: item.kind, title: item.title ?? null },
+    });
+    return { found: 0, ready: 0 };
+  }
+  const name = item.name?.trim();
+  if (!name) {
+    await appendImportEvent({
+      jobId,
+      stage: InventoryImportEventStage.SKIP,
+      level: InventoryImportEventLevel.WARN,
+      message: "Skipped candidate without name.",
+      meta: { url: pageUrl, kind: item.kind },
+    });
+    return { found: 0, ready: 0 };
+  }
+  const sourceHash = makeSourceHash(pageUrl, name, item.kind);
+  const salePriceMinor = Number.isInteger(item.salePriceMinor) && (item.salePriceMinor ?? 0) > 0 ? (item.salePriceMinor as number) : 100;
+  const saleCurrencyCode = (item.saleCurrencyCode || "GBP").toUpperCase().slice(0, 3);
+  const saleExternalUrl = item.saleExternalUrl?.trim() || pageUrl;
+  const mirroredImageUrl = await mirrorHttpImageUrlToUploads({
+    userId,
+    imageUrl: item.imageUrl || null,
+  });
+  await getPrisma().inventoryImportCandidate.upsert({
+    where: { jobId_sourceHash: { jobId, sourceHash } },
+    create: {
+      jobId,
+      userId,
+      sourcePageUrl: pageUrl,
+      sourceHash,
+      title: item.title?.slice(0, 240) || null,
+      snippet: item.snippet || null,
+      kind: item.kind === "CORAL" ? InventoryKind.CORAL : InventoryKind.FISH,
+      confidenceScore: Math.max(0, Math.min(1, Number(item.confidence) || 0.4)),
+      name: name.slice(0, 120),
+      description: (item.description?.trim() || "").slice(0, 8000) || null,
+      imageUrl: mirroredImageUrl,
+      coralType: item.coralType || null,
+      colours: Array.isArray(item.colours) ? item.colours.slice(0, 12) : [],
+      species: item.species?.slice(0, 200) || null,
+      reefSafe: typeof item.reefSafe === "boolean" ? item.reefSafe : null,
+      quantity: 1,
+      salePriceMinor,
+      saleCurrencyCode,
+      saleExternalUrl,
+      aiRaw: item as unknown as object,
+    },
+    update: {
+      title: item.title?.slice(0, 240) || null,
+      snippet: item.snippet || null,
+      kind: item.kind === "CORAL" ? InventoryKind.CORAL : InventoryKind.FISH,
+      confidenceScore: Math.max(0, Math.min(1, Number(item.confidence) || 0.4)),
+      name: name.slice(0, 120),
+      description: (item.description?.trim() || "").slice(0, 8000) || null,
+      imageUrl: mirroredImageUrl,
+      coralType: item.coralType || null,
+      colours: Array.isArray(item.colours) ? item.colours.slice(0, 12) : [],
+      species: item.species?.slice(0, 200) || null,
+      reefSafe: typeof item.reefSafe === "boolean" ? item.reefSafe : null,
+      salePriceMinor,
+      saleCurrencyCode,
+      saleExternalUrl,
+      parseError: null,
+      aiRaw: item as unknown as object,
+    },
+  });
+  await appendImportEvent({
+    jobId,
+    stage: InventoryImportEventStage.UPSERT_CANDIDATE,
+    message: "Saved parsed candidate.",
+    meta: {
+      url: pageUrl,
+      kind: item.kind,
+      name: name.slice(0, 120),
+      confidence: Number(item.confidence) || null,
+    },
+  });
+  return { found: 1, ready: 1 };
+}
+
+async function upsertInventoryImportCandidatesFromAi(params: {
+  jobId: string;
+  userId: string;
+  pageUrl: string;
+  aiItems: ParsedCandidate[];
+  /** Running total before this batch; stop when initialFound + batchFound reaches maxFound. */
+  initialFound?: number;
+  maxFound?: number | null;
+}): Promise<{ found: number; ready: number }> {
+  const { jobId, userId, pageUrl, aiItems } = params;
+  const initialFound = params.initialFound ?? 0;
+  const maxFound = params.maxFound ?? null;
+  let found = 0;
+  let ready = 0;
+  for (const item of aiItems) {
+    if (maxFound != null && initialFound + found >= maxFound) break;
+    const u = await upsertOneInventoryImportCandidateFromAi({ jobId, userId, pageUrl, item });
+    found += u.found;
+    ready += u.ready;
+  }
+  return { found, ready };
+}
+
+const NDJSON_FIELDS_HINT =
+  '{"title":string,"snippet":string,"kind":"CORAL"|"FISH"|"IGNORE","confidence":number,"name":string,"description":string,"imageUrl":string|null,"coralType":string|null,"colours":string[],"species":string|null,"reefSafe":boolean|null,"salePriceMinor":number|null,"saleCurrencyCode":string|null,"saleExternalUrl":string|null}';
+
+/** Optional counters for SSE reader diagnostics. */
+type SseReaderDebugStats = {
+  rawLinesSeen: number;
+  dataLinesParsed: number;
+  deltaBytes: number;
+  firstNonDataLinePrefix: string | null;
+};
+
+/**
+ * Reads Chat Completions SSE, forwards assistant text deltas, splits NDJSON lines as they complete, and awaits the handler per line.
+ */
+async function readSseAndDispatchNdjsonLines(
+  body: ReadableStream<Uint8Array>,
+  onAssistantDelta: (delta: string) => void,
+  onNdjsonLine: (item: ParsedCandidate) => Promise<void>,
+  sseDebug?: SseReaderDebugStats,
+): Promise<void> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let sseBuffer = "";
+  let ndjsonBuffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      sseBuffer += decoder.decode(value, { stream: true });
+      const sseParts = sseBuffer.split("\n");
+      sseBuffer = sseParts.pop() ?? "";
+      for (const rawLine of sseParts) {
+        const line = rawLine.replace(/\r$/, "").trimEnd();
+        if (sseDebug) sseDebug.rawLinesSeen += 1;
+        if (!line.startsWith("data:")) {
+          if (sseDebug && !sseDebug.firstNonDataLinePrefix && line.trim()) {
+            sseDebug.firstNonDataLinePrefix = line.slice(0, 120);
+          }
+          continue;
+        }
+        if (sseDebug) sseDebug.dataLinesParsed += 1;
+        const data = line.slice(line.indexOf(":") + 1).trimStart();
+        if (data === "[DONE]") continue;
+        let json: { choices?: Array<{ delta?: { content?: string } }> };
+        try {
+          json = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
+        } catch {
+          continue;
+        }
+        const d = json.choices?.[0]?.delta?.content;
+        if (!d) continue;
+        if (sseDebug) sseDebug.deltaBytes += d.length;
+        onAssistantDelta(d);
+        ndjsonBuffer += d;
+        const lines = ndjsonBuffer.split("\n");
+        ndjsonBuffer = lines.pop() ?? "";
+        for (const raw of lines) {
+          const trimmed = raw.trim();
+          if (!trimmed) continue;
+          let obj: unknown;
+          try {
+            obj = JSON.parse(trimmed) as unknown;
+          } catch {
+            continue;
+          }
+          if (!isParsedCandidateShape(obj)) continue;
+          await onNdjsonLine(obj);
+        }
+      }
+    }
+    const tailSse = sseBuffer.replace(/\r$/, "").trimEnd();
+    if (tailSse.startsWith("data:")) {
+      const data = tailSse.slice(tailSse.indexOf(":") + 1).trimStart();
+      if (data !== "[DONE]") {
+        try {
+          const json = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
+          const d = json.choices?.[0]?.delta?.content;
+          if (d) {
+            if (sseDebug) sseDebug.deltaBytes += d.length;
+            onAssistantDelta(d);
+            ndjsonBuffer += d;
+            const tailLines = ndjsonBuffer.split("\n");
+            ndjsonBuffer = tailLines.pop() ?? "";
+            for (const raw of tailLines) {
+              const trimmed = raw.trim();
+              if (!trimmed) continue;
+              let obj: unknown;
+              try {
+                obj = JSON.parse(trimmed) as unknown;
+              } catch {
+                continue;
+              }
+              if (!isParsedCandidateShape(obj)) continue;
+              await onNdjsonLine(obj);
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    const tail = ndjsonBuffer.trim();
+    if (tail) {
+      try {
+        const obj = JSON.parse(tail) as unknown;
+        if (isParsedCandidateShape(obj)) {
+          await onNdjsonLine(obj);
+        }
+      } catch {
+        /* incomplete tail */
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
+ * Streams NDJSON lines from OpenAI; invokes onParsedLine for each complete line that parses as a candidate.
+ */
+async function streamNdjsonCandidatesFromOpenAi(params: {
+  modelInput: string;
+  pageUrl: string;
+  mode: "listing" | "detail";
+  signal: AbortSignal;
+  onParsedLine: (item: ParsedCandidate) => Promise<void>;
+}): Promise<{ ndjsonLinesAccepted: number; rawAssistant: string; streamFailed: boolean }> {
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key) {
+    return { ndjsonLinesAccepted: 0, rawAssistant: "", streamFailed: true };
+  }
+  const model = process.env.CORAL_AI_MODEL?.trim() || "gpt-4o-mini";
+  const payload =
+    params.modelInput.length > MAX_AI_TEXT_LENGTH ? params.modelInput.slice(0, MAX_AI_TEXT_LENGTH) : params.modelInput;
+  const systemListing = `Extract retail listing items from page text. If IMAGE_URLS_FOUND_IN_HTML is present, each item imageUrl must be copied exactly from that list (the best match for that row's product image) or null — do not invent URLs. For each grid/listing row, set saleExternalUrl to the product detail page URL when clearly present in the row/snippet, otherwise null.
+
+Output format: JSON Lines (NDJSON). Emit exactly one ${NDJSON_FIELDS_HINT} object per line. Each line must be one complete JSON object. Do not wrap in an array or outer object. No markdown code fences or commentary. Include only likely individual listing rows/cards from this page.`;
+
+  const systemDetail = `This is a single product detail page. Extract at most one primary retail item. If IMAGE_URLS_FOUND_IN_HTML is present, imageUrl must be copied exactly from that list or null. Set saleExternalUrl to this page URL.
+
+Output format: JSON Lines (NDJSON). Emit at most one line: a single ${NDJSON_FIELDS_HINT} object. If there is no clear product, output zero lines (empty response). No markdown code fences.`;
+
+  const system = params.mode === "detail" ? systemDetail : systemListing;
+  const bodyStr = JSON.stringify({
+    model,
+    temperature: 0.2,
+    stream: true,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: `Page URL: ${params.pageUrl}\n\nPAGE TEXT:\n${payload}` },
+    ],
+  });
+
+  let rawAssistant = "";
+  let ndjsonLinesAccepted = 0;
+
+  const ac = new AbortController();
+  const abortRace = () => {
+    try {
+      ac.abort();
+    } catch {
+      /* ignore */
+    }
+  };
+  if (params.signal.aborted) {
+    return { ndjsonLinesAccepted: 0, rawAssistant: "", streamFailed: true };
+  }
+  const onUpstreamAbort = () => abortRace();
+  params.signal.addEventListener("abort", onUpstreamAbort);
+
+  let raceTimer: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    raceTimer = setTimeout(() => {
+      abortRace();
+      reject(new Error("openai_fetch_race_timeout"));
+    }, OPENAI_COMPLETION_TIMEOUT_MS);
+  });
+
+  const fetchPromise = fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    signal: ac.signal,
+    body: bodyStr,
+  });
+
+  let res: Response;
+  try {
+    res = await Promise.race([
+      fetchPromise.finally(() => {
+        if (raceTimer !== undefined) clearTimeout(raceTimer);
+      }),
+      timeoutPromise,
+    ]);
+  } catch {
+    params.signal.removeEventListener("abort", onUpstreamAbort);
+    return { ndjsonLinesAccepted: 0, rawAssistant, streamFailed: true };
+  } finally {
+    params.signal.removeEventListener("abort", onUpstreamAbort);
+  }
+
+  if (!res.ok || !res.body) {
+    return { ndjsonLinesAccepted: 0, rawAssistant: "", streamFailed: true };
+  }
+
+  const sseDebug: SseReaderDebugStats = {
+    rawLinesSeen: 0,
+    dataLinesParsed: 0,
+    deltaBytes: 0,
+    firstNonDataLinePrefix: null,
+  };
+  try {
+    await readSseAndDispatchNdjsonLines(
+      res.body,
+      (delta) => {
+        rawAssistant += delta;
+      },
+      async (item) => {
+        ndjsonLinesAccepted += 1;
+        await params.onParsedLine(item);
+      },
+      sseDebug,
+    );
+  } catch {
+    return { ndjsonLinesAccepted, rawAssistant, streamFailed: true };
+  }
+
+  return { ndjsonLinesAccepted, rawAssistant, streamFailed: false };
 }
 
 export async function runInventoryImportWorker(limit = 1): Promise<{ processed: number }> {
@@ -484,35 +916,214 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
       sourceUrl: true,
       sourceHost: true,
       maxPages: true,
-      maxDepth: true,
+      maxItems: true,
       attemptCount: true,
     },
   });
   if (!job) return;
   const origin = new URL(job.sourceUrl).origin;
-  const queue: Array<{ url: string; depth: number }> = [{ url: job.sourceUrl, depth: 0 }];
-  const seen = new Set<string>();
+  const itemCap = job.maxItems;
+  const capReached = () => itemCap != null && found >= itemCap;
+  const listingQueue: string[] = [job.sourceUrl];
+  const listingEnqueued = new Set<string>([job.sourceUrl]);
+  const listingSeen = new Set<string>();
+  const detailDiscovered = new Set<string>();
+  let listingPagesFetched = 0;
   let pagesVisited = 0;
   let pagesParsed = 0;
   let found = 0;
   let ready = 0;
   let failed = 0;
 
-  while (queue.length > 0 && pagesVisited < job.maxPages) {
-    const next = queue.shift();
-    if (!next) break;
-    if (seen.has(next.url)) continue;
-    seen.add(next.url);
+  while (listingQueue.length > 0 && listingPagesFetched < job.maxPages && !capReached()) {
+    const nextUrl = listingQueue.shift();
+    if (!nextUrl) break;
+    if (listingSeen.has(nextUrl)) continue;
+    listingSeen.add(nextUrl);
+    listingPagesFetched += 1;
     pagesVisited += 1;
     await extendImportJobLease(jobId, runToken);
     await appendImportEvent({
       jobId,
       stage: InventoryImportEventStage.REQUEST_PAGE,
-      message: `Requesting page ${pagesVisited}/${job.maxPages}.`,
-      meta: { url: next.url, depth: next.depth },
+      message: `Requesting listing page ${listingPagesFetched}/${job.maxPages}.`,
+      meta: { url: nextUrl, phase: "listing" as const },
     });
     try {
-      const fetched = await fetchPage(next.url);
+      const fetched = await fetchPage(nextUrl);
+      const final = new URL(fetched.finalUrl);
+      if (final.host !== job.sourceHost) {
+        await appendImportEvent({
+          jobId,
+          stage: InventoryImportEventStage.SKIP,
+          level: InventoryImportEventLevel.WARN,
+          message: "Skipped cross-host URL.",
+          meta: { url: fetched.finalUrl, expectedHost: job.sourceHost },
+        });
+        continue;
+      }
+      if (!fetched.isHtml) {
+        await appendImportEvent({
+          jobId,
+          stage: InventoryImportEventStage.SKIP,
+          message: "Skipped non-HTML URL (stylesheet, script, media, or other asset).",
+          meta: { url: fetched.finalUrl },
+        });
+        continue;
+      }
+      const text = stripHtml(fetched.html);
+      await appendImportEvent({
+        jobId,
+        stage: InventoryImportEventStage.PARSE_PAGE,
+        message: "Fetched and normalized HTML page text.",
+        meta: { url: fetched.finalUrl, textLength: text.length },
+      });
+      let aiItems: ParsedCandidate[] = [];
+      if (text.length > 200) {
+        pagesParsed += 1;
+        await appendImportEvent({
+          jobId,
+          stage: InventoryImportEventStage.AI_CLASSIFY,
+          message: "Sending page text to AI classification.",
+          meta: { url: fetched.finalUrl },
+        });
+        await extendImportJobLease(jobId, runToken);
+        const modelInput = buildModelInputForAi(text, fetched.html, fetched.finalUrl);
+        const streamAc = new AbortController();
+        const streamResult = await streamNdjsonCandidatesFromOpenAi({
+          modelInput,
+          pageUrl: fetched.finalUrl,
+          mode: "listing",
+          signal: streamAc.signal,
+          onParsedLine: async (item) => {
+            if (capReached()) return;
+            const upserted = await upsertOneInventoryImportCandidateFromAi({
+              jobId,
+              userId: job.userId,
+              pageUrl: fetched.finalUrl,
+              item,
+            });
+            found += upserted.found;
+            ready += upserted.ready;
+            for (const d of collectDetailUrlsFromListingItems([item], fetched.finalUrl, origin, listingEnqueued)) {
+              detailDiscovered.add(d);
+            }
+            if (capReached()) streamAc.abort();
+            await extendImportJobLease(jobId, runToken);
+          },
+        });
+        /** Batch fallback whenever the stream produced zero parseable NDJSON objects (covers empty assistant + success, legacy JSON shape, etc.). */
+        const needsFallback = streamResult.ndjsonLinesAccepted === 0;
+        if (needsFallback) {
+          if (!capReached()) {
+            aiItems = await parseCandidatesWithAi(modelInput, fetched.finalUrl, "listing");
+            await appendImportEvent({
+              jobId,
+              stage: InventoryImportEventStage.AI_CLASSIFY,
+              message: "AI classification completed (batch fallback).",
+              meta: { url: fetched.finalUrl, returnedItems: aiItems.length },
+            });
+            const upserted = await upsertInventoryImportCandidatesFromAi({
+              jobId,
+              userId: job.userId,
+              pageUrl: fetched.finalUrl,
+              aiItems,
+              initialFound: found,
+              maxFound: itemCap,
+            });
+            found += upserted.found;
+            ready += upserted.ready;
+          } else {
+            aiItems = [];
+            await appendImportEvent({
+              jobId,
+              stage: InventoryImportEventStage.SKIP,
+              message: "Skipped listing batch fallback (item limit already reached).",
+              meta: { url: fetched.finalUrl },
+            });
+          }
+        } else {
+          aiItems = [];
+          await appendImportEvent({
+            jobId,
+            stage: InventoryImportEventStage.AI_CLASSIFY,
+            message: "AI classification completed.",
+            meta: { url: fetched.finalUrl, returnedItems: streamResult.ndjsonLinesAccepted },
+          });
+        }
+      } else {
+        await appendImportEvent({
+          jobId,
+          stage: InventoryImportEventStage.SKIP,
+          message: "Skipped page with insufficient text content.",
+          meta: { url: fetched.finalUrl, textLength: text.length },
+        });
+      }
+
+      if (!capReached()) {
+        for (const d of collectDetailUrlsFromListingItems(aiItems, fetched.finalUrl, origin, listingEnqueued)) {
+          detailDiscovered.add(d);
+        }
+        for (const p of extractPaginationLinks(origin, fetched.finalUrl, fetched.html)) {
+          if (!listingEnqueued.has(p)) {
+            listingEnqueued.add(p);
+            listingQueue.push(p);
+          }
+        }
+      }
+    } catch (e) {
+      failed += 1;
+      const message = e instanceof Error ? e.message : String(e);
+      const errSourceHash = makeSourceHash(nextUrl, `parse-error-${pagesVisited}`, "IGNORE");
+      await appendImportEvent({
+        jobId,
+        stage: InventoryImportEventStage.FAIL,
+        level: InventoryImportEventLevel.ERROR,
+        message: "Page processing failed.",
+        meta: { url: nextUrl, error: message.slice(0, 500) },
+      });
+      await getPrisma().inventoryImportCandidate.create({
+        data: {
+          jobId,
+          userId: job.userId,
+          sourcePageUrl: nextUrl,
+          sourceHash: errSourceHash,
+          parseError: message.slice(0, 3000),
+          saleExternalUrl: nextUrl,
+        },
+      });
+    }
+    await getPrisma().inventoryImportJob.updateMany({
+      where: { id: jobId, runToken },
+      data: {
+        pagesVisited,
+        pagesParsed,
+        candidatesFound: found,
+        candidatesReady: ready,
+        candidatesFailed: failed,
+        runLeaseExpiresAt: new Date(Date.now() + IMPORT_JOB_LEASE_MS),
+      },
+    });
+  }
+
+  const detailUrls = [...detailDiscovered].filter((u) => !listingEnqueued.has(u));
+  const detailSeen = new Set<string>();
+  let detailIndex = 0;
+  for (const detailUrl of detailUrls) {
+    if (capReached()) break;
+    if (detailSeen.has(detailUrl)) continue;
+    detailSeen.add(detailUrl);
+    detailIndex += 1;
+    pagesVisited += 1;
+    await extendImportJobLease(jobId, runToken);
+    await appendImportEvent({
+      jobId,
+      stage: InventoryImportEventStage.REQUEST_PAGE,
+      message: `Requesting product page ${detailIndex}/${detailUrls.length}.`,
+      meta: { url: detailUrl, phase: "detail" as const },
+    });
+    try {
+      const fetched = await fetchPage(detailUrl);
       const final = new URL(fetched.finalUrl);
       if (final.host !== job.sourceHost) {
         await appendImportEvent({
@@ -550,93 +1161,60 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
         });
         await extendImportJobLease(jobId, runToken);
         const modelInput = buildModelInputForAi(text, fetched.html, fetched.finalUrl);
-        const aiItems = await parseCandidatesWithAi(modelInput, fetched.finalUrl);
-        await appendImportEvent({
-          jobId,
-          stage: InventoryImportEventStage.AI_CLASSIFY,
-          message: "AI classification completed.",
-          meta: { url: fetched.finalUrl, returnedItems: aiItems.length },
-        });
-        for (const item of aiItems) {
-          if (item.kind !== "CORAL" && item.kind !== "FISH") {
-            await appendImportEvent({
-              jobId,
-              stage: InventoryImportEventStage.SKIP,
-              message: "Skipped non-fish/non-coral candidate.",
-              meta: { url: fetched.finalUrl, kind: item.kind, title: item.title ?? null },
-            });
-            continue;
-          }
-          const name = item.name?.trim();
-          if (!name) {
-            await appendImportEvent({
-              jobId,
-              stage: InventoryImportEventStage.SKIP,
-              level: InventoryImportEventLevel.WARN,
-              message: "Skipped candidate without name.",
-              meta: { url: fetched.finalUrl, kind: item.kind },
-            });
-            continue;
-          }
-          found += 1;
-          const sourceHash = makeSourceHash(fetched.finalUrl, name, item.kind);
-          const salePriceMinor = Number.isInteger(item.salePriceMinor) && (item.salePriceMinor ?? 0) > 0 ? (item.salePriceMinor as number) : 100;
-          const saleCurrencyCode = (item.saleCurrencyCode || "GBP").toUpperCase().slice(0, 3);
-          const saleExternalUrl = item.saleExternalUrl?.trim() || fetched.finalUrl;
-          await getPrisma().inventoryImportCandidate.upsert({
-            where: { jobId_sourceHash: { jobId, sourceHash } },
-            create: {
+        const detailStreamAc = new AbortController();
+        const detailStreamResult = await streamNdjsonCandidatesFromOpenAi({
+          modelInput,
+          pageUrl: fetched.finalUrl,
+          mode: "detail",
+          signal: detailStreamAc.signal,
+          onParsedLine: async (item) => {
+            if (capReached()) return;
+            const upserted = await upsertOneInventoryImportCandidateFromAi({
               jobId,
               userId: job.userId,
-              sourcePageUrl: fetched.finalUrl,
-              sourceHash,
-              title: item.title?.slice(0, 240) || null,
-              snippet: item.snippet || null,
-              kind: item.kind === "CORAL" ? InventoryKind.CORAL : InventoryKind.FISH,
-              confidenceScore: Math.max(0, Math.min(1, Number(item.confidence) || 0.4)),
-              name: name.slice(0, 120),
-              description: (item.description?.trim() || "").slice(0, 8000) || null,
-              imageUrl: item.imageUrl || null,
-              coralType: item.coralType || null,
-              colours: Array.isArray(item.colours) ? item.colours.slice(0, 12) : [],
-              species: item.species?.slice(0, 200) || null,
-              reefSafe: typeof item.reefSafe === "boolean" ? item.reefSafe : null,
-              quantity: 1,
-              salePriceMinor,
-              saleCurrencyCode,
-              saleExternalUrl,
-              aiRaw: item as unknown as object,
-            },
-            update: {
-              title: item.title?.slice(0, 240) || null,
-              snippet: item.snippet || null,
-              kind: item.kind === "CORAL" ? InventoryKind.CORAL : InventoryKind.FISH,
-              confidenceScore: Math.max(0, Math.min(1, Number(item.confidence) || 0.4)),
-              name: name.slice(0, 120),
-              description: (item.description?.trim() || "").slice(0, 8000) || null,
-              imageUrl: item.imageUrl || null,
-              coralType: item.coralType || null,
-              colours: Array.isArray(item.colours) ? item.colours.slice(0, 12) : [],
-              species: item.species?.slice(0, 200) || null,
-              reefSafe: typeof item.reefSafe === "boolean" ? item.reefSafe : null,
-              salePriceMinor,
-              saleCurrencyCode,
-              saleExternalUrl,
-              parseError: null,
-              aiRaw: item as unknown as object,
-            },
-          });
-          ready += 1;
+              pageUrl: fetched.finalUrl,
+              item,
+            });
+            found += upserted.found;
+            ready += upserted.ready;
+            if (capReached()) detailStreamAc.abort();
+            await extendImportJobLease(jobId, runToken);
+          },
+        });
+        const detailNeedsFallback = detailStreamResult.ndjsonLinesAccepted === 0;
+        if (detailNeedsFallback) {
+          if (!capReached()) {
+            const detailItems = await parseCandidatesWithAi(modelInput, fetched.finalUrl, "detail");
+            await appendImportEvent({
+              jobId,
+              stage: InventoryImportEventStage.AI_CLASSIFY,
+              message: "AI classification completed (batch fallback).",
+              meta: { url: fetched.finalUrl, returnedItems: detailItems.length },
+            });
+            const upserted = await upsertInventoryImportCandidatesFromAi({
+              jobId,
+              userId: job.userId,
+              pageUrl: fetched.finalUrl,
+              aiItems: detailItems,
+              initialFound: found,
+              maxFound: itemCap,
+            });
+            found += upserted.found;
+            ready += upserted.ready;
+          } else {
+            await appendImportEvent({
+              jobId,
+              stage: InventoryImportEventStage.SKIP,
+              message: "Skipped product batch fallback (item limit already reached).",
+              meta: { url: fetched.finalUrl },
+            });
+          }
+        } else {
           await appendImportEvent({
             jobId,
-            stage: InventoryImportEventStage.UPSERT_CANDIDATE,
-            message: "Saved parsed candidate.",
-            meta: {
-              url: fetched.finalUrl,
-              kind: item.kind,
-              name: name.slice(0, 120),
-              confidence: Number(item.confidence) || null,
-            },
+            stage: InventoryImportEventStage.AI_CLASSIFY,
+            message: "AI classification completed.",
+            meta: { url: fetched.finalUrl, returnedItems: detailStreamResult.ndjsonLinesAccepted },
           });
         }
       } else {
@@ -647,32 +1225,25 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
           meta: { url: fetched.finalUrl, textLength: text.length },
         });
       }
-
-      if (next.depth < job.maxDepth) {
-        const links = collectSameOriginLinks(origin, new URL(fetched.finalUrl), fetched.html);
-        for (const link of links) {
-          if (!seen.has(link)) queue.push({ url: link, depth: next.depth + 1 });
-        }
-      }
     } catch (e) {
       failed += 1;
       const message = e instanceof Error ? e.message : String(e);
-      const errSourceHash = makeSourceHash(next.url, `parse-error-${pagesVisited}`, "IGNORE");
+      const errSourceHash = makeSourceHash(detailUrl, `detail-error-${pagesVisited}`, "IGNORE");
       await appendImportEvent({
         jobId,
         stage: InventoryImportEventStage.FAIL,
         level: InventoryImportEventLevel.ERROR,
-        message: "Page processing failed.",
-        meta: { url: next.url, error: message.slice(0, 500) },
+        message: "Product page processing failed.",
+        meta: { url: detailUrl, error: message.slice(0, 500) },
       });
       await getPrisma().inventoryImportCandidate.create({
         data: {
           jobId,
           userId: job.userId,
-          sourcePageUrl: next.url,
+          sourcePageUrl: detailUrl,
           sourceHash: errSourceHash,
           parseError: message.slice(0, 3000),
-          saleExternalUrl: next.url,
+          saleExternalUrl: detailUrl,
         },
       });
     }
@@ -706,13 +1277,18 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
   await appendImportEvent({
     jobId,
     stage: InventoryImportEventStage.DONE,
-    message: "Import parsing complete and ready for review.",
+    message:
+      itemCap != null && found >= itemCap
+        ? `Import stopped after ${found} saved item(s) (limit ${itemCap}). Ready for review.`
+        : "Import parsing complete and ready for review.",
     meta: {
       pagesVisited,
       pagesParsed,
       candidatesFound: found,
       candidatesReady: ready,
       candidatesFailed: failed,
+      itemCap: itemCap ?? null,
+      stoppedForItemCap: itemCap != null && found >= itemCap,
     },
   });
   await sendImportCompletionEmail(jobId, true);

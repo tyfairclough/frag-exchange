@@ -84,7 +84,7 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
       if (json.ok && json.job) {
         setJob(json.job);
       }
-    }, 2500);
+    }, 875);
     return () => clearInterval(t);
   }, [isParsing, job.id]);
 
