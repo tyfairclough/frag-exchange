@@ -6,6 +6,7 @@ import {
   CoralProfileStatus,
   ExchangeKind,
   InventoryKind,
+  ListingIntent,
   TradeLineEventHandoffStatus,
   TradeLineSide,
   TradeStatus,
@@ -76,8 +77,8 @@ function tradeStepPath(
   return err ? `${base}&error=${encodeURIComponent(err)}` : base;
 }
 
-function freeToGoodHomeSet(items: { id: string; freeToGoodHome: boolean }[]) {
-  return new Set(items.filter((item) => item.freeToGoodHome).map((item) => item.id));
+function freeToGoodHomeSet(items: { id: string; listingIntent: ListingIntent }[]) {
+  return new Set(items.filter((item) => item.listingIntent === ListingIntent.FREE).map((item) => item.id));
 }
 
 function isKindAllowedOnExchange(
@@ -149,12 +150,12 @@ export async function updateTradeOfferSelectionAction(formData: FormData) {
       profileStatus: CoralProfileStatus.UNLISTED,
       remainingQuantity: { gt: 0 },
     },
-    select: { id: true, freeToGoodHome: true },
+    select: { id: true, listingIntent: true },
   });
   const receiveAllFreeToGoodHome =
     receiveItems.length > 0 &&
     receiveItems.length === draft.receiveItemIds.length &&
-    receiveItems.every((item) => item.freeToGoodHome);
+    receiveItems.every((item) => item.listingIntent === ListingIntent.FREE);
   const valid = canSubmitTradeSelection({
     receiveCount: draft.receiveItemIds.length,
     offerCount: offerItemIds.length,
@@ -237,6 +238,9 @@ export async function submitTradeInitiationAction(formData: FormData) {
   for (const item of [...initiatorItems, ...peerItems]) {
     if (!isKindAllowedOnExchange(item.kind, exchange)) {
       redirect(tradeStepPath(exchangeId, peerUserId, "confirm", "trade-kind"));
+    }
+    if (item.listingIntent === ListingIntent.FOR_SALE) {
+      redirect(tradeStepPath(exchangeId, peerUserId, "confirm", "trade-sale"));
     }
   }
 
@@ -390,7 +394,8 @@ export async function acceptTradeAction(formData: FormData) {
           !c ||
           c.userId !== trade.initiatorUserId ||
           c.profileStatus !== CoralProfileStatus.UNLISTED ||
-          c.remainingQuantity <= 0
+          c.remainingQuantity <= 0 ||
+          c.listingIntent === ListingIntent.FOR_SALE
         ) {
           return { ok: false as const, code: "coral-unavailable" as const };
         }
@@ -401,7 +406,8 @@ export async function acceptTradeAction(formData: FormData) {
           !c ||
           c.userId !== trade.peerUserId ||
           c.profileStatus !== CoralProfileStatus.UNLISTED ||
-          c.remainingQuantity <= 0
+          c.remainingQuantity <= 0 ||
+          c.listingIntent === ListingIntent.FOR_SALE
         ) {
           return { ok: false as const, code: "coral-unavailable" as const };
         }
@@ -682,6 +688,9 @@ export async function counterTradeAction(formData: FormData) {
   for (const item of [...initiatorItems, ...peerItems]) {
     if (!isKindAllowedOnExchange(item.kind, trade.exchange)) {
       redirect(tradeDetailPath(exchangeId, tradeId, "trade-kind"));
+    }
+    if (item.listingIntent === ListingIntent.FOR_SALE) {
+      redirect(tradeDetailPath(exchangeId, tradeId, "trade-sale"));
     }
   }
 

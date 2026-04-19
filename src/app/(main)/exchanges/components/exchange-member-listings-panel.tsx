@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { CoralListingMode } from "@/generated/prisma/enums";
-import { CoralListingMode as CoralListingModeEnum, InventoryKind } from "@/generated/prisma/enums";
+import { CoralListingMode as CoralListingModeEnum, InventoryKind, ListingIntent } from "@/generated/prisma/enums";
 import type { ExchangeListing, InventoryItem } from "@/generated/prisma/client";
 import {
   addExchangeListingFormAction,
@@ -16,6 +16,7 @@ import {
   ExchangeMemberListingsTabs,
   type ListingsTabId,
 } from "@/app/(main)/exchanges/components/exchange-member-listings-tabs";
+import { isKindAllowedOnExchange } from "@/lib/listing-eligibility";
 
 function initialListingsTab(sp: { tab?: string; unlisted?: string }): ListingsTabId {
   if (sp.tab === "unlisted") return "unlisted";
@@ -39,6 +40,15 @@ function remainingQuantityBadge(remainingQuantity: number): ReactNode {
   return <span className="badge badge-ghost badge-sm">x{remainingQuantity}</span>;
 }
 
+function salePriceBadge(priceMinor: number | null, currencyCode: string | null): ReactNode {
+  if (priceMinor == null) return <span className="badge badge-info badge-sm badge-outline">For sale</span>;
+  return (
+    <span className="badge badge-info badge-sm badge-outline">
+      {new Intl.NumberFormat("en-GB", { style: "currency", currency: currencyCode ?? "GBP" }).format(priceMinor / 100)}
+    </span>
+  );
+}
+
 type ListingRow = ExchangeListing & { inventoryItem: InventoryItem };
 
 type ExchangePick = {
@@ -47,6 +57,7 @@ type ExchangePick = {
   allowCoral: boolean;
   allowFish: boolean;
   allowEquipment: boolean;
+  allowItemsForSale: boolean;
 };
 
 export async function ExchangeMemberListingsPanel({
@@ -86,13 +97,7 @@ export async function ExchangeMemberListingsPanel({
     if (activeListingByItemId.has(c.id)) {
       return false;
     }
-    if (c.kind === InventoryKind.CORAL) {
-      return exchange.allowCoral;
-    }
-    if (c.kind === InventoryKind.FISH) {
-      return exchange.allowFish;
-    }
-    return exchange.allowEquipment;
+    return isKindAllowedOnExchange(c.kind, exchange, c.listingIntent);
   });
 
   const listingsCount = activeListingByItemId.size;
@@ -159,9 +164,12 @@ export async function ExchangeMemberListingsPanel({
                           <h3 className="min-w-0 flex-1 truncate font-semibold text-base-content">{l.inventoryItem.name}</h3>
                           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                             {remainingQuantityBadge(l.inventoryItem.remainingQuantity)}
-                            {l.inventoryItem.freeToGoodHome ? (
+                            {l.inventoryItem.listingIntent === ListingIntent.FREE ? (
                               <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
                             ) : null}
+                            {l.inventoryItem.listingIntent === ListingIntent.FOR_SALE
+                              ? salePriceBadge(l.inventoryItem.salePriceMinor, l.inventoryItem.saleCurrencyCode)
+                              : null}
                           </div>
                         </div>
                         <p className="mt-2 text-xs text-base-content/60">
@@ -254,9 +262,12 @@ export async function ExchangeMemberListingsPanel({
                         <h3 className="min-w-0 flex-1 truncate font-semibold text-base-content">{c.name}</h3>
                         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                           {remainingQuantityBadge(c.remainingQuantity)}
-                          {c.freeToGoodHome ? (
+                          {c.listingIntent === ListingIntent.FREE ? (
                             <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
                           ) : null}
+                          {c.listingIntent === ListingIntent.FOR_SALE
+                            ? salePriceBadge(c.salePriceMinor, c.saleCurrencyCode)
+                            : null}
                         </div>
                       </div>
                       <p className="mt-2 text-xs text-base-content/60">

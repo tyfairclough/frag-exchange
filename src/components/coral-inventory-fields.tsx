@@ -1,6 +1,6 @@
 "use client";
 
-import { CoralListingMode } from "@/generated/prisma/enums";
+import { CoralListingMode, ListingIntent } from "@/generated/prisma/enums";
 import { InventoryColourMultiselect } from "@/components/inventory-colour-multiselect";
 import {
   InventoryItemImageField,
@@ -8,6 +8,7 @@ import {
 } from "@/components/inventory-item-image-field";
 import { CORAL_TYPES } from "@/lib/coral-options";
 import type { ReactNode, RefObject } from "react";
+import { ListingIntentFields } from "@/components/listing-intent-fields";
 
 export type CoralInventoryFieldsProps = {
   name: string;
@@ -19,8 +20,14 @@ export type CoralInventoryFieldsProps = {
   imageFieldRef?: RefObject<InventoryItemImageFieldHandle | null>;
   listingMode: CoralListingMode;
   setListingMode: (v: CoralListingMode) => void;
-  freeToGoodHome: boolean;
-  setFreeToGoodHome: (v: boolean) => void;
+  listingIntent: ListingIntent;
+  setListingIntent: (v: ListingIntent) => void;
+  salePrice: string;
+  setSalePrice: (v: string) => void;
+  saleCurrency: string;
+  setSaleCurrency: (v: string) => void;
+  saleExternalUrl: string;
+  setSaleExternalUrl: (v: string) => void;
   coralType: string;
   setCoralType: (v: string) => void;
   colours: string[];
@@ -44,8 +51,14 @@ export function CoralInventoryFields({
   imageFieldRef,
   listingMode,
   setListingMode,
-  freeToGoodHome,
-  setFreeToGoodHome,
+  listingIntent,
+  setListingIntent,
+  salePrice,
+  setSalePrice,
+  saleCurrency,
+  setSaleCurrency,
+  saleExternalUrl,
+  setSaleExternalUrl,
   coralType,
   setCoralType,
   colours,
@@ -150,21 +163,17 @@ export function CoralInventoryFields({
         </select>
       </label>
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-base-content/10 bg-base-200/40 p-4">
-        <input
-          name="freeToGoodHome"
-          type="checkbox"
-          className="checkbox checkbox-primary mt-0.5"
-          checked={freeToGoodHome}
-          onChange={(e) => setFreeToGoodHome(e.target.checked)}
-        />
-        <span>
-          <span className="font-medium">Free to good home</span>
-          <span className="mt-0.5 block text-sm text-base-content/70">
-            This coral is available at no cost to another hobbyist.
-          </span>
-        </span>
-      </label>
+      <ListingIntentFields
+        value={listingIntent}
+        onChange={setListingIntent}
+        salePrice={salePrice}
+        onSalePriceChange={setSalePrice}
+        saleCurrency={saleCurrency}
+        onSaleCurrencyChange={setSaleCurrency}
+        saleExternalUrl={saleExternalUrl}
+        onSaleExternalUrlChange={setSaleExternalUrl}
+        allowForSale
+      />
     </>
   );
 }

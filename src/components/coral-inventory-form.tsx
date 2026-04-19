@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { CoralListingMode } from "@/generated/prisma/enums";
+import { CoralListingMode, ListingIntent } from "@/generated/prisma/enums";
 import { enrichCoralPreviewAction } from "@/app/(main)/my-items/actions";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
 import type { InventoryItemImageFieldHandle } from "@/components/inventory-item-image-field";
@@ -28,7 +28,10 @@ export type CoralInventoryFormDefaults = {
   description: string;
   imageUrl: string;
   listingMode: CoralListingMode;
-  freeToGoodHome: boolean;
+  listingIntent: ListingIntent;
+  salePrice: string;
+  saleCurrency: string;
+  saleExternalUrl: string;
   coralType: string;
   colours: string[];
 };
@@ -44,7 +47,10 @@ export function CoralInventoryForm({ saveAction, defaults }: Props) {
     description: "",
     imageUrl: "",
     listingMode: CoralListingMode.BOTH,
-    freeToGoodHome: false,
+    listingIntent: ListingIntent.SWAP,
+    salePrice: "",
+    saleCurrency: "GBP",
+    saleExternalUrl: "",
     coralType: "",
     colours: [],
   };
@@ -53,7 +59,10 @@ export function CoralInventoryForm({ saveAction, defaults }: Props) {
   const [description, setDescription] = useState(d.description);
   const [imageUrl, setImageUrl] = useState(d.imageUrl);
   const [listingMode, setListingMode] = useState<CoralListingMode>(d.listingMode);
-  const [freeToGoodHome, setFreeToGoodHome] = useState(d.freeToGoodHome);
+  const [listingIntent, setListingIntent] = useState(d.listingIntent);
+  const [salePrice, setSalePrice] = useState(d.salePrice);
+  const [saleCurrency, setSaleCurrency] = useState(d.saleCurrency);
+  const [saleExternalUrl, setSaleExternalUrl] = useState(d.saleExternalUrl);
   const [coralType, setCoralType] = useState(d.coralType);
   const [colours, setColours] = useState(d.colours);
   const [aiHint, setAiHint] = useState<string | null>(null);
@@ -130,8 +139,14 @@ export function CoralInventoryForm({ saveAction, defaults }: Props) {
         imageUrl={imageUrl}
         listingMode={listingMode}
         setListingMode={setListingMode}
-        freeToGoodHome={freeToGoodHome}
-        setFreeToGoodHome={setFreeToGoodHome}
+        listingIntent={listingIntent}
+        setListingIntent={setListingIntent}
+        salePrice={salePrice}
+        setSalePrice={setSalePrice}
+        saleCurrency={saleCurrency}
+        setSaleCurrency={setSaleCurrency}
+        saleExternalUrl={saleExternalUrl}
+        setSaleExternalUrl={setSaleExternalUrl}
         coralType={coralType}
         setCoralType={setCoralType}
         colours={colours}

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CoralListingMode, CoralProfileStatus, InventoryKind } from "@/generated/prisma/enums";
+import { CoralListingMode, CoralProfileStatus, InventoryKind, ListingIntent } from "@/generated/prisma/enums";
 export type InventoryItemCardItem = {
   id: string;
   kind: InventoryKind;
@@ -9,10 +9,18 @@ export type InventoryItemCardItem = {
   listingMode: CoralListingMode;
   coralType: string | null;
   colours: string[];
-  freeToGoodHome: boolean;
+  listingIntent: ListingIntent;
+  salePriceMinor?: number | null;
+  saleCurrencyCode?: string | null;
   profileStatus: CoralProfileStatus;
   remainingQuantity?: number;
 };
+
+function priceLabel(minor: number | null | undefined, currency: string | null | undefined) {
+  if (minor == null) return "For sale";
+  const c = currency ?? "GBP";
+  return new Intl.NumberFormat("en-GB", { style: "currency", currency: c }).format(minor / 100);
+}
 
 function listingModeLabel(mode: CoralListingMode) {
   switch (mode) {
@@ -87,8 +95,13 @@ export function InventoryItemCard({
                 {showQuantityBadge && item.remainingQuantity != null && item.remainingQuantity > 1 ? (
                   <span className="badge badge-ghost badge-sm">x{item.remainingQuantity}</span>
                 ) : null}
-                {item.freeToGoodHome ? (
+                {item.listingIntent === ListingIntent.FREE ? (
                   <span className="badge badge-success badge-sm badge-outline">Free to good home</span>
+                ) : null}
+                {item.listingIntent === ListingIntent.FOR_SALE ? (
+                  <span className="badge badge-info badge-sm badge-outline">
+                    {priceLabel(item.salePriceMinor, item.saleCurrencyCode)}
+                  </span>
                 ) : null}
               </div>
             </div>

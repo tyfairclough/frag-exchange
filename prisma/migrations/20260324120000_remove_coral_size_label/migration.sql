@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE `corals` DROP COLUMN `sizeLabel`;
+ALTER TABLE "corals" DROP COLUMN "sizeLabel";

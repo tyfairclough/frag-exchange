@@ -7,6 +7,7 @@ import {
   requiresOfferItems,
 } from "@/lib/trade-initiation-draft";
 import { loadTradeInitiationContext, tradeInitiationErrors } from "@/lib/trade-initiation-data";
+import { ListingIntent } from "@/generated/prisma/enums";
 import { InventoryItemCard } from "@/components/inventory-item-card";
 import { updateTradeOfferSelectionAction } from "@/app/(main)/exchanges/trade-actions";
 
@@ -40,7 +41,8 @@ export default async function ExchangeTradeOfferPage({
   if (receiveRows.length < 1) {
     redirect(`/exchanges/${encodeURIComponent(exchangeId)}/trade/receive?with=${encodeURIComponent(peerUserId)}&error=receive-required`);
   }
-  const receiveAllFreeToGoodHome = receiveRows.length > 0 && receiveRows.every((row) => row.inventoryItem.freeToGoodHome);
+  const receiveAllFreeToGoodHome =
+    receiveRows.length > 0 && receiveRows.every((row) => row.inventoryItem.listingIntent === ListingIntent.FREE);
   const offerRequired = requiresOfferItems(receiveAllFreeToGoodHome);
   const selectedOfferSet = new Set(draft.offerItemIds);
   const err = sp.error ? tradeInitiationErrors[sp.error] ?? "Something went wrong." : null;

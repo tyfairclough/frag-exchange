@@ -97,6 +97,10 @@ export default function PrivacyPage() {
               to listings or profile inventory (for example coral names and notes).
             </li>
             <li>
+              <strong className="font-medium text-slate-800">External sale fields:</strong> when you choose a for-sale
+              listing intent, sale price, currency, and external listing URL.
+            </li>
+            <li>
               <strong className="font-medium text-slate-800">Exchanges, invites, and trades:</strong> membership of
               exchanges, roles (such as member or event manager), invite records (including invitee email), and
               information needed to operate trades between members on an exchange.
@@ -134,6 +138,7 @@ export default function PrivacyPage() {
               provider (where enabled in the product);
             </li>
             <li>measure use of the Service and improve performance and design (analytics);</li>
+            <li>show external-sale disclaimers and route users safely to third-party sale URLs;</li>
             <li>comply with law, respond to lawful requests, and enforce our Terms;</li>
             <li>keep records of consent and legal acceptance where required.</li>
           </ul>
@@ -345,6 +350,10 @@ export default function PrivacyPage() {
             PostHog is only loaded with analytics persistence after you click &quot;Accept analytics&quot; on the cookie
             banner. Cookie and storage names depend on your browser and our PostHog project key; they commonly include
             the prefixes below.
+          </p>
+          <p className="text-sm">
+            Where enabled, analytics events may include external-sale interaction metadata (for example disclaimer accepted,
+            outbound click, listing and exchange identifiers) to help us monitor misuse and improve safety messaging.
           </p>
           <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200/80">
             <table className="min-w-full text-left text-xs text-slate-600 sm:text-sm">

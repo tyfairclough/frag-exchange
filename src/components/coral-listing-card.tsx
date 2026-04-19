@@ -1,5 +1,5 @@
 import { AppLink } from "@/components/app-link";
-import { InventoryKind } from "@/generated/prisma/enums";
+import { InventoryKind, ListingIntent } from "@/generated/prisma/enums";
 import type { DiscoverRow } from "@/lib/discover-listings";
 import { EQUIPMENT_CATEGORY_LABELS } from "@/lib/equipment-options";
 
@@ -22,6 +22,11 @@ export function CoralListingCard({
   sellerLinkEnabled = true,
 }: CoralListingCardProps) {
   const tradeHref = `/exchanges/${encodeURIComponent(exchangeId)}/trade?with=${encodeURIComponent(row.owner.id)}&focus=${encodeURIComponent(row.itemId)}`;
+  const saleHref =
+    row.listingIntent === ListingIntent.FOR_SALE && row.saleExternalUrl
+      ? `/sale-disclaimer?exchangeId=${encodeURIComponent(exchangeId)}&itemId=${encodeURIComponent(row.itemId)}&listingId=${encodeURIComponent(row.listingId)}&url=${encodeURIComponent(row.saleExternalUrl)}`
+      : null;
+  const primaryHref = saleHref ?? tradeHref;
   const sellerHref = `/exchanges/${encodeURIComponent(exchangeId)}/member/${encodeURIComponent(row.owner.id)}`;
   const descId = `${idPrefix}-desc-${row.listingId}`;
   const hasDescription = Boolean(row.description?.trim());
@@ -50,9 +55,13 @@ export function CoralListingCard({
       ) : null}
       {tradeEnabled ? (
         <AppLink
-          href={tradeHref}
+          href={primaryHref}
           className="absolute inset-0 z-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-          aria-label={`Start trade for ${row.name} from ${row.owner.alias ?? "member"}`}
+          aria-label={
+            row.listingIntent === ListingIntent.FOR_SALE
+              ? `Open sale listing for ${row.name}`
+              : `Start trade for ${row.name} from ${row.owner.alias ?? "member"}`
+          }
           aria-describedby={hasDescription ? descId : undefined}
         />
       ) : null}
@@ -85,9 +94,17 @@ export function CoralListingCard({
               {row.remainingQuantity} available
             </span>
           ) : null}
-          {row.freeToGoodHome ? (
+          {row.listingIntent === ListingIntent.FREE ? (
             <span className="absolute bottom-2 left-2 rounded-lg bg-emerald-500 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
               Free to a good home
+            </span>
+          ) : null}
+          {row.listingIntent === ListingIntent.FOR_SALE ? (
+            <span className="absolute bottom-2 left-2 rounded-lg bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
+              {new Intl.NumberFormat("en-GB", {
+                style: "currency",
+                currency: row.saleCurrencyCode ?? "GBP",
+              }).format((row.salePriceMinor ?? 0) / 100)}
             </span>
           ) : null}
         </div>
@@ -119,6 +136,11 @@ export function CoralListingCard({
             {row.distanceKm != null ? (
               <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs text-slate-600">
                 ~{row.distanceKm.toFixed(0)} km
+              </span>
+            ) : null}
+            {row.owner.town ? (
+              <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs text-slate-600">
+                {row.owner.town}
               </span>
             ) : null}
           </div>

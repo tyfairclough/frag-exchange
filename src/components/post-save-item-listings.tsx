@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { InventoryKind } from "@/generated/prisma/enums";
+import type { InventoryKind, ListingIntent } from "@/generated/prisma/enums";
 import {
   ManageItemListingsPanel,
   type ManageItemListingsExchange,
@@ -10,12 +10,14 @@ import {
 export function PostSaveItemListings({
   itemId,
   itemKind,
+  listingIntent,
   remainingQuantity,
   exchanges,
   listedExchangeIds,
 }: {
   itemId: string;
   itemKind: InventoryKind;
+  listingIntent: ListingIntent;
   remainingQuantity: number;
   exchanges: ManageItemListingsExchange[];
   listedExchangeIds: string[];
@@ -28,6 +30,7 @@ export function PostSaveItemListings({
         <ManageItemListingsPanel
           itemId={itemId}
           itemKind={itemKind}
+          listingIntent={listingIntent}
           remainingQuantity={remainingQuantity}
           exchanges={exchanges}
           listedExchangeIds={listedExchangeIds}

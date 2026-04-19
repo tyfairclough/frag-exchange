@@ -68,6 +68,31 @@ export default async function EditItemPage({
           Enter a valid quantity.
         </p>
       ) : null}
+      {error === "sale-kind" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Gear items cannot be marked for sale.
+        </p>
+      ) : null}
+      {error === "sale-price" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Enter a valid sale price.
+        </p>
+      ) : null}
+      {error === "sale-currency" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Select a valid sale currency.
+        </p>
+      ) : null}
+      {error === "sale-url" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Enter a valid external listing URL.
+        </p>
+      ) : null}
+      {error === "listing-intent-locked" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          For-sale items cannot switch back to swap/free and vice versa.
+        </p>
+      ) : null}
       {error === "image-too-large" ? (
         <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
           Photo is too large (max 6 MB). Choose a smaller image.
@@ -93,7 +118,10 @@ export default async function EditItemPage({
               description: item.description,
               imageUrl: item.imageUrl ?? "",
               listingMode: item.listingMode,
-              freeToGoodHome: item.freeToGoodHome,
+              listingIntent: item.listingIntent,
+              salePrice: item.salePriceMinor != null ? (item.salePriceMinor / 100).toFixed(2) : "",
+              saleCurrency: item.saleCurrencyCode ?? "GBP",
+              saleExternalUrl: item.saleExternalUrl ?? "",
               remainingQuantity: item.remainingQuantity,
               coralType: coralTypeToFormValue(item.coralType),
               colours: coralColoursToFormValue(item.colours),
@@ -107,7 +135,10 @@ export default async function EditItemPage({
               description: item.description,
               imageUrl: item.imageUrl ?? "",
               listingMode: item.listingMode,
-              freeToGoodHome: item.freeToGoodHome,
+              listingIntent: item.listingIntent,
+              salePrice: item.salePriceMinor != null ? (item.salePriceMinor / 100).toFixed(2) : "",
+              saleCurrency: item.saleCurrencyCode ?? "GBP",
+              saleExternalUrl: item.saleExternalUrl ?? "",
               remainingQuantity: item.remainingQuantity,
               species: item.species ?? "",
               colours: coralColoursToFormValue(item.colours),
@@ -122,7 +153,10 @@ export default async function EditItemPage({
               description: item.description,
               imageUrl: item.imageUrl ?? "",
               listingMode: item.listingMode,
-              freeToGoodHome: item.freeToGoodHome,
+              listingIntent: item.listingIntent,
+              salePrice: item.salePriceMinor != null ? (item.salePriceMinor / 100).toFixed(2) : "",
+              saleCurrency: item.saleCurrencyCode ?? "GBP",
+              saleExternalUrl: item.saleExternalUrl ?? "",
               remainingQuantity: item.remainingQuantity,
               equipmentCategory: item.equipmentCategory,
               equipmentCondition: item.equipmentCondition,

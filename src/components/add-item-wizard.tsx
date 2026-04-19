@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
-import { CoralListingMode, InventoryKind } from "@/generated/prisma/enums";
+import { CoralListingMode, InventoryKind, ListingIntent } from "@/generated/prisma/enums";
 import { createInventoryItemAction } from "@/app/(main)/my-items/actions";
 import { AddCoralImageBar, type AddCoralImageBarHandle } from "@/components/add-coral-image-bar";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
@@ -20,6 +20,7 @@ import {
   prepareInventoryVisionImage,
 } from "@/lib/prepare-inventory-vision-image-client";
 import { InventoryItemImagePreview } from "@/components/inventory-item-image-field";
+import { ListingIntentFields } from "@/components/listing-intent-fields";
 
 function messageForApiError(code: string | undefined): string {
   switch (code) {
@@ -103,7 +104,10 @@ export function AddItemWizard() {
   const [description, setDescription] = useState("");
   const [imageUrl] = useState("");
   const [listingMode, setListingMode] = useState<CoralListingMode>(CoralListingMode.BOTH);
-  const [freeToGoodHome, setFreeToGoodHome] = useState(false);
+  const [listingIntent, setListingIntent] = useState<ListingIntent>(ListingIntent.SWAP);
+  const [salePrice, setSalePrice] = useState("");
+  const [saleCurrency, setSaleCurrency] = useState("GBP");
+  const [saleExternalUrl, setSaleExternalUrl] = useState("");
   const [coralType, setCoralType] = useState("");
   const [colours, setColours] = useState<string[]>([]);
   const [species, setSpecies] = useState("");
@@ -277,6 +281,9 @@ export function AddItemWizard() {
   function onKindChange(next: InventoryKind | "") {
     setKind(next);
     if (!next) return;
+    if (next === InventoryKind.EQUIPMENT && listingIntent === ListingIntent.FOR_SALE) {
+      setListingIntent(ListingIntent.SWAP);
+    }
     const r = resetKindFields(next, visionResult);
     setCoralType(r.coralType);
     setColours(r.colours);
@@ -334,8 +341,11 @@ export function AddItemWizard() {
       fd.append("description", description);
       fd.append("imageUrl", uploadedImageUrl);
       fd.append("listingMode", listingMode);
-      if (freeToGoodHome) {
-        fd.append("freeToGoodHome", "on");
+      fd.append("listingIntent", listingIntent);
+      if (listingIntent === ListingIntent.FOR_SALE) {
+        fd.append("salePrice", salePrice);
+        fd.append("saleCurrency", saleCurrency);
+        fd.append("saleExternalUrl", saleExternalUrl);
       }
       if (kind === InventoryKind.CORAL) {
         fd.append("coralType", coralType);
@@ -458,8 +468,14 @@ export function AddItemWizard() {
                 imageUrl={imageUrl}
                 listingMode={listingMode}
                 setListingMode={setListingMode}
-                freeToGoodHome={freeToGoodHome}
-                setFreeToGoodHome={setFreeToGoodHome}
+                listingIntent={listingIntent}
+                setListingIntent={setListingIntent}
+                salePrice={salePrice}
+                setSalePrice={setSalePrice}
+                saleCurrency={saleCurrency}
+                setSaleCurrency={setSaleCurrency}
+                saleExternalUrl={saleExternalUrl}
+                setSaleExternalUrl={setSaleExternalUrl}
                 coralType={coralType}
                 setCoralType={setCoralType}
                 colours={colours}
@@ -543,15 +559,17 @@ export function AddItemWizard() {
                     <option value={CoralListingMode.BOTH}>Post or meet</option>
                   </select>
                 </label>
-                <label className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={freeToGoodHome}
-                    onChange={(e) => setFreeToGoodHome(e.target.checked)}
-                    className="checkbox"
-                  />
-                  <span className="text-sm">Free to good home</span>
-                </label>
+                <ListingIntentFields
+                  value={listingIntent}
+                  onChange={setListingIntent}
+                  salePrice={salePrice}
+                  onSalePriceChange={setSalePrice}
+                  saleCurrency={saleCurrency}
+                  onSaleCurrencyChange={setSaleCurrency}
+                  saleExternalUrl={saleExternalUrl}
+                  onSaleExternalUrlChange={setSaleExternalUrl}
+                  allowForSale
+                />
               </>
             ) : null}
 
@@ -626,15 +644,17 @@ export function AddItemWizard() {
                     <option value={CoralListingMode.BOTH}>Post or meet</option>
                   </select>
                 </label>
-                <label className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={freeToGoodHome}
-                    onChange={(e) => setFreeToGoodHome(e.target.checked)}
-                    className="checkbox"
-                  />
-                  <span className="text-sm">Free to good home</span>
-                </label>
+                <ListingIntentFields
+                  value={listingIntent}
+                  onChange={setListingIntent}
+                  salePrice={salePrice}
+                  onSalePriceChange={setSalePrice}
+                  saleCurrency={saleCurrency}
+                  onSaleCurrencyChange={setSaleCurrency}
+                  saleExternalUrl={saleExternalUrl}
+                  onSaleExternalUrlChange={setSaleExternalUrl}
+                  allowForSale={false}
+                />
               </>
             ) : null}
 

@@ -8,6 +8,8 @@ export type ExploreFilterState = {
   coralTypes: string[];
   colours: string[];
   freeOnly: boolean;
+  saleOnly: boolean;
+  excludeSale: boolean;
   fulfilment: "" | "POST" | "MEET";
   maxKm: string;
   species: string;
@@ -54,6 +56,8 @@ export function parseExploreFiltersFromSearchParams(sp: URLSearchParams): Explor
     coralTypes,
     colours,
     freeOnly: sp.get("free") === "1",
+    saleOnly: sp.get("saleOnly") === "1",
+    excludeSale: sp.get("excludeSale") === "1",
     fulfilment: fulfilment === "POST" || fulfilment === "MEET" ? fulfilment : "",
     maxKm: sp.get("maxKm")?.trim() ?? "",
     species: sp.get("species")?.trim() ?? "",
@@ -95,6 +99,12 @@ export function buildExploreSearchHref(args: {
   }
   if (f.freeOnly) {
     p.set("free", "1");
+  }
+  if (f.saleOnly) {
+    p.set("saleOnly", "1");
+  }
+  if (f.excludeSale) {
+    p.set("excludeSale", "1");
   }
   if (f.fulfilment === "POST" || f.fulfilment === "MEET") {
     p.set("fulfilment", f.fulfilment);

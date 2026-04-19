@@ -1,10 +1,10 @@
 -- CreateTable
-CREATE TABLE `users` (
-    `id` VARCHAR(191) NOT NULL,
-    `email` VARCHAR(255) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+CREATE TABLE "users" (
+    "id" TEXT NOT NULL,
+    "email" VARCHAR(255),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
+);
 
-    UNIQUE INDEX `users_email_key`(`email`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");

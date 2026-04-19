@@ -24,6 +24,7 @@ export default async function ListNewItemOnExchangesPage({ params }: Props) {
             allowCoral: true,
             allowFish: true,
             allowEquipment: true,
+            allowItemsForSale: true,
           },
         },
       },
@@ -84,6 +85,7 @@ export default async function ListNewItemOnExchangesPage({ params }: Props) {
         <PostSaveItemListings
           itemId={item.id}
           itemKind={item.kind}
+          listingIntent={item.listingIntent}
           remainingQuantity={item.remainingQuantity}
           exchanges={exchangesForListings}
           listedExchangeIds={listedExchangeIds}

@@ -1,6 +1,6 @@
 "use client";
 
-import { CoralListingMode } from "@/generated/prisma/enums";
+import { CoralListingMode, ListingIntent } from "@/generated/prisma/enums";
 import type { EquipmentCategory, EquipmentCondition } from "@/generated/prisma/enums";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
 import { ItemQuantityFields } from "@/components/item-quantity-fields";
@@ -23,6 +23,8 @@ import {
   replaceFormDataImageFileWithNormalized,
 } from "@/lib/prepare-inventory-vision-image-client";
 import { useRef, useState, useTransition } from "react";
+import { ListingIntentFields } from "@/components/listing-intent-fields";
+import { usePostHog } from "posthog-js/react";
 
 type SaveAction = (formData: FormData) => void | Promise<void>;
 
@@ -44,7 +46,10 @@ type SharedInventoryDefaults = {
   description: string;
   imageUrl: string;
   listingMode: CoralListingMode;
-  freeToGoodHome: boolean;
+  listingIntent: ListingIntent;
+  salePrice: string;
+  saleCurrency: string;
+  saleExternalUrl: string;
   remainingQuantity: number;
 };
 
@@ -55,11 +60,15 @@ export function CoralKindEditForm({
   saveAction: SaveAction;
   defaults: SharedInventoryDefaults & { coralType: string; colours: string[] };
 }) {
+  const posthog = usePostHog();
   const [name, setName] = useState(defaults.name);
   const [description, setDescription] = useState(defaults.description);
   const [imageUrl, setImageUrl] = useState(defaults.imageUrl);
   const [listingMode, setListingMode] = useState(defaults.listingMode);
-  const [freeToGoodHome, setFreeToGoodHome] = useState(defaults.freeToGoodHome);
+  const [listingIntent, setListingIntent] = useState(defaults.listingIntent);
+  const [salePrice, setSalePrice] = useState(defaults.salePrice);
+  const [saleCurrency, setSaleCurrency] = useState(defaults.saleCurrency);
+  const [saleExternalUrl, setSaleExternalUrl] = useState(defaults.saleExternalUrl);
   const [coralType, setCoralType] = useState(defaults.coralType);
   const [colours, setColours] = useState(defaults.colours);
   const [hasMultipleToExchange, setHasMultipleToExchange] = useState(defaults.remainingQuantity > 1);
@@ -76,6 +85,14 @@ export function CoralKindEditForm({
     setSubmitting(true);
     try {
       const fd = new FormData(e.currentTarget);
+      const saleFieldsChanged =
+        defaults.listingIntent === ListingIntent.FOR_SALE &&
+        (salePrice !== defaults.salePrice ||
+          saleCurrency !== defaults.saleCurrency ||
+          saleExternalUrl !== defaults.saleExternalUrl);
+      if (saleFieldsChanged) {
+        posthog.capture("sale_listing_fields_edited", { kind: "coral" });
+      }
       await replaceFormDataImageFileWithNormalized(fd);
       await saveAction(fd);
     } finally {
@@ -129,8 +146,14 @@ export function CoralKindEditForm({
         imageUrl={imageUrl}
         listingMode={listingMode}
         setListingMode={setListingMode}
-        freeToGoodHome={freeToGoodHome}
-        setFreeToGoodHome={setFreeToGoodHome}
+        listingIntent={listingIntent}
+        setListingIntent={setListingIntent}
+        salePrice={salePrice}
+        setSalePrice={setSalePrice}
+        saleCurrency={saleCurrency}
+        setSaleCurrency={setSaleCurrency}
+        saleExternalUrl={saleExternalUrl}
+        setSaleExternalUrl={setSaleExternalUrl}
         coralType={coralType}
         setCoralType={setCoralType}
         colours={colours}
@@ -173,6 +196,7 @@ export function FishKindEditForm({
   saveAction: SaveAction;
   defaults: SharedInventoryDefaults & { species: string; colours: string[]; reefSafe: boolean | null };
 }) {
+  const posthog = usePostHog();
   const [species, setSpecies] = useState(defaults.species);
   const [colours, setColours] = useState(coralColoursToFormValue(defaults.colours));
   const [reefSafe, setReefSafe] = useState<string>(
@@ -181,6 +205,10 @@ export function FishKindEditForm({
   const [hasMultipleToExchange, setHasMultipleToExchange] = useState(defaults.remainingQuantity > 1);
   const [itemCount, setItemCount] = useState(String(Math.max(2, defaults.remainingQuantity)));
   const [imageUrl] = useState(defaults.imageUrl);
+  const [listingIntent, setListingIntent] = useState(defaults.listingIntent);
+  const [salePrice, setSalePrice] = useState(defaults.salePrice);
+  const [saleCurrency, setSaleCurrency] = useState(defaults.saleCurrency);
+  const [saleExternalUrl, setSaleExternalUrl] = useState(defaults.saleExternalUrl);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -189,6 +217,14 @@ export function FishKindEditForm({
     setSubmitting(true);
     try {
       const fd = new FormData(e.currentTarget);
+      const saleFieldsChanged =
+        defaults.listingIntent === ListingIntent.FOR_SALE &&
+        (salePrice !== defaults.salePrice ||
+          saleCurrency !== defaults.saleCurrency ||
+          saleExternalUrl !== defaults.saleExternalUrl);
+      if (saleFieldsChanged) {
+        posthog.capture("sale_listing_fields_edited", { kind: "fish" });
+      }
       await replaceFormDataImageFileWithNormalized(fd);
       await saveAction(fd);
     } finally {
@@ -261,10 +297,17 @@ export function FishKindEditForm({
           <option value={CoralListingMode.BOTH}>Post or meet</option>
         </select>
       </label>
-      <label className="flex cursor-pointer items-center gap-2">
-        <input type="checkbox" name="freeToGoodHome" defaultChecked={defaults.freeToGoodHome} className="checkbox" />
-        <span className="text-sm">Free to good home</span>
-      </label>
+      <ListingIntentFields
+        value={listingIntent}
+        onChange={setListingIntent}
+        salePrice={salePrice}
+        onSalePriceChange={setSalePrice}
+        saleCurrency={saleCurrency}
+        onSaleCurrencyChange={setSaleCurrency}
+        saleExternalUrl={saleExternalUrl}
+        onSaleExternalUrlChange={setSaleExternalUrl}
+        allowForSale
+      />
       <button type="submit" className="btn btn-primary min-h-11 rounded-xl" disabled={submitting}>
         Save
       </button>
@@ -282,9 +325,14 @@ export function EquipmentKindEditForm({
     equipmentCondition: EquipmentCondition;
   };
 }) {
+  const posthog = usePostHog();
   const [hasMultipleToExchange, setHasMultipleToExchange] = useState(defaults.remainingQuantity > 1);
   const [itemCount, setItemCount] = useState(String(Math.max(2, defaults.remainingQuantity)));
   const [imageUrl] = useState(defaults.imageUrl);
+  const [listingIntent, setListingIntent] = useState(defaults.listingIntent);
+  const [salePrice, setSalePrice] = useState(defaults.salePrice);
+  const [saleCurrency, setSaleCurrency] = useState(defaults.saleCurrency);
+  const [saleExternalUrl, setSaleExternalUrl] = useState(defaults.saleExternalUrl);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -293,6 +341,14 @@ export function EquipmentKindEditForm({
     setSubmitting(true);
     try {
       const fd = new FormData(e.currentTarget);
+      const saleFieldsChanged =
+        defaults.listingIntent === ListingIntent.FOR_SALE &&
+        (salePrice !== defaults.salePrice ||
+          saleCurrency !== defaults.saleCurrency ||
+          saleExternalUrl !== defaults.saleExternalUrl);
+      if (saleFieldsChanged) {
+        posthog.capture("sale_listing_fields_edited", { kind: "equipment" });
+      }
       await replaceFormDataImageFileWithNormalized(fd);
       await saveAction(fd);
     } finally {
@@ -371,10 +427,17 @@ export function EquipmentKindEditForm({
           <option value={CoralListingMode.BOTH}>Post or meet</option>
         </select>
       </label>
-      <label className="flex cursor-pointer items-center gap-2">
-        <input type="checkbox" name="freeToGoodHome" defaultChecked={defaults.freeToGoodHome} className="checkbox" />
-        <span className="text-sm">Free to good home</span>
-      </label>
+      <ListingIntentFields
+        value={listingIntent}
+        onChange={setListingIntent}
+        salePrice={salePrice}
+        onSalePriceChange={setSalePrice}
+        saleCurrency={saleCurrency}
+        onSaleCurrencyChange={setSaleCurrency}
+        saleExternalUrl={saleExternalUrl}
+        onSaleExternalUrlChange={setSaleExternalUrl}
+        allowForSale={false}
+      />
       <button type="submit" className="btn btn-primary min-h-11 rounded-xl" disabled={submitting}>
         Save
       </button>

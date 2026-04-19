@@ -74,6 +74,22 @@ export default function TermsPage() {
 
         <section className="mt-8 space-y-3">
           <p className="text-lg font-bold leading-snug text-slate-600">
+            For-sale listings are external only; REEFX does not process payment or delivery.
+          </p>
+          <h2 className="text-base font-semibold text-slate-900">3A. External sale listings</h2>
+          <p>
+            Where users mark items as &quot;for sale&quot;, REEFX only displays listing details and an external URL. Any
+            purchase, payment, shipping, collection, refund, or dispute happens outside REEFX directly between users.
+          </p>
+          <p>
+            We do not act as merchant of record, payment service provider, escrow agent, marketplace intermediary, or
+            dispute resolver. Buyers and sellers are solely responsible for checking legitimacy, legality, and suitability
+            of any external sale.
+          </p>
+        </section>
+
+        <section className="mt-8 space-y-3">
+          <p className="text-lg font-bold leading-snug text-slate-600">
             Be 18 or over, keep your details honest, and protect your email and password.
           </p>
           <h2 className="text-base font-semibold text-slate-900">4. Eligibility and accounts</h2>

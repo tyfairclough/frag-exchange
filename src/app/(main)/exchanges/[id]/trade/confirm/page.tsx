@@ -5,6 +5,7 @@ import { canSubmitTradeSelection, getTradeInitiationDraft } from "@/lib/trade-in
 import { loadTradeInitiationContext, tradeInitiationErrors } from "@/lib/trade-initiation-data";
 import { InventoryItemCard } from "@/components/inventory-item-card";
 import { submitTradeInitiationAction } from "@/app/(main)/exchanges/trade-actions";
+import { ListingIntent } from "@/generated/prisma/enums";
 
 export default async function ExchangeTradeConfirmPage({
   params,
@@ -27,7 +28,8 @@ export default async function ExchangeTradeConfirmPage({
   const offerSet = new Set(draft.offerItemIds);
   const receiveRows = theirRows.filter((row) => receiveSet.has(row.inventoryItemId));
   const offerRows = myRows.filter((row) => offerSet.has(row.inventoryItemId));
-  const receiveAllFreeToGoodHome = receiveRows.length > 0 && receiveRows.every((row) => row.inventoryItem.freeToGoodHome);
+  const receiveAllFreeToGoodHome =
+    receiveRows.length > 0 && receiveRows.every((row) => row.inventoryItem.listingIntent === ListingIntent.FREE);
   const valid = canSubmitTradeSelection({
     receiveCount: receiveRows.length,
     offerCount: offerRows.length,

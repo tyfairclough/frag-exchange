@@ -5,6 +5,7 @@ import {
   EquipmentCondition,
   ExchangeKind,
   InventoryKind,
+  ListingIntent,
 } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { haversineKm } from "@/lib/distance";
@@ -37,13 +38,17 @@ export type DiscoverRow = {
   equipmentCategory: EquipmentCategory | null;
   equipmentCondition: EquipmentCondition | null;
   listingMode: CoralListingMode;
-  freeToGoodHome: boolean;
+  listingIntent: ListingIntent;
+  salePriceMinor: number | null;
+  saleCurrencyCode: string | null;
+  saleExternalUrl: string | null;
   listedAt: Date;
   expiresAt: Date;
   owner: {
     id: string;
     alias: string | null;
     avatarEmoji: string | null;
+    town: string | null;
   };
   distanceKm: number | null;
 };
@@ -62,6 +67,8 @@ export type DiscoverParams = {
   coralTypes?: string[];
   colours?: string[];
   freeOnly?: boolean;
+  saleOnly?: boolean;
+  excludeSale?: boolean;
   fulfilment?: "POST" | "MEET";
   maxKm?: number;
   ownerUserId?: string;
@@ -72,6 +79,7 @@ export type DiscoverParams = {
   equipmentCategories?: string[];
   equipmentConditions?: string[];
   allowedKinds?: InventoryKind[];
+  allowItemsForSale?: boolean;
 };
 
 function listingModeFilter(
@@ -167,7 +175,13 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
   ];
 
   if (params.freeOnly) {
-    itemParts.push({ freeToGoodHome: true });
+    itemParts.push({ listingIntent: ListingIntent.FREE });
+  }
+  if (params.saleOnly) {
+    itemParts.push({ listingIntent: ListingIntent.FOR_SALE });
+  }
+  if (params.excludeSale) {
+    itemParts.push({ listingIntent: { not: ListingIntent.FOR_SALE } });
   }
   if (fulfilment) {
     itemParts.push(listingModeFilter(fulfilment));
@@ -261,24 +275,46 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
       equipmentCategory: item.equipmentCategory,
       equipmentCondition: item.equipmentCondition,
       listingMode: item.listingMode,
-      freeToGoodHome: item.freeToGoodHome,
+      listingIntent: item.listingIntent,
+      salePriceMinor: item.salePriceMinor,
+      saleCurrencyCode: item.saleCurrencyCode,
+      saleExternalUrl: item.saleExternalUrl,
       listedAt: row.listedAt,
       expiresAt: row.expiresAt,
       owner: {
         id: owner.id,
         alias: owner.alias,
         avatarEmoji: owner.avatarEmoji,
+        town: owner.address?.town ?? null,
       },
       distanceKm,
     };
   });
 
+  const saleEligibleRows = rows.filter((row) => {
+    if (row.listingIntent !== ListingIntent.FOR_SALE) {
+      return true;
+    }
+    if (!params.allowItemsForSale) {
+      return false;
+    }
+    return row.kind === InventoryKind.CORAL || row.kind === InventoryKind.FISH;
+  });
+
+  saleEligibleRows.sort((a, b) => {
+    const rank = (intent: ListingIntent) =>
+      intent === ListingIntent.SWAP ? 0 : intent === ListingIntent.FREE ? 1 : 2;
+    const byIntent = rank(a.listingIntent) - rank(b.listingIntent);
+    if (byIntent !== 0) return byIntent;
+    return b.listedAt.getTime() - a.listedAt.getTime();
+  });
+
   const maxKm = params.maxKm;
   if (params.exchangeKind === ExchangeKind.GROUP && maxKm != null && Number.isFinite(maxKm) && maxKm > 0) {
-    return rows.filter((r) => r.distanceKm != null && r.distanceKm <= maxKm);
+    return saleEligibleRows.filter((r) => r.distanceKm != null && r.distanceKm <= maxKm);
   }
 
-  return rows;
+  return saleEligibleRows;
 }
 
 export const DISCOVER_CORAL_TYPES = CORAL_TYPES;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ExchangeVisibility } from "@/generated/prisma/enums";
+import { ExchangeVisibility, ListingIntent } from "@/generated/prisma/enums";
 import { InventoryItemCard } from "@/components/inventory-item-card";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
@@ -86,6 +86,10 @@ export default async function SharedExchangeItemPage({
   const sharedPath = buildSharedItemPath(listing.exchangeId, listing.inventoryItemId);
   const loginHref = `/auth/login?next=${encodeURIComponent(sharedPath)}`;
   const tradeHref = `/exchanges/${encodeURIComponent(listing.exchangeId)}/trade?with=${encodeURIComponent(listing.inventoryItem.userId)}&focus=${encodeURIComponent(listing.inventoryItemId)}`;
+  const saleDisclaimerHref =
+    listing.inventoryItem.listingIntent === ListingIntent.FOR_SALE && listing.inventoryItem.saleExternalUrl
+      ? `/sale-disclaimer?exchangeId=${encodeURIComponent(listing.exchangeId)}&itemId=${encodeURIComponent(listing.inventoryItemId)}&listingId=${encodeURIComponent(listing.id)}&url=${encodeURIComponent(listing.inventoryItem.saleExternalUrl)}`
+      : null;
   const headerLogoUrl = exchangeLogoUrlForListThumbnail(listing.exchange);
   const headerLogoSrcSet = exchangeLogoSrcSetForListThumbnail(listing.exchange);
 
@@ -138,7 +142,9 @@ export default async function SharedExchangeItemPage({
             listingMode: listing.inventoryItem.listingMode,
             coralType: listing.inventoryItem.coralType,
             colours: listing.inventoryItem.colours,
-            freeToGoodHome: listing.inventoryItem.freeToGoodHome,
+            listingIntent: listing.inventoryItem.listingIntent,
+            salePriceMinor: listing.inventoryItem.salePriceMinor,
+            saleCurrencyCode: listing.inventoryItem.saleCurrencyCode,
             profileStatus: listing.inventoryItem.profileStatus,
           }}
           extraMeta={
@@ -152,7 +158,18 @@ export default async function SharedExchangeItemPage({
       <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 shadow-sm">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Next step</h2>
         {user ? (
-          canView && isMember ? (
+          saleDisclaimerHref ? (
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <p className="text-sm text-slate-700">This item is listed for sale off-platform.</p>
+              <Link
+                href={saleDisclaimerHref}
+                className="inline-flex min-h-10 items-center rounded-full px-5 text-sm font-semibold text-white transition hover:opacity-95"
+                style={{ backgroundColor: MARKETING_CTA_GREEN }}
+              >
+                View external listing
+              </Link>
+            </div>
+          ) : canView && isMember ? (
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <p className="text-sm text-slate-700">You can start a trade request for this item.</p>
               <Link
