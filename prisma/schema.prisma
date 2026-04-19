@@ -286,6 +286,8 @@ model InventoryImportJob {
   sourceHost       String                  @db.VarChar(255)
   status           InventoryImportJobStatus @default(QUEUED)
   maxPages         Int                     @default(20)
+  /// When set, stop after saving this many coral/fish candidates (null = no limit).
+  maxItems         Int?
   maxDepth         Int                     @default(2)
   crawlDelayMs     Int                     @default(250)
   pagesVisited     Int                     @default(0)

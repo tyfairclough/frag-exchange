@@ -16,11 +16,20 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json().catch(() => null)) as
-    | { sourceUrl?: string; maxPages?: number; maxDepth?: number }
+    | { sourceUrl?: string; maxPages?: number; maxItems?: number | null }
     | null;
   const sourceUrl = body?.sourceUrl?.trim() || "";
   if (!sourceUrl) {
     return NextResponse.json({ ok: false, error: "source_url_required" }, { status: 400 });
+  }
+
+  let maxItems: number | null | undefined;
+  if (body?.maxItems !== undefined && body?.maxItems !== null) {
+    const n = Number(body.maxItems);
+    if (!Number.isFinite(n) || Math.trunc(n) < 1) {
+      return NextResponse.json({ ok: false, error: "invalid_max_items" }, { status: 400 });
+    }
+    maxItems = Math.trunc(n);
   }
 
   try {
@@ -28,7 +37,7 @@ export async function POST(req: Request) {
       userId: user.id,
       sourceUrl,
       maxPages: parseIntOr(body?.maxPages, 20),
-      maxDepth: parseIntOr(body?.maxDepth, 2),
+      maxItems,
     });
     void runInventoryImportJobById(created.id);
     return NextResponse.json({ ok: true, jobId: created.id });
