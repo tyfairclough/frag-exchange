@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { getExchangeIdFromPathname } from "@/lib/exchange-path";
 import { useInventoryEditBottomNav } from "@/components/inventory-edit-bottom-nav-context";
 import { INVENTORY_IMAGE_PICKER_OPEN_EVENT } from "@/components/inventory-item-image-field";
+import { FetchImportActivitySheet } from "@/components/fetch-import-activity-sheet";
 
 type NavIconItem = { key: string; href: string; label: string; kind: "icon"; icon: typeof HomeIcon };
 type NavAvatarItem = { key: string; href: string; label: string; kind: "avatar"; avatarEmoji: string };
@@ -170,10 +171,13 @@ function EditItemImageBottomBar() {
 function BottomNavInner({ profile }: { profile: BottomNavProfile }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { replaceBottomNavWithImagePicker } = useInventoryEditBottomNav();
+  const { replaceBottomNavWithImagePicker, replaceBottomNavWithFetchActivity } = useInventoryEditBottomNav();
   const exploreExchangeIdParam = pathname === "/explore" ? searchParams.get("exchangeId") : null;
   if (pathname.startsWith("/admin")) {
     return <AdminNavLinks />;
+  }
+  if (replaceBottomNavWithFetchActivity) {
+    return <FetchImportActivitySheet />;
   }
   if (replaceBottomNavWithImagePicker) {
     return <EditItemImageBottomBar />;

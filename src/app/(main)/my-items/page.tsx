@@ -5,6 +5,8 @@ import { requireUser } from "@/lib/auth";
 import { DeleteCoralButton } from "@/components/delete-coral-button";
 import { InventoryItemCard } from "@/components/inventory-item-card";
 import { ManageItemListingsDialog } from "@/components/manage-item-listings-dialog";
+import { MyItemsAddSplitButton } from "@/components/my-items-add-split-button";
+import { canUseBulkItemFetch } from "@/lib/posting-role";
 
 export default async function MyItemsPage({
   searchParams,
@@ -30,6 +32,7 @@ export default async function MyItemsPage({
             allowCoral: true,
             allowFish: true,
             allowEquipment: true,
+            allowItemsForSale: true,
           },
         },
       },
@@ -57,6 +60,7 @@ export default async function MyItemsPage({
   }
 
   const exchangesForListings = memberships.map((m) => m.exchange);
+  const showFetchItems = canUseBulkItemFetch(user);
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
@@ -67,9 +71,9 @@ export default async function MyItemsPage({
             Manage corals, fish, and equipment you want to swap. List them on exchanges until a trade completes.
           </p>
         </div>
-        <Link href="/my-items/new" className="btn btn-primary btn-sm h-9 min-h-9 shrink-0 rounded-xl">
-          Add item
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          <MyItemsAddSplitButton showBulkAdd={showFetchItems} />
+        </div>
       </div>
 
       {error === "not-found" ? (
@@ -109,6 +113,7 @@ export default async function MyItemsPage({
                           <ManageItemListingsDialog
                             itemId={c.id}
                             itemKind={c.kind}
+                            listingIntent={c.listingIntent}
                             remainingQuantity={c.remainingQuantity}
                             exchanges={exchangesForListings}
                             listedExchangeIds={listedExchangeIdsByItem.get(c.id) ?? []}

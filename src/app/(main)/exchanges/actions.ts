@@ -60,7 +60,8 @@ function parseAllowedItemTypes(formData: FormData) {
   const allowCoral = formData.get("allowCoral") === "on";
   const allowFish = formData.get("allowFish") === "on";
   const allowEquipment = formData.get("allowEquipment") === "on";
-  return { allowCoral, allowFish, allowEquipment };
+  const allowItemsForSale = formData.get("allowItemsForSale") === "on";
+  return { allowCoral, allowFish, allowEquipment, allowItemsForSale };
 }
 
 function hasAtLeastOneAllowedItemType(allowed: {
@@ -142,6 +143,7 @@ export async function createExchangeAction(formData: FormData) {
         allowCoral: allowedTypes.allowCoral,
         allowFish: allowedTypes.allowFish,
         allowEquipment: allowedTypes.allowEquipment,
+        allowItemsForSale: allowedTypes.allowItemsForSale,
         createdById: admin.id,
         memberships: {
           create: {
@@ -245,6 +247,7 @@ export async function updateExchangeAction(formData: FormData) {
             allowCoral: allowedTypes.allowCoral,
             allowFish: allowedTypes.allowFish,
             allowEquipment: allowedTypes.allowEquipment,
+            allowItemsForSale: allowedTypes.allowItemsForSale,
           },
         });
         if (kind === ExchangeKind.GROUP) {
@@ -264,6 +267,7 @@ export async function updateExchangeAction(formData: FormData) {
           allowCoral: allowedTypes.allowCoral,
           allowFish: allowedTypes.allowFish,
           allowEquipment: allowedTypes.allowEquipment,
+          allowItemsForSale: allowedTypes.allowItemsForSale,
         },
       });
     }

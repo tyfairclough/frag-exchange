@@ -6,7 +6,9 @@ export type NotificationEventType =
   | "trade.rejected"
   | "trade.expired"
   | "trade.listing_removed"
-  | "event.coral_checked_in";
+  | "event.coral_checked_in"
+  | "inventory.import_complete"
+  | "inventory.import_failed";
 
 export type ChannelAttemptResult =
   | { channel: "email"; ok: true; detail: string }

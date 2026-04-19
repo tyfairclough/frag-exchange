@@ -7,6 +7,7 @@ import {
   CoralListingMode,
   CoralProfileStatus,
   InventoryKind,
+  ListingIntent,
 } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -23,6 +24,7 @@ import {
   parseEquipmentConditionFromForm,
 } from "@/lib/equipment-options";
 import { parseInventoryKind } from "@/lib/inventory-kind";
+import { parseListingIntentAndSaleFields } from "@/lib/listing-intent";
 
 const MY_ITEMS = "/my-items";
 
@@ -67,7 +69,10 @@ export async function createInventoryItemAction(formData: FormData) {
   const imageUrlRaw = str(formData.get("imageUrl"));
   let imageUrl: string | null = imageUrlRaw || null;
   const listingMode = parseListingMode(str(formData.get("listingMode")));
-  const freeToGoodHome = formData.get("freeToGoodHome") === "on";
+  const listingIntentResult = parseListingIntentAndSaleFields(formData, kind);
+  if (typeof listingIntentResult === "string") {
+    redirect(`${MY_ITEMS}/new?error=${listingIntentResult}`);
+  }
   const quantity = parseQuantity(str(formData.get("quantity")));
   if (quantity === null) {
     redirect(`${MY_ITEMS}/new?error=quantity`);
@@ -115,7 +120,10 @@ export async function createInventoryItemAction(formData: FormData) {
     description,
     imageUrl,
     listingMode,
-    freeToGoodHome,
+    listingIntent: listingIntentResult.listingIntent,
+    salePriceMinor: listingIntentResult.salePriceMinor,
+    saleCurrencyCode: listingIntentResult.saleCurrencyCode,
+    saleExternalUrl: listingIntentResult.saleExternalUrl,
     totalQuantity: quantity,
     remainingQuantity: quantity,
   };
@@ -212,7 +220,16 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
   const imageUrlRaw = str(formData.get("imageUrl"));
   let imageUrl: string | null = imageUrlRaw || null;
   const listingMode = parseListingMode(str(formData.get("listingMode")));
-  const freeToGoodHome = formData.get("freeToGoodHome") === "on";
+  const listingIntentResult = parseListingIntentAndSaleFields(formData, existing.kind);
+  if (typeof listingIntentResult === "string") {
+    redirect(`${MY_ITEMS}/${itemId}/edit?error=${listingIntentResult}`);
+  }
+  if (
+    (existing.listingIntent === ListingIntent.FOR_SALE && listingIntentResult.listingIntent !== ListingIntent.FOR_SALE) ||
+    (existing.listingIntent !== ListingIntent.FOR_SALE && listingIntentResult.listingIntent === ListingIntent.FOR_SALE)
+  ) {
+    redirect(`${MY_ITEMS}/${itemId}/edit?error=listing-intent-locked`);
+  }
   const quantity = parseQuantity(str(formData.get("quantity")));
   if (quantity === null) {
     redirect(`${MY_ITEMS}/${itemId}/edit?error=quantity`);
@@ -263,7 +280,10 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
         description,
         imageUrl,
         listingMode,
-        freeToGoodHome,
+        listingIntent: listingIntentResult.listingIntent,
+        salePriceMinor: listingIntentResult.salePriceMinor,
+        saleCurrencyCode: listingIntentResult.saleCurrencyCode,
+        saleExternalUrl: listingIntentResult.saleExternalUrl,
         totalQuantity,
         remainingQuantity,
         coralType,
@@ -287,7 +307,10 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
         description,
         imageUrl,
         listingMode,
-        freeToGoodHome,
+        listingIntent: listingIntentResult.listingIntent,
+        salePriceMinor: listingIntentResult.salePriceMinor,
+        saleCurrencyCode: listingIntentResult.saleCurrencyCode,
+        saleExternalUrl: listingIntentResult.saleExternalUrl,
         totalQuantity,
         remainingQuantity,
         coralType: null,
@@ -311,7 +334,10 @@ export async function updateInventoryItemAction(itemId: string, formData: FormDa
         description,
         imageUrl,
         listingMode,
-        freeToGoodHome,
+        listingIntent: listingIntentResult.listingIntent,
+        salePriceMinor: listingIntentResult.salePriceMinor,
+        saleCurrencyCode: listingIntentResult.saleCurrencyCode,
+        saleExternalUrl: listingIntentResult.saleExternalUrl,
         totalQuantity,
         remainingQuantity,
         coralType: null,

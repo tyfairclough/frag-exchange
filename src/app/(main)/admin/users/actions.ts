@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { UserGlobalRole } from "@/generated/prisma/enums";
+import { UserGlobalRole, UserPostingRole } from "@/generated/prisma/enums";
 import { assertDatabaseReachable, getPrisma } from "@/lib/db";
 import { adminDeleteUserAndCollectNotifyRecipients } from "@/lib/admin-delete-user";
 import { logAdminAudit } from "@/lib/admin-audit";
@@ -146,6 +146,68 @@ export async function updateUserGlobalRoleAction(formData: FormData) {
     targetType: "user",
     targetId: userId,
     metadata: { email: target.email, from: target.globalRole, to: roleRaw },
+    ip,
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  redirect("/admin/users?updated=1");
+}
+
+function parsePostingRoleInput(raw: string): UserPostingRole | null | "invalid" {
+  if (raw === "" || raw === "NONE") {
+    return null;
+  }
+  if (raw === UserPostingRole.LFS || raw === UserPostingRole.ONLINE_RETAILER) {
+    return raw;
+  }
+  return "invalid";
+}
+
+export async function updateUserPostingRoleAction(formData: FormData) {
+  const actor = await requireSuperAdmin();
+  const userId = str(formData.get("userId"));
+  const postingRaw = str(formData.get("postingRole"));
+
+  if (!userId) {
+    redirect("/admin/users?error=invalid");
+  }
+
+  const nextRole = parsePostingRoleInput(postingRaw);
+  if (nextRole === "invalid") {
+    redirect("/admin/users?error=invalid");
+  }
+
+  const db = getPrisma();
+  const target = await db.user.findUnique({
+    where: { id: userId },
+    select: { id: true, postingRole: true, email: true },
+  });
+
+  if (!target) {
+    redirect("/admin/users?error=not-found");
+  }
+
+  if (target.postingRole === nextRole) {
+    redirect("/admin/users");
+  }
+
+  await db.user.update({
+    where: { id: userId },
+    data: { postingRole: nextRole },
+  });
+
+  const ip = await getRequestIp();
+  await logAdminAudit({
+    actorUserId: actor.id,
+    action: "user.posting_role.update",
+    targetType: "user",
+    targetId: userId,
+    metadata: {
+      email: target.email,
+      from: target.postingRole,
+      to: nextRole,
+    },
     ip,
   });
 

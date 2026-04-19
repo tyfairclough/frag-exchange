@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { InventoryKind } from "@/generated/prisma/enums";
+import type { InventoryKind, ListingIntent } from "@/generated/prisma/enums";
 import {
   addExchangeListingForItemAction,
   removeExchangeListingsForItemAction,
@@ -16,6 +16,7 @@ export type ManageItemListingsExchange = {
   allowCoral: boolean;
   allowFish: boolean;
   allowEquipment: boolean;
+  allowItemsForSale: boolean;
 };
 
 function errorMessage(error: ListingActionError): string {
@@ -40,6 +41,7 @@ function errorMessage(error: ListingActionError): string {
 export type ManageItemListingsPanelProps = {
   itemId: string;
   itemKind: InventoryKind;
+  listingIntent: ListingIntent;
   remainingQuantity: number;
   exchanges: ManageItemListingsExchange[];
   listedExchangeIds: string[];
@@ -54,6 +56,7 @@ export type ManageItemListingsPanelProps = {
 export function ManageItemListingsPanel({
   itemId,
   itemKind,
+  listingIntent,
   remainingQuantity,
   exchanges,
   listedExchangeIds,
@@ -75,9 +78,9 @@ export function ManageItemListingsPanel({
   const eligibleRows = useMemo(() => {
     return exchanges.map((ex) => ({
       exchange: ex,
-      eligible: isKindAllowedOnExchange(itemKind, ex),
+      eligible: isKindAllowedOnExchange(itemKind, ex, listingIntent),
     }));
-  }, [exchanges, itemKind]);
+  }, [exchanges, itemKind, listingIntent]);
 
   const eligibleExchangeIds = useMemo(
     () => eligibleRows.filter((r) => r.eligible).map((r) => r.exchange.id),
@@ -318,12 +321,14 @@ export function ManageItemListingsPanel({
 export function ManageItemListingsDialog({
   itemId,
   itemKind,
+  listingIntent,
   remainingQuantity,
   exchanges,
   listedExchangeIds,
 }: {
   itemId: string;
   itemKind: InventoryKind;
+  listingIntent: ListingIntent;
   remainingQuantity: number;
   exchanges: ManageItemListingsExchange[];
   listedExchangeIds: string[];
@@ -376,6 +381,7 @@ export function ManageItemListingsDialog({
             key={session}
             itemId={itemId}
             itemKind={itemKind}
+            listingIntent={listingIntent}
             remainingQuantity={remainingQuantity}
             exchanges={exchanges}
             listedExchangeIds={listedExchangeIds}

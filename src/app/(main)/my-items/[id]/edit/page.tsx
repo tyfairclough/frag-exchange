@@ -36,13 +36,9 @@ export default async function EditItemPage({
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
-      <div className="flex items-center gap-2 text-sm">
-        <Link href="/my-items" className="link link-hover text-base-content/70">
-          My items
-        </Link>
-        <span className="text-base-content/40">/</span>
-        <span className="font-medium text-base-content">Edit</span>
-      </div>
+      <Link href="/my-items" className="btn btn-ghost btn-sm w-fit rounded-xl">
+        Back to My items
+      </Link>
 
       <h1 className="text-xl font-semibold text-base-content">Edit {item.name}</h1>
 
@@ -66,6 +62,31 @@ export default async function EditItemPage({
       {error === "quantity" ? (
         <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
           Enter a valid quantity.
+        </p>
+      ) : null}
+      {error === "sale-kind" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Gear items cannot be marked for sale.
+        </p>
+      ) : null}
+      {error === "sale-price" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Enter a valid sale price.
+        </p>
+      ) : null}
+      {error === "sale-currency" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Select a valid sale currency.
+        </p>
+      ) : null}
+      {error === "sale-url" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          Enter a valid external listing URL.
+        </p>
+      ) : null}
+      {error === "listing-intent-locked" ? (
+        <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          For-sale items cannot switch back to swap/free and vice versa.
         </p>
       ) : null}
       {error === "image-too-large" ? (
@@ -93,7 +114,10 @@ export default async function EditItemPage({
               description: item.description,
               imageUrl: item.imageUrl ?? "",
               listingMode: item.listingMode,
-              freeToGoodHome: item.freeToGoodHome,
+              listingIntent: item.listingIntent,
+              salePrice: item.salePriceMinor != null ? (item.salePriceMinor / 100).toFixed(2) : "",
+              saleCurrency: item.saleCurrencyCode ?? "GBP",
+              saleExternalUrl: item.saleExternalUrl ?? "",
               remainingQuantity: item.remainingQuantity,
               coralType: coralTypeToFormValue(item.coralType),
               colours: coralColoursToFormValue(item.colours),
@@ -107,7 +131,10 @@ export default async function EditItemPage({
               description: item.description,
               imageUrl: item.imageUrl ?? "",
               listingMode: item.listingMode,
-              freeToGoodHome: item.freeToGoodHome,
+              listingIntent: item.listingIntent,
+              salePrice: item.salePriceMinor != null ? (item.salePriceMinor / 100).toFixed(2) : "",
+              saleCurrency: item.saleCurrencyCode ?? "GBP",
+              saleExternalUrl: item.saleExternalUrl ?? "",
               remainingQuantity: item.remainingQuantity,
               species: item.species ?? "",
               colours: coralColoursToFormValue(item.colours),
@@ -122,7 +149,10 @@ export default async function EditItemPage({
               description: item.description,
               imageUrl: item.imageUrl ?? "",
               listingMode: item.listingMode,
-              freeToGoodHome: item.freeToGoodHome,
+              listingIntent: item.listingIntent,
+              salePrice: item.salePriceMinor != null ? (item.salePriceMinor / 100).toFixed(2) : "",
+              saleCurrency: item.saleCurrencyCode ?? "GBP",
+              saleExternalUrl: item.saleExternalUrl ?? "",
               remainingQuantity: item.remainingQuantity,
               equipmentCategory: item.equipmentCategory,
               equipmentCondition: item.equipmentCondition,

@@ -60,3 +60,13 @@ export function toUploadsPublicUrl(...segments: string[]): string {
   const encodedPath = segments.map(assertSafeSegment).map(encodeURIComponent).join("/");
   return `${publicBaseUrl}/${encodedPath}`;
 }
+
+/** True when `url` is already served from this app's uploads CDN (skip re-downloading). */
+export function isHostedOnUploadsCdn(url: string): boolean {
+  try {
+    const { publicBaseUrl } = readUploadsStorageConfig();
+    return url.trimStart().startsWith(publicBaseUrl);
+  } catch {
+    return false;
+  }
+}

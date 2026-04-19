@@ -65,13 +65,13 @@ async function addExchangeListingCore(
     }),
     getPrisma().exchange.findUnique({
       where: { id: exchangeId },
-      select: { allowCoral: true, allowFish: true, allowEquipment: true },
+      select: { allowCoral: true, allowFish: true, allowEquipment: true, allowItemsForSale: true },
     }),
   ]);
   if (!item || item.profileStatus !== CoralProfileStatus.UNLISTED || item.remainingQuantity <= 0) {
     return { ok: false, error: "item" };
   }
-  if (!exchange || !isKindAllowedOnExchange(item.kind, exchange)) {
+  if (!exchange || !isKindAllowedOnExchange(item.kind, exchange, item.listingIntent)) {
     return { ok: false, error: "kind" };
   }
 

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState, useTransition } from "react";
-import { CoralListingMode } from "@/generated/prisma/enums";
+import { CoralListingMode, ListingIntent } from "@/generated/prisma/enums";
 import { createCoralAction } from "@/app/(main)/my-corals/actions";
 import { AddCoralImageBar } from "@/components/add-coral-image-bar";
 import { CoralInventoryFields } from "@/components/coral-inventory-fields";
@@ -42,7 +42,10 @@ export function AddCoralWizard() {
   const [description, setDescription] = useState("");
   const [imageUrl] = useState("");
   const [listingMode, setListingMode] = useState<CoralListingMode>(CoralListingMode.BOTH);
-  const [freeToGoodHome, setFreeToGoodHome] = useState(false);
+  const [listingIntent, setListingIntent] = useState<ListingIntent>(ListingIntent.SWAP);
+  const [salePrice, setSalePrice] = useState("");
+  const [saleCurrency, setSaleCurrency] = useState("GBP");
+  const [saleExternalUrl, setSaleExternalUrl] = useState("");
   const [coralType, setCoralType] = useState("");
   const [colours, setColours] = useState<string[]>([]);
 
@@ -141,8 +144,11 @@ export function AddCoralWizard() {
       fd.append("description", description);
       fd.append("imageUrl", uploadedImageUrl);
       fd.append("listingMode", listingMode);
-      if (freeToGoodHome) {
-        fd.append("freeToGoodHome", "on");
+      fd.append("listingIntent", listingIntent);
+      if (listingIntent === ListingIntent.FOR_SALE) {
+        fd.append("salePrice", salePrice);
+        fd.append("saleCurrency", saleCurrency);
+        fd.append("saleExternalUrl", saleExternalUrl);
       }
       fd.append("coralType", coralType);
       for (const c of colours) {
@@ -246,8 +252,14 @@ export function AddCoralWizard() {
               imageUrl={imageUrl}
               listingMode={listingMode}
               setListingMode={setListingMode}
-              freeToGoodHome={freeToGoodHome}
-              setFreeToGoodHome={setFreeToGoodHome}
+              listingIntent={listingIntent}
+              setListingIntent={setListingIntent}
+              salePrice={salePrice}
+              setSalePrice={setSalePrice}
+              saleCurrency={saleCurrency}
+              setSaleCurrency={setSaleCurrency}
+              saleExternalUrl={saleExternalUrl}
+              setSaleExternalUrl={setSaleExternalUrl}
               coralType={coralType}
               setCoralType={setCoralType}
               colours={colours}

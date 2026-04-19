@@ -114,6 +114,8 @@ function emptyExploreFilters(): ExploreFilterState {
     coralTypes: [],
     colours: [],
     freeOnly: false,
+    saleOnly: false,
+    excludeSale: false,
     fulfilment: "",
     maxKm: "",
     species: "",
@@ -475,6 +477,8 @@ export function ExploreHeaderChrome() {
         coralTypes: [],
         colours: [],
         freeOnly: d.freeOnly,
+        saleOnly: d.saleOnly,
+        excludeSale: d.excludeSale,
         fulfilment: d.fulfilment,
         maxKm: d.maxKm,
         species: "",
@@ -893,6 +897,24 @@ export function ExploreHeaderChrome() {
               onChange={(e) => setDraft((d) => ({ ...d, freeOnly: e.target.checked }))}
             />
             Free to good home only
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="checkbox checkbox-sm"
+              checked={draft.saleOnly}
+              onChange={(e) => setDraft((d) => ({ ...d, saleOnly: e.target.checked }))}
+            />
+            For sale only
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="checkbox checkbox-sm"
+              checked={draft.excludeSale}
+              onChange={(e) => setDraft((d) => ({ ...d, excludeSale: e.target.checked }))}
+            />
+            Exclude for sale
           </label>
           {tab === "fish" ? (
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">

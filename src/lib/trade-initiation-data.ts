@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { CoralProfileStatus, InventoryKind } from "@/generated/prisma/enums";
+import { CoralProfileStatus, InventoryKind, ListingIntent } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { canViewExchangeDirectory } from "@/lib/super-admin";
 
@@ -11,6 +11,7 @@ export const tradeInitiationErrors: Record<string, string> = {
   coral: "One or more items are no longer available.",
   listing: "One or more items are no longer actively listed.",
   "trade-kind": "One or more items are not enabled for this exchange.",
+  "trade-sale": "For-sale listings cannot be used in in-app trade offers.",
 };
 
 export async function loadTradeInitiationContext(
@@ -53,6 +54,7 @@ export async function loadTradeInitiationContext(
           userId: viewer.id,
           profileStatus: CoralProfileStatus.UNLISTED,
           remainingQuantity: { gt: 0 },
+          listingIntent: { not: ListingIntent.FOR_SALE },
         },
       },
       include: { inventoryItem: true },
@@ -66,6 +68,7 @@ export async function loadTradeInitiationContext(
           userId: peerUserId,
           profileStatus: CoralProfileStatus.UNLISTED,
           remainingQuantity: { gt: 0 },
+          listingIntent: { not: ListingIntent.FOR_SALE },
         },
       },
       include: { inventoryItem: true },

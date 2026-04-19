@@ -113,6 +113,10 @@ export default async function NewExchangePage({
               <input type="checkbox" name="allowEquipment" className="mt-0.5" defaultChecked />
               <span className="text-sm text-slate-700">Gear</span>
             </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input type="checkbox" name="allowItemsForSale" className="mt-0.5" />
+              <span className="text-sm text-slate-700">Allow for sale listings (external links)</span>
+            </label>
           </fieldset>
 
           <NewExchangeEventDatePicker />

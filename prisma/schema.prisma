@@ -25,6 +25,8 @@ model User {
   onboardingCompletedAt     DateTime?
   /// Platform operators who can create exchanges and assign event managers.
   globalRole                UserGlobalRole       @default(MEMBER)
+  /// Super-admin-assigned tier for future commercial posting tools (LFS vs online retailer).
+  postingRole               UserPostingRole?
   /// Bcrypt hash for optional password sign-in (magic link remains supported when null).
   passwordHash              String?              @db.VarChar(255)
   /// Free text: kinds of items the user wants to trade (profiles / recommendations later).
@@ -41,6 +43,8 @@ model User {
   tradesInitiated           Trade[]              @relation("TradeInitiator")
   tradesAsPeer              Trade[]              @relation("TradePeer")
   adminAuditLogs            AdminAuditLog[]
+  inventoryImportJobs       InventoryImportJob[]
+  inventoryImportCandidates InventoryImportCandidate[]
 
   @@map("users")
 }
@@ -78,6 +82,7 @@ model Exchange {
   allowCoral  Boolean            @default(true)
   allowFish   Boolean            @default(true)
   allowEquipment Boolean         @default(true)
+  allowItemsForSale Boolean      @default(false)
   logo40Url   String?            @db.VarChar(2048)
   logo80Url   String?            @db.VarChar(2048)
   logo512Url  String?            @db.VarChar(2048)
@@ -151,6 +156,11 @@ enum UserGlobalRole {
   SUPER_ADMIN
 }
 
+enum UserPostingRole {
+  LFS
+  ONLINE_RETAILER
+}
+
 enum ExchangeKind {
   EVENT
   GROUP
@@ -197,7 +207,10 @@ model InventoryItem {
   description    String             @db.Text
   imageUrl       String?            @db.VarChar(2048)
   listingMode    CoralListingMode   @default(BOTH)
-  freeToGoodHome Boolean            @default(false)
+  listingIntent  ListingIntent      @default(SWAP)
+  salePriceMinor Int?
+  saleCurrencyCode String?          @db.VarChar(3)
+  saleExternalUrl String?           @db.VarChar(2048)
   profileStatus  CoralProfileStatus @default(UNLISTED)
   totalQuantity  Int                @default(1)
   remainingQuantity Int             @default(1)
@@ -216,6 +229,7 @@ model InventoryItem {
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   exchangeListings ExchangeListing[]
   tradeLines     TradeInventoryLine[]
+  importCandidates InventoryImportCandidate[]
 
   @@index([userId])
   @@index([kind])
@@ -231,6 +245,124 @@ enum CoralListingMode {
 enum CoralProfileStatus {
   UNLISTED
   TRADED
+}
+
+enum ListingIntent {
+  SWAP
+  FREE
+  FOR_SALE
+}
+
+enum InventoryImportJobStatus {
+  QUEUED
+  RUNNING
+  REVIEW_READY
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum InventoryImportEventLevel {
+  INFO
+  WARN
+  ERROR
+}
+
+enum InventoryImportEventStage {
+  QUEUE_CLAIM
+  REQUEST_PAGE
+  PARSE_PAGE
+  AI_CLASSIFY
+  UPSERT_CANDIDATE
+  SKIP
+  DONE
+  FAIL
+}
+
+model InventoryImportJob {
+  id               String                  @id @default(cuid())
+  userId           String
+  sourceUrl        String                  @db.VarChar(2048)
+  sourceHost       String                  @db.VarChar(255)
+  status           InventoryImportJobStatus @default(QUEUED)
+  maxPages         Int                     @default(20)
+  maxDepth         Int                     @default(2)
+  crawlDelayMs     Int                     @default(250)
+  pagesVisited     Int                     @default(0)
+  pagesParsed      Int                     @default(0)
+  candidatesFound  Int                     @default(0)
+  candidatesReady  Int                     @default(0)
+  candidatesFailed Int                     @default(0)
+  runToken         String?                 @db.VarChar(64)
+  runLeaseExpiresAt DateTime?
+  attemptCount     Int                     @default(0)
+  lastError        String?                 @db.Text
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  notifiedAt       DateTime?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  candidates       InventoryImportCandidate[]
+  events           InventoryImportEvent[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("inventory_import_jobs")
+}
+
+model InventoryImportCandidate {
+  id                String         @id @default(cuid())
+  jobId             String
+  userId            String
+  sourcePageUrl     String         @db.VarChar(2048)
+  sourceHash        String         @db.VarChar(64)
+  title             String?        @db.VarChar(240)
+  snippet           String?        @db.Text
+  kind              InventoryKind?
+  confidenceScore   Float?
+  name              String?        @db.VarChar(120)
+  description       String?        @db.Text
+  imageUrl          String?        @db.VarChar(2048)
+  coralType         String?        @db.VarChar(120)
+  colours           String[]       @default([])
+  species           String?        @db.VarChar(200)
+  reefSafe          Boolean?
+  quantity          Int            @default(1)
+  salePriceMinor    Int            @default(100)
+  saleCurrencyCode  String         @default("GBP") @db.VarChar(3)
+  saleExternalUrl   String         @db.VarChar(2048)
+  selectedExchangeIds String[]     @default([])
+  approvedAt        DateTime?
+  rejectedAt        DateTime?
+  createdItemId     String?
+  validationError   String?        @db.Text
+  parseError        String?        @db.Text
+  aiRaw             Json?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  job               InventoryImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdItem       InventoryItem? @relation(fields: [createdItemId], references: [id], onDelete: SetNull)
+
+  @@unique([jobId, sourceHash])
+  @@index([userId, sourceHash])
+  @@index([jobId, approvedAt])
+  @@map("inventory_import_candidates")
+}
+
+model InventoryImportEvent {
+  id        String                    @id @default(cuid())
+  jobId     String
+  level     InventoryImportEventLevel @default(INFO)
+  stage     InventoryImportEventStage
+  message   String                    @db.Text
+  meta      Json?
+  createdAt DateTime                  @default(now())
+  job       InventoryImportJob        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
+  @@map("inventory_import_events")
 }
 
 /// Multi-item trade between two members on one exchange (any inventory kinds).

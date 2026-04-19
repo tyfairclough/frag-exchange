@@ -110,6 +110,7 @@ export default async function ExchangeListingsPage({
           allowCoral: exchange.allowCoral,
           allowFish: exchange.allowFish,
           allowEquipment: exchange.allowEquipment,
+          allowItemsForSale: exchange.allowItemsForSale,
         }}
         myListableItems={myListableItems}
         myListingsHere={myListingsHere}

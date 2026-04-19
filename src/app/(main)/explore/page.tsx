@@ -89,6 +89,8 @@ export default async function ExplorePage({
     filters.coralTypes.length > 0 ||
     filters.colours.length > 0 ||
     filters.freeOnly ||
+    filters.saleOnly ||
+    filters.excludeSale ||
     fulfilmentParsed != null ||
     (maxKm != null && Number.isFinite(maxKm)) ||
     Boolean(filters.species.trim()) ||
@@ -134,6 +136,8 @@ export default async function ExplorePage({
           coralTypes: filters.coralTypes.length ? filters.coralTypes : undefined,
           colours: filters.colours.length ? filters.colours : undefined,
           freeOnly: filters.freeOnly || undefined,
+          saleOnly: filters.saleOnly || undefined,
+          excludeSale: filters.excludeSale || undefined,
           fulfilment: fulfilmentParsed,
           maxKm: maxKm != null && Number.isFinite(maxKm) ? maxKm : undefined,
           ownerUserId: validatedOwnerUserId ?? undefined,
@@ -142,6 +146,7 @@ export default async function ExplorePage({
           equipmentCategories: filters.equipmentCategories.length ? filters.equipmentCategories : undefined,
           equipmentConditions: filters.equipmentConditions.length ? filters.equipmentConditions : undefined,
           allowedKinds,
+          allowItemsForSale: selected.exchange.allowItemsForSale,
         })
       : [];
 

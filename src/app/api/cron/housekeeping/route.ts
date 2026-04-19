@@ -3,6 +3,7 @@ import { expireDueTradesAndNotify } from "@/lib/trade-expire-notify";
 import { ensureDatabaseReadyUncached } from "@/lib/db-warm";
 import { getPrisma } from "@/lib/db";
 import { removeExpiredExchangeListings } from "@/lib/listing-expiry-job";
+import { runInventoryImportWorker } from "@/lib/inventory-import";
 
 function cronAuthorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET?.trim();
@@ -59,11 +60,13 @@ async function runHousekeeping(req: Request) {
 
   const { removed } = await removeExpiredExchangeListings(db, now);
   const { expiredTradeCount } = await expireDueTradesAndNotify(db, { baseUrl, now });
+  const { processed: importJobsProcessed } = await runInventoryImportWorker(2);
 
   return NextResponse.json({
     ok: true,
     at: now.toISOString(),
     listingsRemoved: removed,
     tradesExpired: expiredTradeCount,
+    importJobsProcessed,
   });
 }
