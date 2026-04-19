@@ -36,13 +36,9 @@ export default async function EditItemPage({
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
-      <div className="flex items-center gap-2 text-sm">
-        <Link href="/my-items" className="link link-hover text-base-content/70">
-          My items
-        </Link>
-        <span className="text-base-content/40">/</span>
-        <span className="font-medium text-base-content">Edit</span>
-      </div>
+      <Link href="/my-items" className="btn btn-ghost btn-sm w-fit rounded-xl">
+        Back to My items
+      </Link>
 
       <h1 className="text-xl font-semibold text-base-content">Edit {item.name}</h1>
 

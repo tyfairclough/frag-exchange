@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { DeleteCoralButton } from "@/components/delete-coral-button";
 import { InventoryItemCard } from "@/components/inventory-item-card";
 import { ManageItemListingsDialog } from "@/components/manage-item-listings-dialog";
+import { MyItemsAddSplitButton } from "@/components/my-items-add-split-button";
 import { canUseBulkItemFetch } from "@/lib/posting-role";
 
 export default async function MyItemsPage({
@@ -71,14 +72,7 @@ export default async function MyItemsPage({
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
-          {showFetchItems ? (
-            <Link href="/my-items/fetch" className="btn btn-outline btn-sm h-9 min-h-9 rounded-xl">
-              Fetch items
-            </Link>
-          ) : null}
-          <Link href="/my-items/new" className="btn btn-primary btn-sm h-9 min-h-9 rounded-xl">
-            Add item
-          </Link>
+          <MyItemsAddSplitButton showBulkAdd={showFetchItems} />
         </div>
       </div>
 

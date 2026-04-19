@@ -60,3 +60,18 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ jobId: string
   });
   return NextResponse.json({ ok: true, candidate: updated });
 }
+
+export async function DELETE(_: Request, ctx: { params: Promise<{ jobId: string; candidateId: string }> }) {
+  const user = await requireUser();
+  if (!canUseBulkItemFetch(user)) {
+    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  }
+  const { jobId, candidateId } = await ctx.params;
+  const deleted = await getPrisma().inventoryImportCandidate.deleteMany({
+    where: { id: candidateId, jobId, userId: user.id },
+  });
+  if (deleted.count === 0) {
+    return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+  return NextResponse.json({ ok: true });
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
-import { createInventoryImportJob, runInventoryImportWorker } from "@/lib/inventory-import";
+import { createInventoryImportJob, runInventoryImportJobById } from "@/lib/inventory-import";
 import { canUseBulkItemFetch } from "@/lib/posting-role";
 
 function parseIntOr(raw: unknown, fallbackValue: number): number {
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       maxPages: parseIntOr(body?.maxPages, 20),
       maxDepth: parseIntOr(body?.maxDepth, 2),
     });
-    void runInventoryImportWorker(1);
+    void runInventoryImportJobById(created.id);
     return NextResponse.json({ ok: true, jobId: created.id });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Could not create import job.";

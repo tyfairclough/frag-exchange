@@ -12,8 +12,11 @@ export default async function FetchItemsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
+      <Link href="/my-items" className="btn btn-ghost btn-sm w-fit rounded-xl">
+        Back to My items
+      </Link>
       <div>
-        <h1 className="text-xl font-semibold text-base-content">Fetch items</h1>
+        <h1 className="text-xl font-semibold text-base-content">Bulk add items</h1>
         <p className="mt-1 text-sm text-base-content/70">
           Import fish and coral listings in bulk from your website. You&apos;ll review every parsed item before anything is
           added.
@@ -27,9 +30,6 @@ export default async function FetchItemsPage() {
       <p className="text-xs text-base-content/60">
         Tip: keep imports focused to one catalog area at a time for better parsing quality and faster completion.
       </p>
-      <Link href="/my-items" className="btn btn-ghost btn-sm w-fit rounded-xl">
-        Back to My items
-      </Link>
     </div>
   );
 }

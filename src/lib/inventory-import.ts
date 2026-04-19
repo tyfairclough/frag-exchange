@@ -1,13 +1,50 @@
 import { createHash, randomUUID } from "node:crypto";
-import { InventoryImportJobStatus, InventoryKind, ListingIntent, CoralListingMode } from "@/generated/prisma/enums";
+import type { Prisma } from "@/generated/prisma/client";
+import {
+  InventoryImportEventLevel,
+  InventoryImportEventStage,
+  InventoryImportJobStatus,
+  InventoryKind,
+  ListingIntent,
+  CoralListingMode,
+} from "@/generated/prisma/enums";
+import { mirrorHttpImageUrlToUploads } from "@/lib/coral-upload";
 import { getPrisma } from "@/lib/db";
 import { isKindAllowedOnExchange } from "@/lib/listing-eligibility";
 import { dispatchUserNotification } from "@/lib/notifications/dispatch";
 
 const HTTP_TIMEOUT_MS = 12_000;
+/** Must cover fetch + OpenAI; lease was 60s while OpenAI had no timeout — caused reclaim mid-call. */
+const IMPORT_JOB_LEASE_MS = 10 * 60 * 1000;
+const OPENAI_COMPLETION_TIMEOUT_MS = 120_000;
 const MAX_AI_TEXT_LENGTH = 14_000;
 
 const PRIVATE_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
+
+async function extendImportJobLease(jobId: string, runToken: string): Promise<void> {
+  await getPrisma().inventoryImportJob.updateMany({
+    where: { id: jobId, runToken },
+    data: { runLeaseExpiresAt: new Date(Date.now() + IMPORT_JOB_LEASE_MS) },
+  });
+}
+
+async function appendImportEvent(params: {
+  jobId: string;
+  stage: InventoryImportEventStage;
+  message: string;
+  level?: InventoryImportEventLevel;
+  meta?: Prisma.InputJsonValue;
+}) {
+  await getPrisma().inventoryImportEvent.create({
+    data: {
+      jobId: params.jobId,
+      stage: params.stage,
+      message: params.message,
+      level: params.level ?? InventoryImportEventLevel.INFO,
+      meta: params.meta ?? undefined,
+    },
+  });
+}
 
 function isPrivateIpv4(hostname: string): boolean {
   if (!/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) return false;
@@ -45,17 +82,23 @@ export async function createInventoryImportJob(params: {
   if (!valid.ok) {
     throw new Error(valid.error);
   }
+  const dbPayload = {
+    userId: params.userId,
+    sourceUrl: valid.url.toString(),
+    sourceHost: valid.url.host,
+    maxPages: Math.min(Math.max(params.maxPages, 1), 60),
+    maxDepth: Math.min(Math.max(params.maxDepth, 0), 3),
+    crawlDelayMs: 250,
+    status: InventoryImportJobStatus.QUEUED,
+  };
   const created = await getPrisma().inventoryImportJob.create({
-    data: {
-      userId: params.userId,
-      sourceUrl: valid.url.toString(),
-      sourceHost: valid.url.host,
-      maxPages: Math.min(Math.max(params.maxPages, 1), 60),
-      maxDepth: Math.min(Math.max(params.maxDepth, 0), 3),
-      crawlDelayMs: 250,
-      status: InventoryImportJobStatus.QUEUED,
-    },
+    data: dbPayload,
     select: { id: true },
+  });
+  await appendImportEvent({
+    jobId: created.id,
+    stage: InventoryImportEventStage.QUEUE_CLAIM,
+    message: "Import job queued and waiting for worker.",
   });
   return created;
 }
@@ -69,6 +112,96 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+const MAX_EXTRACTED_IMAGE_URLS = 80;
+
+/**
+ * Pull http(s) image URLs from raw HTML (img src, lazy data-* attrs, srcset, og:image).
+ * Stripped page text does not contain these; the model needs this list to fill imageUrl.
+ */
+function extractImageUrlsFromHtml(html: string, pageUrl: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  const pushRaw = (raw: string | undefined) => {
+    if (out.length >= MAX_EXTRACTED_IMAGE_URLS) return;
+    if (!raw) return;
+    const t = raw.trim().replace(/&amp;/g, "&");
+    if (!t || t.startsWith("data:") || t.startsWith("#")) return;
+    try {
+      const resolved = new URL(t, pageUrl).href;
+      if (!/^https?:\/\//i.test(resolved)) return;
+      const lower = resolved.toLowerCase();
+      if (lower.includes("blank.gif") || lower.includes("spacer.gif") || lower.includes("pixel.gif")) return;
+      if (seen.has(resolved)) return;
+      seen.add(resolved);
+      out.push(resolved);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const splitSrcset = (value: string) => {
+    for (const piece of value.split(",")) {
+      const urlPart = piece.trim().split(/\s+/)[0];
+      pushRaw(urlPart);
+      if (out.length >= MAX_EXTRACTED_IMAGE_URLS) return;
+    }
+  };
+
+  const reImgSrc = /<img[^>]+src\s*=\s*["']([^"']+)["']/gi;
+  let m: RegExpExecArray | null = reImgSrc.exec(html);
+  while (m !== null) {
+    pushRaw(m[1]);
+    if (out.length >= MAX_EXTRACTED_IMAGE_URLS) break;
+    m = reImgSrc.exec(html);
+  }
+
+  const reDataSrc =
+    /\bdata-(?:src|lazy-src|lazyload|lazy|original|zoom-image|zoom-src)\s*=\s*["']([^"']+)["']/gi;
+  m = reDataSrc.exec(html);
+  while (m !== null) {
+    pushRaw(m[1]);
+    if (out.length >= MAX_EXTRACTED_IMAGE_URLS) break;
+    m = reDataSrc.exec(html);
+  }
+
+  const reSrcset = /\bsrcset\s*=\s*["']([^"']+)["']/gi;
+  m = reSrcset.exec(html);
+  while (m !== null) {
+    splitSrcset(m[1]);
+    if (out.length >= MAX_EXTRACTED_IMAGE_URLS) break;
+    m = reSrcset.exec(html);
+  }
+
+  const og1 = /<meta\s[^>]*property\s*=\s*["']og:image["'][^>]*content\s*=\s*["']([^"']+)["']/i.exec(html);
+  if (og1) pushRaw(og1[1]);
+  const og2 = /<meta\s[^>]*content\s*=\s*["']([^"']+)["'][^>]*property\s*=\s*["']og:image["']/i.exec(html);
+  if (og2) pushRaw(og2[1]);
+
+  return out;
+}
+
+/** Append extracted image URLs so the model can copy exact strings into imageUrl. */
+function buildModelInputForAi(strippedText: string, html: string, pageUrl: string): string {
+  const urls = extractImageUrlsFromHtml(html, pageUrl);
+  if (urls.length === 0) {
+    return strippedText.length > MAX_AI_TEXT_LENGTH ? strippedText.slice(0, MAX_AI_TEXT_LENGTH) : strippedText;
+  }
+  const hintLines = urls.map((u) => `- ${u}`).join("\n");
+  const hintBlock = `\n\nIMAGE_URLS_FOUND_IN_HTML (${urls.length} URLs — for each item set imageUrl to the exact line that matches that product photo, or null if none match):\n${hintLines}\n`;
+  const maxCore = Math.max(400, MAX_AI_TEXT_LENGTH - hintBlock.length);
+  const core = strippedText.length > maxCore ? strippedText.slice(0, maxCore) : strippedText;
+  return core + hintBlock;
+}
+
+/** Same-origin links to scripts, styles, images, etc. are not crawl targets. */
+const STATIC_ASSET_PATH =
+  /\.(css|js|mjs|cjs|map|png|jpe?g|gif|webp|svg|avif|ico|bmp|woff2?|ttf|eot|otf|mp4|webm|pdf|zip|gz)(\?[^#]*)?$/i;
+
+function isLikelyStaticAssetUrl(u: URL): boolean {
+  return STATIC_ASSET_PATH.test(u.pathname);
+}
+
 function collectSameOriginLinks(origin: string, current: URL, html: string): string[] {
   const links = new Set<string>();
   const hrefRegex = /href\s*=\s*["']([^"']+)["']/gi;
@@ -79,6 +212,7 @@ function collectSameOriginLinks(origin: string, current: URL, html: string): str
     try {
       const next = new URL(raw, current);
       if (next.origin !== origin) continue;
+      if (isLikelyStaticAssetUrl(next)) continue;
       next.hash = "";
       links.add(next.toString());
     } catch {
@@ -88,7 +222,9 @@ function collectSameOriginLinks(origin: string, current: URL, html: string): str
   return [...links];
 }
 
-async function fetchPage(url: string): Promise<{ html: string; finalUrl: string }> {
+type FetchedPage = { html: string; finalUrl: string; isHtml: boolean };
+
+async function fetchPage(url: string): Promise<FetchedPage> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
   try {
@@ -100,12 +236,17 @@ async function fetchPage(url: string): Promise<{ html: string; finalUrl: string 
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
-    const contentType = res.headers.get("content-type") ?? "";
-    if (!contentType.includes("text/html")) {
-      throw new Error("Not an HTML page");
+    const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+    const looksLikeHtmlDoc =
+      contentType.includes("text/html") ||
+      contentType.includes("application/xhtml") ||
+      contentType.trim() === "";
+    if (!looksLikeHtmlDoc) {
+      if (res.body) await res.body.cancel().catch(() => {});
+      return { html: "", finalUrl: res.url || url, isHtml: false };
     }
     const html = await res.text();
-    return { html, finalUrl: res.url || url };
+    return { html, finalUrl: res.url || url, isHtml: true };
   } finally {
     clearTimeout(timer);
   }
@@ -133,29 +274,57 @@ async function parseCandidatesWithAi(text: string, pageUrl: string): Promise<Par
   if (!key) return [];
   const model = process.env.CORAL_AI_MODEL?.trim() || "gpt-4o-mini";
   const payload = text.length > MAX_AI_TEXT_LENGTH ? text.slice(0, MAX_AI_TEXT_LENGTH) : text;
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const bodyStr = JSON.stringify({
+    model,
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          'Extract retail listing items from page text. If IMAGE_URLS_FOUND_IN_HTML is present, each item imageUrl must be copied exactly from that list (the best match for that row\'s product image) or null — do not invent URLs. Return JSON only: {"items":[{"title":string,"snippet":string,"kind":"CORAL"|"FISH"|"IGNORE","confidence":number,"name":string,"description":string,"imageUrl":string|null,"coralType":string|null,"colours":string[],"species":string|null,"reefSafe":boolean|null,"salePriceMinor":number|null,"saleCurrencyCode":string|null,"saleExternalUrl":string|null}]}. Include only likely individual listing rows/cards from this page.',
+      },
+      {
+        role: "user",
+        content: `Page URL: ${pageUrl}\n\nPAGE TEXT:\n${payload}`,
+      },
+    ],
+  });
+
+  /** Wall-clock cap: undici fetch can ignore AbortSignal and hang; Promise.race always settles. */
+  const ac = new AbortController();
+  let raceTimer: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    raceTimer = setTimeout(() => {
+      try {
+        ac.abort();
+      } catch {
+        /* ignore */
+      }
+      reject(new Error("openai_fetch_race_timeout"));
+    }, OPENAI_COMPLETION_TIMEOUT_MS);
+  });
+  const fetchPromise = fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            'Extract retail listing items from page text. Return JSON only: {"items":[{"title":string,"snippet":string,"kind":"CORAL"|"FISH"|"IGNORE","confidence":number,"name":string,"description":string,"imageUrl":string|null,"coralType":string|null,"colours":string[],"species":string|null,"reefSafe":boolean|null,"salePriceMinor":number|null,"saleCurrencyCode":string|null,"saleExternalUrl":string|null}]}. Include only likely individual listing rows/cards from this page.',
-        },
-        {
-          role: "user",
-          content: `Page URL: ${pageUrl}\n\nPAGE TEXT:\n${payload}`,
-        },
-      ],
-    }),
+    signal: ac.signal,
+    body: bodyStr,
   });
+
+  let res: Response;
+  try {
+    res = await Promise.race([
+      fetchPromise.finally(() => {
+        if (raceTimer !== undefined) clearTimeout(raceTimer);
+      }),
+      timeoutPromise,
+    ]);
+  } catch (e) {
+    return [];
+  }
   if (!res.ok) return [];
   const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = json.choices?.[0]?.message?.content;
@@ -182,6 +351,13 @@ export async function runInventoryImportWorker(limit = 1): Promise<{ processed: 
       await processClaimedJob(claimed.id, claimed.runToken);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      await appendImportEvent({
+        jobId: claimed.id,
+        stage: InventoryImportEventStage.FAIL,
+        level: InventoryImportEventLevel.ERROR,
+        message: "Job failed unexpectedly.",
+        meta: { error: message.slice(0, 500) },
+      });
       await getPrisma().inventoryImportJob.update({
         where: { id: claimed.id },
         data: {
@@ -198,19 +374,84 @@ export async function runInventoryImportWorker(limit = 1): Promise<{ processed: 
   return { processed };
 }
 
+export async function runInventoryImportJobById(jobId: string): Promise<{ processed: boolean; reason?: string }> {
+  const now = new Date();
+  const runToken = randomUUID();
+  const leaseUntil = new Date(Date.now() + IMPORT_JOB_LEASE_MS);
+  const claimed = await getPrisma().inventoryImportJob.updateMany({
+    where: {
+      id: jobId,
+      status: InventoryImportJobStatus.QUEUED,
+      OR: [{ runLeaseExpiresAt: null }, { runLeaseExpiresAt: { lt: now } }],
+    },
+    data: {
+      status: InventoryImportJobStatus.RUNNING,
+      runToken,
+      runLeaseExpiresAt: leaseUntil,
+      attemptCount: { increment: 1 },
+      startedAt: now,
+      lastError: null,
+    },
+  });
+  if (claimed.count !== 1) {
+    return { processed: false, reason: "not_claimed" };
+  }
+  await appendImportEvent({
+    jobId,
+    stage: InventoryImportEventStage.QUEUE_CLAIM,
+    message: "Worker claimed newly created import job.",
+  });
+  try {
+    await processClaimedJob(jobId, runToken);
+    return { processed: true };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    await appendImportEvent({
+      jobId,
+      stage: InventoryImportEventStage.FAIL,
+      level: InventoryImportEventLevel.ERROR,
+      message: "Job failed unexpectedly.",
+      meta: { error: message.slice(0, 500) },
+    });
+    await getPrisma().inventoryImportJob.update({
+      where: { id: jobId },
+      data: {
+        status: InventoryImportJobStatus.FAILED,
+        lastError: message.slice(0, 8000),
+        finishedAt: new Date(),
+        runToken: null,
+        runLeaseExpiresAt: null,
+      },
+    });
+    await sendImportCompletionEmail(jobId, false, message);
+    return { processed: false, reason: "failed" };
+  }
+}
+
 async function claimNextJob(): Promise<{ id: string; runToken: string } | null> {
   const now = new Date();
-  const job = await getPrisma().inventoryImportJob.findFirst({
+  const queuedJob = await getPrisma().inventoryImportJob.findFirst({
     where: {
-      status: { in: [InventoryImportJobStatus.QUEUED, InventoryImportJobStatus.RUNNING] },
+      status: InventoryImportJobStatus.QUEUED,
       OR: [{ runLeaseExpiresAt: null }, { runLeaseExpiresAt: { lt: now } }],
     },
     orderBy: { createdAt: "asc" },
     select: { id: true },
   });
+  const staleRunningJob = queuedJob
+    ? null
+    : await getPrisma().inventoryImportJob.findFirst({
+        where: {
+          status: InventoryImportJobStatus.RUNNING,
+          runLeaseExpiresAt: { lt: now },
+        },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+  const job = queuedJob ?? staleRunningJob;
   if (!job) return null;
   const runToken = randomUUID();
-  const leaseUntil = new Date(Date.now() + 60_000);
+  const leaseUntil = new Date(Date.now() + IMPORT_JOB_LEASE_MS);
   const updated = await getPrisma().inventoryImportJob.updateMany({
     where: {
       id: job.id,
@@ -226,13 +467,26 @@ async function claimNextJob(): Promise<{ id: string; runToken: string } | null> 
     },
   });
   if (updated.count !== 1) return null;
+  await appendImportEvent({
+    jobId: job.id,
+    stage: InventoryImportEventStage.QUEUE_CLAIM,
+    message: queuedJob ? "Worker claimed queued import job." : "Worker reclaimed stale running import job.",
+  });
   return { id: job.id, runToken };
 }
 
 async function processClaimedJob(jobId: string, runToken: string): Promise<void> {
   const job = await getPrisma().inventoryImportJob.findUnique({
     where: { id: jobId },
-    select: { id: true, userId: true, sourceUrl: true, sourceHost: true, maxPages: true, maxDepth: true },
+    select: {
+      id: true,
+      userId: true,
+      sourceUrl: true,
+      sourceHost: true,
+      maxPages: true,
+      maxDepth: true,
+      attemptCount: true,
+    },
   });
   if (!job) return;
   const origin = new URL(job.sourceUrl).origin;
@@ -250,18 +504,80 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
     if (seen.has(next.url)) continue;
     seen.add(next.url);
     pagesVisited += 1;
+    await extendImportJobLease(jobId, runToken);
+    await appendImportEvent({
+      jobId,
+      stage: InventoryImportEventStage.REQUEST_PAGE,
+      message: `Requesting page ${pagesVisited}/${job.maxPages}.`,
+      meta: { url: next.url, depth: next.depth },
+    });
     try {
       const fetched = await fetchPage(next.url);
       const final = new URL(fetched.finalUrl);
-      if (final.host !== job.sourceHost) continue;
+      if (final.host !== job.sourceHost) {
+        await appendImportEvent({
+          jobId,
+          stage: InventoryImportEventStage.SKIP,
+          level: InventoryImportEventLevel.WARN,
+          message: "Skipped cross-host URL.",
+          meta: { url: fetched.finalUrl, expectedHost: job.sourceHost },
+        });
+        continue;
+      }
+      if (!fetched.isHtml) {
+        await appendImportEvent({
+          jobId,
+          stage: InventoryImportEventStage.SKIP,
+          message: "Skipped non-HTML URL (stylesheet, script, media, or other asset).",
+          meta: { url: fetched.finalUrl },
+        });
+        continue;
+      }
       const text = stripHtml(fetched.html);
+      await appendImportEvent({
+        jobId,
+        stage: InventoryImportEventStage.PARSE_PAGE,
+        message: "Fetched and normalized HTML page text.",
+        meta: { url: fetched.finalUrl, textLength: text.length },
+      });
       if (text.length > 200) {
         pagesParsed += 1;
-        const aiItems = await parseCandidatesWithAi(text, fetched.finalUrl);
+        await appendImportEvent({
+          jobId,
+          stage: InventoryImportEventStage.AI_CLASSIFY,
+          message: "Sending page text to AI classification.",
+          meta: { url: fetched.finalUrl },
+        });
+        await extendImportJobLease(jobId, runToken);
+        const modelInput = buildModelInputForAi(text, fetched.html, fetched.finalUrl);
+        const aiItems = await parseCandidatesWithAi(modelInput, fetched.finalUrl);
+        await appendImportEvent({
+          jobId,
+          stage: InventoryImportEventStage.AI_CLASSIFY,
+          message: "AI classification completed.",
+          meta: { url: fetched.finalUrl, returnedItems: aiItems.length },
+        });
         for (const item of aiItems) {
-          if (item.kind !== "CORAL" && item.kind !== "FISH") continue;
+          if (item.kind !== "CORAL" && item.kind !== "FISH") {
+            await appendImportEvent({
+              jobId,
+              stage: InventoryImportEventStage.SKIP,
+              message: "Skipped non-fish/non-coral candidate.",
+              meta: { url: fetched.finalUrl, kind: item.kind, title: item.title ?? null },
+            });
+            continue;
+          }
           const name = item.name?.trim();
-          if (!name) continue;
+          if (!name) {
+            await appendImportEvent({
+              jobId,
+              stage: InventoryImportEventStage.SKIP,
+              level: InventoryImportEventLevel.WARN,
+              message: "Skipped candidate without name.",
+              meta: { url: fetched.finalUrl, kind: item.kind },
+            });
+            continue;
+          }
           found += 1;
           const sourceHash = makeSourceHash(fetched.finalUrl, name, item.kind);
           const salePriceMinor = Number.isInteger(item.salePriceMinor) && (item.salePriceMinor ?? 0) > 0 ? (item.salePriceMinor as number) : 100;
@@ -279,7 +595,7 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
               kind: item.kind === "CORAL" ? InventoryKind.CORAL : InventoryKind.FISH,
               confidenceScore: Math.max(0, Math.min(1, Number(item.confidence) || 0.4)),
               name: name.slice(0, 120),
-              description: (item.description || `Imported from ${job.sourceHost}`).slice(0, 8000),
+              description: (item.description?.trim() || "").slice(0, 8000) || null,
               imageUrl: item.imageUrl || null,
               coralType: item.coralType || null,
               colours: Array.isArray(item.colours) ? item.colours.slice(0, 12) : [],
@@ -297,7 +613,7 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
               kind: item.kind === "CORAL" ? InventoryKind.CORAL : InventoryKind.FISH,
               confidenceScore: Math.max(0, Math.min(1, Number(item.confidence) || 0.4)),
               name: name.slice(0, 120),
-              description: (item.description || `Imported from ${job.sourceHost}`).slice(0, 8000),
+              description: (item.description?.trim() || "").slice(0, 8000) || null,
               imageUrl: item.imageUrl || null,
               coralType: item.coralType || null,
               colours: Array.isArray(item.colours) ? item.colours.slice(0, 12) : [],
@@ -311,7 +627,25 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
             },
           });
           ready += 1;
+          await appendImportEvent({
+            jobId,
+            stage: InventoryImportEventStage.UPSERT_CANDIDATE,
+            message: "Saved parsed candidate.",
+            meta: {
+              url: fetched.finalUrl,
+              kind: item.kind,
+              name: name.slice(0, 120),
+              confidence: Number(item.confidence) || null,
+            },
+          });
         }
+      } else {
+        await appendImportEvent({
+          jobId,
+          stage: InventoryImportEventStage.SKIP,
+          message: "Skipped page with insufficient text content.",
+          meta: { url: fetched.finalUrl, textLength: text.length },
+        });
       }
 
       if (next.depth < job.maxDepth) {
@@ -323,12 +657,20 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
     } catch (e) {
       failed += 1;
       const message = e instanceof Error ? e.message : String(e);
+      const errSourceHash = makeSourceHash(next.url, `parse-error-${pagesVisited}`, "IGNORE");
+      await appendImportEvent({
+        jobId,
+        stage: InventoryImportEventStage.FAIL,
+        level: InventoryImportEventLevel.ERROR,
+        message: "Page processing failed.",
+        meta: { url: next.url, error: message.slice(0, 500) },
+      });
       await getPrisma().inventoryImportCandidate.create({
         data: {
           jobId,
           userId: job.userId,
           sourcePageUrl: next.url,
-          sourceHash: makeSourceHash(next.url, `parse-error-${pagesVisited}`, "IGNORE"),
+          sourceHash: errSourceHash,
           parseError: message.slice(0, 3000),
           saleExternalUrl: next.url,
         },
@@ -342,7 +684,7 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
         candidatesFound: found,
         candidatesReady: ready,
         candidatesFailed: failed,
-        runLeaseExpiresAt: new Date(Date.now() + 60_000),
+        runLeaseExpiresAt: new Date(Date.now() + IMPORT_JOB_LEASE_MS),
       },
     });
   }
@@ -361,6 +703,18 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
       runLeaseExpiresAt: null,
     },
   });
+  await appendImportEvent({
+    jobId,
+    stage: InventoryImportEventStage.DONE,
+    message: "Import parsing complete and ready for review.",
+    meta: {
+      pagesVisited,
+      pagesParsed,
+      candidatesFound: found,
+      candidatesReady: ready,
+      candidatesFailed: failed,
+    },
+  });
   await sendImportCompletionEmail(jobId, true);
 }
 
@@ -371,18 +725,18 @@ async function sendImportCompletionEmail(jobId: string, success: boolean, error?
   });
   if (!job || job.notifiedAt) return;
   const base = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || "").replace(/\/$/, "");
-  const reviewUrl = base ? `${base}/my-items/fetch/${job.id}` : `/my-items/fetch/${job.id}`;
-  const subject = success ? "Your item fetch is ready for review" : "Your item fetch ended with an error";
+  const reviewUrl = base ? `${base}/my-items/bulk-add/${job.id}` : `/my-items/bulk-add/${job.id}`;
+  const subject = success ? "Your bulk add is ready for review" : "Your bulk add ended with an error";
   const lines = success
     ? [
         `We finished scanning ${job.sourceUrl}.`,
         `${job.candidatesReady} candidate items are ready to review.`,
-        "Open the review table to edit and approve items.",
+        "Open the review table to edit items, then publish.",
       ]
     : [`We could not finish scanning ${job.sourceUrl}.`, error ? `Error: ${error}` : "Please retry with a smaller page limit."];
   await dispatchUserNotification({
     user: job.user,
-    eventType: "trade.expired",
+    eventType: success ? "inventory.import_complete" : "inventory.import_failed",
     subject,
     textBody: `${subject}\n\n${lines.join("\n")}\n\nReview: ${reviewUrl}`,
     htmlBody: `<p>${subject}</p>${lines.map((l) => `<p>${l}</p>`).join("")}<p><a href="${reviewUrl}">Open review</a></p>`,
@@ -394,7 +748,7 @@ async function sendImportCompletionEmail(jobId: string, success: boolean, error?
   });
 }
 
-export async function publishApprovedImportCandidates(params: { userId: string; jobId: string }) {
+export async function publishImportJobCandidates(params: { userId: string; jobId: string }) {
   const job = await getPrisma().inventoryImportJob.findFirst({
     where: { id: params.jobId, userId: params.userId },
     select: { id: true },
@@ -407,7 +761,6 @@ export async function publishApprovedImportCandidates(params: { userId: string; 
     where: {
       jobId: params.jobId,
       userId: params.userId,
-      approvedAt: { not: null },
       createdItemId: null,
       kind: { in: [InventoryKind.CORAL, InventoryKind.FISH] },
     },
@@ -428,21 +781,29 @@ export async function publishApprovedImportCandidates(params: { userId: string; 
   let failed = 0;
 
   for (const c of candidates) {
-    if (!c.name || !c.description || !c.kind) {
+    if (!c.name || !c.kind) {
       failed += 1;
       await getPrisma().inventoryImportCandidate.update({
         where: { id: c.id },
-        data: { validationError: "Name, description, and kind are required." },
+        data: { validationError: "Name and kind are required." },
       });
       continue;
     }
+    const resolvedImageUrl = await mirrorHttpImageUrlToUploads({ userId: params.userId, imageUrl: c.imageUrl });
+    if (resolvedImageUrl !== c.imageUrl) {
+      await getPrisma().inventoryImportCandidate.update({
+        where: { id: c.id },
+        data: { imageUrl: resolvedImageUrl },
+      });
+    }
+
     const item = await getPrisma().inventoryItem.create({
       data: {
         userId: params.userId,
         kind: c.kind,
         name: c.name,
-        description: c.description,
-        imageUrl: c.imageUrl,
+        description: (c.description ?? "").trim().slice(0, 8000),
+        imageUrl: resolvedImageUrl,
         listingMode: CoralListingMode.BOTH,
         listingIntent: ListingIntent.FOR_SALE,
         salePriceMinor: c.salePriceMinor,

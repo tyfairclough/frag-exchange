@@ -7,7 +7,7 @@ export function FetchItemsConfigForm() {
   const router = useRouter();
   const [sourceUrl, setSourceUrl] = useState("");
   const [maxPages, setMaxPages] = useState(20);
-  const [maxDepth, setMaxDepth] = useState(2);
+  const [maxDepth, setMaxDepth] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +16,7 @@ export function FetchItemsConfigForm() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch("/api/my-items/fetch/jobs", {
+      const res = await fetch("/api/my-items/bulk-add/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sourceUrl, maxPages, maxDepth }),
@@ -26,7 +26,7 @@ export function FetchItemsConfigForm() {
         setError(json.error ?? "Could not start import.");
         return;
       }
-      router.push(`/my-items/fetch/${json.jobId}`);
+      router.push(`/my-items/bulk-add/${json.jobId}`);
     } catch {
       setError("Could not start import.");
     } finally {
@@ -73,7 +73,7 @@ export function FetchItemsConfigForm() {
       </div>
       {error ? <p className="text-sm text-error">{error}</p> : null}
       <button type="submit" className="btn btn-primary rounded-xl" disabled={submitting}>
-        {submitting ? "Starting..." : "Start fetch"}
+        {submitting ? "Starting..." : "Start bulk add"}
       </button>
     </form>
   );

@@ -47,7 +47,11 @@ export async function dispatchUserNotification(params: {
       detail: `${emailResult.status} ${emailResult.body.slice(0, 120)}`,
     });
     if (process.env.NODE_ENV === "development") {
-      console.warn(`[notify:email] failed for ${params.user.id}:`, emailResult.body);
+      const mailtrap401Hint =
+        emailResult.status === 401
+          ? " Mailtrap 401: check MAILTRAP_API_KEY (no extra spaces), sandbox token if MAILTRAP_USE_SANDBOX=true, and that EMAIL_FROM is set."
+          : "";
+      console.warn(`[notify:email] failed for ${params.user.id}.${mailtrap401Hint}`, emailResult.body);
     }
   }
 
