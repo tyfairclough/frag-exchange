@@ -53,6 +53,8 @@ export default async function FetchItemsReviewPage({ params }: { params: Promise
             status: job.status,
             pagesVisited: job.pagesVisited,
             pagesParsed: job.pagesParsed,
+            detailUrlsDiscovered: job.detailUrlsDiscovered,
+            detailUrlsProcessed: job.detailUrlsProcessed,
             candidatesReady: job.candidatesReady,
             candidatesFailed: job.candidatesFailed,
             events: [...job.events].reverse().map((e) => ({

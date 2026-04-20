@@ -2,6 +2,7 @@
 
 import { InventoryImportJobStatus, InventoryKind } from "@/generated/prisma/enums";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { FetchReviewBottomSheetBridge } from "@/components/inventory-edit-bottom-nav-context";
 
 type ExchangeOption = {
@@ -38,6 +39,8 @@ type JobPayload = {
   status: InventoryImportJobStatus;
   pagesVisited: number;
   pagesParsed: number;
+  detailUrlsDiscovered: number;
+  detailUrlsProcessed: number;
   candidatesReady: number;
   candidatesFailed: number;
   events: Array<{
@@ -67,14 +70,22 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
   const [bulkBusy, setBulkBusy] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkMergeExchangeId, setBulkMergeExchangeId] = useState("");
+  const [bulkKind, setBulkKind] = useState<"" | InventoryKind>("");
   const [publishMessage, setPublishMessage] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [draft, setDraft] = useState<CandidateRow | null>(null);
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
   const editDialogRef = useRef<HTMLDialogElement>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const lastToastStatusRef = useRef<InventoryImportJobStatus>(initialJob.status);
 
   const isParsing = job.status === InventoryImportJobStatus.QUEUED || job.status === InventoryImportJobStatus.RUNNING;
+  /** Rows the user has already added (have a createdItemId) disappear from the review table. Deleted rows are hard-removed server-side. */
+  const visibleCandidates = job.candidates.filter((c) => !c.createdItemId);
+  const discovered = job.detailUrlsDiscovered ?? 0;
+  const processed = job.detailUrlsProcessed ?? 0;
+  const progressMax = Math.max(discovered, 1);
+  const progressPct = discovered > 0 ? Math.min(100, Math.round((processed / discovered) * 100)) : 0;
 
   useEffect(() => {
     if (!isParsing) return undefined;
@@ -87,6 +98,26 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
     }, 875);
     return () => clearInterval(t);
   }, [isParsing, job.id]);
+
+  useEffect(() => {
+    /** Fire exactly once when the job transitions from a parsing state into a terminal state. */
+    const prev = lastToastStatusRef.current;
+    if (prev === job.status) return;
+    lastToastStatusRef.current = job.status;
+    const prevWasParsing =
+      prev === InventoryImportJobStatus.QUEUED || prev === InventoryImportJobStatus.RUNNING;
+    if (!prevWasParsing) return;
+    if (job.status === InventoryImportJobStatus.REVIEW_READY) {
+      const count = job.candidatesReady ?? 0;
+      toast.success(
+        count > 0
+          ? `Parsing complete — ${count} item${count === 1 ? "" : "s"} ready to review.`
+          : "Parsing complete — no items were confidently found.",
+      );
+    } else if (job.status === InventoryImportJobStatus.FAILED) {
+      toast.error("Parsing failed. Check the activity log for details.");
+    }
+  }, [job.status, job.candidatesReady]);
 
   useEffect(() => {
     const el = editDialogRef.current;
@@ -136,6 +167,8 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
     approved?: boolean;
     exchangeMode?: "merge" | "replace";
     selectedExchangeIds?: string[];
+    kind?: InventoryKind;
+    action?: "delete";
   }) {
     setBulkBusy(true);
     try {
@@ -150,6 +183,38 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
         return;
       }
       setPublishMessage(null);
+      await refreshJob();
+      setSelectedIds(new Set());
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function bulkPublish(ids: string[]) {
+    setBulkBusy(true);
+    try {
+      const res = await fetch(`/api/my-items/bulk-add/jobs/${job.id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateIds: ids }),
+      });
+      const json = (await res.json()) as {
+        ok: boolean;
+        createdCount?: number;
+        failedCount?: number;
+        error?: string;
+      };
+      if (!json.ok) {
+        setPublishMessage(json.error ?? "Could not add selected items.");
+        toast.error(json.error ?? "Could not add selected items.");
+        return;
+      }
+      setPublishMessage(null);
+      toast.success(
+        `Added ${json.createdCount ?? 0} item${(json.createdCount ?? 0) === 1 ? "" : "s"}${
+          json.failedCount ? ` (${json.failedCount} failed).` : "."
+        }`,
+      );
       await refreshJob();
       setSelectedIds(new Set());
     } finally {
@@ -230,7 +295,7 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
     setDraft(null);
   }
 
-  const candidateIdList = job.candidates.map((c) => c.id);
+  const candidateIdList = visibleCandidates.map((c) => c.id);
   const allSelected = candidateIdList.length > 0 && candidateIdList.every((id) => selectedIds.has(id));
   const selectedCount = selectedIds.size;
 
@@ -252,8 +317,11 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
   }
 
   const noItemsReason = (() => {
-    if (job.candidates.length > 0) return null;
+    if (visibleCandidates.length > 0) return null;
     if (isParsing) return "Still crawling and parsing pages. Watch the live activity sheet for each step.";
+    if (job.candidates.length > 0 && visibleCandidates.length === 0) {
+      return "All parsed items have been handled. Start a new bulk add to import more.";
+    }
     if (job.pagesParsed > 0 && job.candidatesReady === 0 && job.candidatesFailed > 0) {
       return "Pages were parsed but AI parsing encountered errors.";
     }
@@ -276,9 +344,52 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
       <FetchReviewBottomSheetBridge />
       <div className="card-body p-4">
         {publishMessage ? <p className="mb-3 text-sm text-warning">{publishMessage}</p> : null}
-        {job.candidates.length > 0 ? (
+        {(isParsing || discovered > 0) && (
+          <div className="mb-3 rounded-xl border border-base-content/10 bg-base-200/30 p-3 text-sm">
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium text-base-content/80">
+                {isParsing
+                  ? `Parsing in progress — ${processed} of ${discovered || "?"} product pages parsed`
+                  : `${discovered} product page${discovered === 1 ? "" : "s"} identified, ${processed} parsed`}
+              </p>
+              <span className="text-xs text-base-content/60">
+                {discovered > 0 ? `${progressPct}%` : "discovering links…"}
+              </span>
+            </div>
+            <progress
+              className="progress progress-primary w-full"
+              value={processed}
+              max={progressMax}
+            />
+          </div>
+        )}
+        {visibleCandidates.length > 0 ? (
           <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-base-content/10 bg-base-200/30 p-3 text-sm">
             <p className="text-sm font-medium text-base-content/80">Bulk ({selectedCount} selected)</p>
+            <select
+              className="select select-bordered select-xs min-w-32 rounded-lg"
+              value={bulkKind}
+              onChange={(e) => {
+                const v = e.target.value;
+                setBulkKind(v === InventoryKind.CORAL || v === InventoryKind.FISH ? v : "");
+              }}
+              disabled={bulkBusy || selectedCount === 0}
+            >
+              <option value="">Change kind…</option>
+              <option value={InventoryKind.CORAL}>Coral</option>
+              <option value={InventoryKind.FISH}>Fish</option>
+            </select>
+            <button
+              type="button"
+              className="btn btn-outline btn-xs rounded-lg"
+              disabled={bulkBusy || selectedCount === 0 || !bulkKind}
+              onClick={() => {
+                if (!bulkKind) return;
+                void postBulk({ candidateIds: [...selectedIds], kind: bulkKind });
+              }}
+            >
+              Apply kind
+            </button>
             <select
               className="select select-bordered select-xs min-w-48 rounded-lg"
               value={bulkMergeExchangeId}
@@ -307,8 +418,33 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
                 });
               }}
             >
-              Add
+              Add exchange
             </button>
+            <span className="ml-auto flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn btn-outline btn-error btn-xs rounded-lg"
+                disabled={bulkBusy || selectedCount === 0}
+                onClick={() => {
+                  if (selectedCount === 0) return;
+                  if (!window.confirm(`Remove ${selectedCount} selected item(s) from this import?`)) return;
+                  void postBulk({ candidateIds: [...selectedIds], action: "delete" });
+                }}
+              >
+                Remove
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-xs rounded-lg"
+                disabled={bulkBusy || selectedCount === 0}
+                onClick={() => {
+                  if (selectedCount === 0) return;
+                  void bulkPublish([...selectedIds]);
+                }}
+              >
+                Add to inventory
+              </button>
+            </span>
           </div>
         ) : null}
         <div className="overflow-x-auto">
@@ -321,7 +457,7 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
                     className="checkbox checkbox-sm"
                     checked={allSelected}
                     onChange={() => toggleSelectAll()}
-                    disabled={bulkBusy || job.candidates.length === 0}
+                    disabled={bulkBusy || visibleCandidates.length === 0}
                     title="Select all"
                   />
                 </th>
@@ -336,7 +472,7 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
               </tr>
             </thead>
             <tbody>
-              {job.candidates.map((c) => (
+              {visibleCandidates.map((c) => (
                   <tr key={c.id}>
                     <td>
                       <input
@@ -414,7 +550,7 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
                     </td>
                   </tr>
               ))}
-              {job.candidates.length === 0 ? (
+              {visibleCandidates.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center text-sm text-base-content/60">
                     {noItemsReason}

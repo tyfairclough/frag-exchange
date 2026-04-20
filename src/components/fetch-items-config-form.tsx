@@ -62,7 +62,7 @@ export function FetchItemsConfigForm() {
         />
       </label>
       <label className="form-control">
-        <span className="label-text text-sm font-medium">Max listing pages</span>
+        <span className="label-text text-sm font-medium">Max directory pages</span>
         <input
           type="number"
           min={0}
@@ -72,7 +72,7 @@ export function FetchItemsConfigForm() {
           className="input input-bordered mt-1 w-full rounded-xl"
         />
         <span className="label-text-alt mt-1 text-xs opacity-70">
-          Pagination only (next page links). Enter 0 for no page limit. Product pages linked from those listings are fetched separately — the importer does not crawl the rest of the site.
+          AI reads each directory/listing page (including next-page links) to identify product detail URLs. Each product page is then fetched separately to extract the actual item record. Enter 0 to follow all next-page links.
         </span>
       </label>
       <label className="form-control">
@@ -87,7 +87,7 @@ export function FetchItemsConfigForm() {
           className="input input-bordered mt-1 w-full rounded-xl"
         />
         <span className="label-text-alt mt-1 text-xs opacity-70">
-          Stop after saving this many coral or fish candidates from listing and product pages. Leave blank to parse until listing pages or the rest of the queue is exhausted.
+          Stop after saving this many coral or fish candidates from product pages. Leave blank to parse every product page the AI discovers.
         </span>
       </label>
       {error ? <p className="text-sm text-error">{error}</p> : null}

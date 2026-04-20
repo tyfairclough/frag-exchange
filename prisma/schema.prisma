@@ -292,6 +292,10 @@ model InventoryImportJob {
   crawlDelayMs     Int                     @default(250)
   pagesVisited     Int                     @default(0)
   pagesParsed      Int                     @default(0)
+  /// Count of product detail URLs the AI has discovered so far across all listing pages.
+  detailUrlsDiscovered Int                 @default(0)
+  /// Count of product detail URLs that have been fetched and parsed (success or failure).
+  detailUrlsProcessed  Int                 @default(0)
   candidatesFound  Int                     @default(0)
   candidatesReady  Int                     @default(0)
   candidatesFailed Int                     @default(0)

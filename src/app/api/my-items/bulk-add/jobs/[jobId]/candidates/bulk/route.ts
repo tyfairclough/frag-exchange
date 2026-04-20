@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ListingIntent } from "@/generated/prisma/enums";
+import { InventoryKind, ListingIntent } from "@/generated/prisma/enums";
 import { requireUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
 import { isKindAllowedOnExchange } from "@/lib/listing-eligibility";
@@ -10,6 +10,8 @@ type Body = {
   approved?: unknown;
   exchangeMode?: unknown;
   selectedExchangeIds?: unknown;
+  kind?: unknown;
+  action?: unknown;
 };
 
 const MAX_BULK = 200;
@@ -35,8 +37,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ jobId: string 
     body.exchangeMode === "merge" || body.exchangeMode === "replace"
       ? Array.isArray(body.selectedExchangeIds)
       : false;
+  const hasKind = body.kind === InventoryKind.CORAL || body.kind === InventoryKind.FISH;
+  const isDelete = body.action === "delete";
 
-  if (!hasApproved && !hasExchanges) {
+  if (!hasApproved && !hasExchanges && !hasKind && !isDelete) {
     return NextResponse.json({ ok: false, error: "nothing_to_apply" }, { status: 400 });
   }
 
@@ -46,6 +50,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ jobId: string 
   });
   if (!job) {
     return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+
+  if (isDelete) {
+    const deleted = await getPrisma().inventoryImportCandidate.deleteMany({
+      where: { id: { in: candidateIds }, jobId, userId: user.id },
+    });
+    return NextResponse.json({ ok: true, deletedCount: deleted.count });
   }
 
   const memberships = await getPrisma().exchangeMembership.findMany({
@@ -90,19 +101,27 @@ export async function POST(req: Request, ctx: { params: Promise<{ jobId: string 
     });
   }
 
+  const nextKind = hasKind ? (body.kind as InventoryKind) : null;
+
   await getPrisma().$transaction(
     candidates.map((c) => {
       const data: {
         approvedAt?: Date | null;
         rejectedAt?: Date | null;
         selectedExchangeIds?: string[];
+        kind?: InventoryKind;
       } = {};
       if (hasApproved) {
         data.approvedAt = body.approved === true ? new Date() : null;
         data.rejectedAt = body.approved === false ? new Date() : null;
       }
+      if (hasKind && nextKind) {
+        data.kind = nextKind;
+      }
       if (hasExchanges) {
-        const filtered = filterForKind(c.kind, requestedExchangeIds);
+        /** Filter against the new kind if we're changing it in the same call; otherwise the current kind. */
+        const kindForExchangeFilter = hasKind ? nextKind : c.kind;
+        const filtered = filterForKind(kindForExchangeFilter, requestedExchangeIds);
         if (body.exchangeMode === "merge") {
           data.selectedExchangeIds = [...new Set([...c.selectedExchangeIds, ...filtered])];
         } else {

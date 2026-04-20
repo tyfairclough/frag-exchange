@@ -18,6 +18,8 @@ type JobResponse = {
   status: InventoryImportJobStatus;
   pagesVisited: number;
   pagesParsed: number;
+  detailUrlsDiscovered: number;
+  detailUrlsProcessed: number;
   candidatesReady: number;
   candidatesFailed: number;
   events: ImportEvent[];
@@ -39,8 +41,9 @@ export function FetchImportActivitySheet() {
   const jobId = useMemo(() => getJobIdFromPath(pathname), [pathname]);
   const [collapsed, setCollapsed] = useState(true);
   const [events, setEvents] = useState<ImportEvent[]>([]);
-  const [pagesVisited, setPagesVisited] = useState(0);
-  const [pagesParsed, setPagesParsed] = useState(0);
+  const [status, setStatus] = useState<InventoryImportJobStatus | null>(null);
+  const [detailUrlsDiscovered, setDetailUrlsDiscovered] = useState(0);
+  const [detailUrlsProcessed, setDetailUrlsProcessed] = useState(0);
   const [candidatesReady, setCandidatesReady] = useState(0);
   const [candidatesFailed, setCandidatesFailed] = useState(0);
 
@@ -52,8 +55,9 @@ export function FetchImportActivitySheet() {
       const json = (await res.json()) as { ok: boolean; job?: JobResponse };
       if (!active || !json.ok || !json.job) return;
       setEvents(json.job.events);
-      setPagesVisited(json.job.pagesVisited ?? 0);
-      setPagesParsed(json.job.pagesParsed ?? 0);
+      setStatus(json.job.status);
+      setDetailUrlsDiscovered(json.job.detailUrlsDiscovered ?? 0);
+      setDetailUrlsProcessed(json.job.detailUrlsProcessed ?? 0);
       setCandidatesReady(json.job.candidatesReady ?? 0);
       setCandidatesFailed(json.job.candidatesFailed ?? 0);
     };
@@ -64,6 +68,10 @@ export function FetchImportActivitySheet() {
       clearInterval(timer);
     };
   }, [jobId]);
+
+  const isParsing =
+    status === InventoryImportJobStatus.QUEUED || status === InventoryImportJobStatus.RUNNING;
+  const progressMax = Math.max(detailUrlsDiscovered, 1);
 
   if (!jobId) return null;
 
@@ -79,11 +87,21 @@ export function FetchImportActivitySheet() {
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-slate-900">Bulk add activity</p>
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
-              <span>Visited: {pagesVisited}</span>
-              <span>Parsed: {pagesParsed}</span>
+              <span>Items found: {detailUrlsDiscovered}</span>
+              <span>
+                Parsed: {detailUrlsProcessed}
+                {detailUrlsDiscovered > 0 ? ` / ${detailUrlsDiscovered}` : ""}
+              </span>
               <span>Candidates: {candidatesReady}</span>
               <span>Errors: {candidatesFailed}</span>
             </div>
+            {isParsing && detailUrlsDiscovered > 0 ? (
+              <progress
+                className="progress progress-primary mt-2 h-1.5 w-full"
+                value={detailUrlsProcessed}
+                max={progressMax}
+              />
+            ) : null}
           </div>
           <span className="flex shrink-0 items-center gap-1.5 text-xs text-slate-500">
             {collapsed ? "Open" : "Hide"}

@@ -263,31 +263,146 @@ function extractPaginationLinks(origin: string, resolvedPageUrl: string, html: s
   return [...out];
 }
 
-function collectDetailUrlsFromListingItems(
-  items: ParsedCandidate[],
-  listingPageUrl: string,
-  origin: string,
-  listingUrls: Set<string>,
-): string[] {
-  const listing = new URL(listingPageUrl);
-  listing.hash = "";
-  const out = new Set<string>();
+const MAX_ANCHOR_HINTS = 300;
 
-  for (const item of items) {
-    const raw = item.saleExternalUrl?.trim();
-    if (!raw) continue;
-    let u: URL;
+/**
+ * Same-origin, non-asset anchors with their visible text. Feeds the AI link-discovery step so the
+ * model can only choose exact existing hrefs as product detail URLs (never invent).
+ */
+function extractAnchorHintsFromHtml(
+  html: string,
+  pageUrl: string,
+  origin: string,
+): Array<{ href: string; text: string }> {
+  const seen = new Set<string>();
+  const pageHref = (() => {
     try {
-      u = new URL(raw.replace(/&amp;/g, "&"), listingPageUrl);
+      const u = new URL(pageUrl);
+      u.hash = "";
+      return u.href;
     } catch {
+      return pageUrl;
+    }
+  })();
+  const out: Array<{ href: string; text: string }> = [];
+  const aRe = /<a\b([^>]*?)>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null = aRe.exec(html);
+  while (m !== null) {
+    if (out.length >= MAX_ANCHOR_HINTS) break;
+    const attrs = m[1];
+    const inner = m[2];
+    const hrefM = /\bhref\s*=\s*["']([^"']+)["']/i.exec(attrs);
+    if (!hrefM) {
+      m = aRe.exec(html);
       continue;
     }
-    if (u.origin !== origin) continue;
-    if (isLikelyStaticAssetUrl(u)) continue;
+    let u: URL;
+    try {
+      u = new URL(hrefM[1].trim().replace(/&amp;/g, "&"), pageUrl);
+    } catch {
+      m = aRe.exec(html);
+      continue;
+    }
+    if (u.origin !== origin || isLikelyStaticAssetUrl(u)) {
+      m = aRe.exec(html);
+      continue;
+    }
     u.hash = "";
-    if (u.href === listing.href) continue;
-    if (listingUrls.has(u.href)) continue;
-    out.add(u.href);
+    if (u.href === pageHref) {
+      m = aRe.exec(html);
+      continue;
+    }
+    const href = u.href;
+    if (seen.has(href)) {
+      m = aRe.exec(html);
+      continue;
+    }
+    seen.add(href);
+    const text = stripHtml(inner).slice(0, 160);
+    out.push({ href, text });
+    m = aRe.exec(html);
+  }
+  return out;
+}
+
+/**
+ * Ask the AI to pick product-detail URLs out of the anchors we extracted. Must return only hrefs
+ * that appear verbatim in the input list; anything else is discarded by the caller.
+ */
+async function discoverDetailLinksWithAi(params: {
+  pageText: string;
+  anchors: Array<{ href: string; text: string }>;
+  pageUrl: string;
+}): Promise<string[]> {
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key || params.anchors.length === 0) return [];
+  const model = process.env.CORAL_AI_MODEL?.trim() || "gpt-4o-mini";
+  const anchorLines = params.anchors
+    .map((a, i) => `${i + 1}. ${a.href}${a.text ? ` — ${a.text}` : ""}`)
+    .join("\n");
+  const anchorBlock = `\n\nANCHOR_CANDIDATES (${params.anchors.length} same-origin links on this page — pick from these exact hrefs only):\n${anchorLines}\n`;
+  const maxCore = Math.max(400, MAX_AI_TEXT_LENGTH - anchorBlock.length);
+  const core = params.pageText.length > maxCore ? params.pageText.slice(0, maxCore) : params.pageText;
+  const system =
+    'You are analysing a retail directory/listing page from an aquarium shop. From ANCHOR_CANDIDATES, return only the hrefs that link to an individual product detail page for one fish or one coral species/frag. Exclude category, navigation, pagination, filter, tag, account, cart, search, blog, and policy links. Output JSON only: {"detailUrls":string[]}. Each entry MUST be copied verbatim from ANCHOR_CANDIDATES — never invent, modify, or append parameters. Return an empty array if nothing looks like a product detail link.';
+  const userMessage = `Page URL: ${params.pageUrl}\n\nPAGE TEXT:\n${core}${anchorBlock}`;
+
+  const ac = new AbortController();
+  let raceTimer: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    raceTimer = setTimeout(() => {
+      try {
+        ac.abort();
+      } catch {
+        /* ignore */
+      }
+      reject(new Error("openai_discover_timeout"));
+    }, OPENAI_COMPLETION_TIMEOUT_MS);
+  });
+  const fetchPromise = fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    signal: ac.signal,
+    body: JSON.stringify({
+      model,
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: userMessage },
+      ],
+    }),
+  });
+
+  let res: Response;
+  try {
+    res = await Promise.race([
+      fetchPromise.finally(() => {
+        if (raceTimer !== undefined) clearTimeout(raceTimer);
+      }),
+      timeoutPromise,
+    ]);
+  } catch {
+    return [];
+  }
+  if (!res.ok) return [];
+  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const content = json.choices?.[0]?.message?.content;
+  if (!content) return [];
+  let parsed: { detailUrls?: unknown };
+  try {
+    parsed = JSON.parse(content) as { detailUrls?: unknown };
+  } catch {
+    return [];
+  }
+  const arr = Array.isArray(parsed.detailUrls) ? parsed.detailUrls : [];
+  const allowedHrefs = new Set(params.anchors.map((a) => a.href));
+  const out = new Set<string>();
+  for (const u of arr) {
+    if (typeof u !== "string") continue;
+    const t = u.trim();
+    if (!t || !allowedHrefs.has(t)) continue;
+    out.add(t);
   }
   return [...out];
 }
@@ -981,92 +1096,67 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
         message: "Fetched and normalized HTML page text.",
         meta: { url: fetched.finalUrl, textLength: text.length },
       });
-      let aiItems: ParsedCandidate[] = [];
-      if (text.length > 200) {
+
+      const anchors = extractAnchorHintsFromHtml(fetched.html, fetched.finalUrl, origin).filter(
+        (a) => !listingEnqueued.has(a.href) && !detailDiscovered.has(a.href),
+      );
+
+      if (capReached()) {
+        await appendImportEvent({
+          jobId,
+          stage: InventoryImportEventStage.SKIP,
+          message: "Item cap reached — skipping AI link discovery on listing page.",
+          meta: { url: fetched.finalUrl },
+        });
+      } else if (anchors.length === 0) {
+        await appendImportEvent({
+          jobId,
+          stage: InventoryImportEventStage.SKIP,
+          message: "No crawlable product links found on listing page.",
+          meta: { url: fetched.finalUrl },
+        });
+      } else {
         pagesParsed += 1;
         await appendImportEvent({
           jobId,
           stage: InventoryImportEventStage.AI_CLASSIFY,
-          message: "Sending page text to AI classification.",
-          meta: { url: fetched.finalUrl },
+          message: `Asking AI to identify product detail links from ${anchors.length} candidate anchor(s).`,
+          meta: { url: fetched.finalUrl, anchorCount: anchors.length },
         });
         await extendImportJobLease(jobId, runToken);
-        const modelInput = buildModelInputForAi(text, fetched.html, fetched.finalUrl);
-        const streamAc = new AbortController();
-        const streamResult = await streamNdjsonCandidatesFromOpenAi({
-          modelInput,
+        const discovered = await discoverDetailLinksWithAi({
+          pageText: text,
+          anchors,
           pageUrl: fetched.finalUrl,
-          mode: "listing",
-          signal: streamAc.signal,
-          onParsedLine: async (item) => {
-            if (capReached()) return;
-            const upserted = await upsertOneInventoryImportCandidateFromAi({
-              jobId,
-              userId: job.userId,
-              pageUrl: fetched.finalUrl,
-              item,
-            });
-            found += upserted.found;
-            ready += upserted.ready;
-            for (const d of collectDetailUrlsFromListingItems([item], fetched.finalUrl, origin, listingEnqueued)) {
-              detailDiscovered.add(d);
-            }
-            if (capReached()) streamAc.abort();
-            await extendImportJobLease(jobId, runToken);
-          },
         });
-        /** Batch fallback whenever the stream produced zero parseable NDJSON objects (covers empty assistant + success, legacy JSON shape, etc.). */
-        const needsFallback = streamResult.ndjsonLinesAccepted === 0;
-        if (needsFallback) {
-          if (!capReached()) {
-            aiItems = await parseCandidatesWithAi(modelInput, fetched.finalUrl, "listing");
-            await appendImportEvent({
-              jobId,
-              stage: InventoryImportEventStage.AI_CLASSIFY,
-              message: "AI classification completed (batch fallback).",
-              meta: { url: fetched.finalUrl, returnedItems: aiItems.length },
-            });
-            const upserted = await upsertInventoryImportCandidatesFromAi({
-              jobId,
-              userId: job.userId,
-              pageUrl: fetched.finalUrl,
-              aiItems,
-              initialFound: found,
-              maxFound: itemCap,
-            });
-            found += upserted.found;
-            ready += upserted.ready;
-          } else {
-            aiItems = [];
-            await appendImportEvent({
-              jobId,
-              stage: InventoryImportEventStage.SKIP,
-              message: "Skipped listing batch fallback (item limit already reached).",
-              meta: { url: fetched.finalUrl },
-            });
+        let newlyAdded = 0;
+        for (const href of discovered) {
+          let u: URL;
+          try {
+            u = new URL(href, fetched.finalUrl);
+          } catch {
+            continue;
           }
-        } else {
-          aiItems = [];
-          await appendImportEvent({
-            jobId,
-            stage: InventoryImportEventStage.AI_CLASSIFY,
-            message: "AI classification completed.",
-            meta: { url: fetched.finalUrl, returnedItems: streamResult.ndjsonLinesAccepted },
-          });
+          if (u.origin !== origin || isLikelyStaticAssetUrl(u)) continue;
+          u.hash = "";
+          if (listingEnqueued.has(u.href) || detailDiscovered.has(u.href)) continue;
+          detailDiscovered.add(u.href);
+          newlyAdded += 1;
         }
-      } else {
         await appendImportEvent({
           jobId,
-          stage: InventoryImportEventStage.SKIP,
-          message: "Skipped page with insufficient text content.",
-          meta: { url: fetched.finalUrl, textLength: text.length },
+          stage: InventoryImportEventStage.AI_CLASSIFY,
+          message: `AI identified ${newlyAdded} new product detail link(s).`,
+          meta: {
+            url: fetched.finalUrl,
+            proposed: discovered.length,
+            newlyAdded,
+            totalDiscovered: detailDiscovered.size,
+          },
         });
       }
 
       if (!capReached()) {
-        for (const d of collectDetailUrlsFromListingItems(aiItems, fetched.finalUrl, origin, listingEnqueued)) {
-          detailDiscovered.add(d);
-        }
         for (const p of extractPaginationLinks(origin, fetched.finalUrl, fetched.html)) {
           if (!listingEnqueued.has(p)) {
             listingEnqueued.add(p);
@@ -1101,6 +1191,7 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
       data: {
         pagesVisited,
         pagesParsed,
+        detailUrlsDiscovered: detailDiscovered.size,
         candidatesFound: found,
         candidatesReady: ready,
         candidatesFailed: failed,
@@ -1112,12 +1203,15 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
   const detailUrls = [...detailDiscovered].filter((u) => !listingEnqueued.has(u));
   const detailSeen = new Set<string>();
   let detailIndex = 0;
+  let detailProcessed = 0;
   for (const detailUrl of detailUrls) {
     if (capReached()) break;
     if (detailSeen.has(detailUrl)) continue;
     detailSeen.add(detailUrl);
     detailIndex += 1;
     pagesVisited += 1;
+    detailProcessed += 1;
+    const foundBeforeDetail = found;
     await extendImportJobLease(jobId, runToken);
     await appendImportEvent({
       jobId,
@@ -1220,6 +1314,17 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
             meta: { url: fetched.finalUrl, returnedItems: detailStreamResult.ndjsonLinesAccepted },
           });
         }
+        /** Treat a parsed detail page that yielded zero saved candidates as an error — shows up in Errors count and the activity feed. */
+        if (found === foundBeforeDetail && !capReached()) {
+          failed += 1;
+          await appendImportEvent({
+            jobId,
+            stage: InventoryImportEventStage.FAIL,
+            level: InventoryImportEventLevel.ERROR,
+            message: "No items confidently found on product page.",
+            meta: { url: fetched.finalUrl },
+          });
+        }
       } else {
         await appendImportEvent({
           jobId,
@@ -1255,6 +1360,8 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
       data: {
         pagesVisited,
         pagesParsed,
+        detailUrlsDiscovered: detailDiscovered.size,
+        detailUrlsProcessed: detailProcessed,
         candidatesFound: found,
         candidatesReady: ready,
         candidatesFailed: failed,
@@ -1269,6 +1376,8 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
       status: InventoryImportJobStatus.REVIEW_READY,
       pagesVisited,
       pagesParsed,
+      detailUrlsDiscovered: detailDiscovered.size,
+      detailUrlsProcessed: detailProcessed,
       candidatesFound: found,
       candidatesReady: ready,
       candidatesFailed: failed,
@@ -1287,6 +1396,8 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
     meta: {
       pagesVisited,
       pagesParsed,
+      detailUrlsDiscovered: detailDiscovered.size,
+      detailUrlsProcessed: detailProcessed,
       candidatesFound: found,
       candidatesReady: ready,
       candidatesFailed: failed,
@@ -1327,7 +1438,11 @@ async function sendImportCompletionEmail(jobId: string, success: boolean, error?
   });
 }
 
-export async function publishImportJobCandidates(params: { userId: string; jobId: string }) {
+export async function publishImportJobCandidates(params: {
+  userId: string;
+  jobId: string;
+  candidateIds?: string[];
+}) {
   const job = await getPrisma().inventoryImportJob.findFirst({
     where: { id: params.jobId, userId: params.userId },
     select: { id: true },
@@ -1342,6 +1457,9 @@ export async function publishImportJobCandidates(params: { userId: string; jobId
       userId: params.userId,
       createdItemId: null,
       kind: { in: [InventoryKind.CORAL, InventoryKind.FISH] },
+      ...(params.candidateIds && params.candidateIds.length > 0
+        ? { id: { in: params.candidateIds } }
+        : {}),
     },
     orderBy: { createdAt: "asc" },
   });
@@ -1424,9 +1542,20 @@ export async function publishImportJobCandidates(params: { userId: string; jobId
     }
   }
 
-  await getPrisma().inventoryImportJob.update({
-    where: { id: params.jobId },
-    data: { status: InventoryImportJobStatus.COMPLETED, finishedAt: new Date() },
+  /** Only flip the job to COMPLETED when every remaining candidate has been handled; otherwise keep it in review so the user can continue picking rows. */
+  const remaining = await getPrisma().inventoryImportCandidate.count({
+    where: {
+      jobId: params.jobId,
+      userId: params.userId,
+      createdItemId: null,
+      kind: { in: [InventoryKind.CORAL, InventoryKind.FISH] },
+    },
   });
+  if (remaining === 0) {
+    await getPrisma().inventoryImportJob.update({
+      where: { id: params.jobId },
+      data: { status: InventoryImportJobStatus.COMPLETED, finishedAt: new Date() },
+    });
+  }
   return { createdCount: created.length, failedCount: failed };
 }
