@@ -93,7 +93,7 @@ export async function createInventoryImportJob(params: {
     userId: params.userId,
     sourceUrl: valid.url.toString(),
     sourceHost: valid.url.host,
-    maxPages: Math.min(Math.max(params.maxPages, 1), 60),
+    maxPages: Math.min(Math.max(Math.trunc(params.maxPages), 0), 60),
     maxItems,
     /** Legacy column; crawl no longer uses depth — only listing pagination + linked product URLs. */
     maxDepth: Math.min(Math.max(params.maxDepth ?? 0, 0), 3),
@@ -935,7 +935,8 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
   let ready = 0;
   let failed = 0;
 
-  while (listingQueue.length > 0 && listingPagesFetched < job.maxPages && !capReached()) {
+  const unlimitedListingPages = job.maxPages === 0;
+  while (listingQueue.length > 0 && (unlimitedListingPages || listingPagesFetched < job.maxPages) && !capReached()) {
     const nextUrl = listingQueue.shift();
     if (!nextUrl) break;
     if (listingSeen.has(nextUrl)) continue;
@@ -946,7 +947,9 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
     await appendImportEvent({
       jobId,
       stage: InventoryImportEventStage.REQUEST_PAGE,
-      message: `Requesting listing page ${listingPagesFetched}/${job.maxPages}.`,
+      message: unlimitedListingPages
+        ? `Requesting listing page ${listingPagesFetched} (no page limit).`
+        : `Requesting listing page ${listingPagesFetched}/${job.maxPages}.`,
       meta: { url: nextUrl, phase: "listing" as const },
     });
     try {

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export function FetchItemsConfigForm() {
   const router = useRouter();
   const [sourceUrl, setSourceUrl] = useState("");
-  const [maxPages, setMaxPages] = useState(20);
+  const [maxPages, setMaxPages] = useState(2);
   const [maxItemsRaw, setMaxItemsRaw] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,14 +65,14 @@ export function FetchItemsConfigForm() {
         <span className="label-text text-sm font-medium">Max listing pages</span>
         <input
           type="number"
-          min={1}
+          min={0}
           max={60}
           value={maxPages}
           onChange={(e) => setMaxPages(Number(e.target.value))}
           className="input input-bordered mt-1 w-full rounded-xl"
         />
         <span className="label-text-alt mt-1 text-xs opacity-70">
-          Pagination only (next page links). Product pages linked from those listings are fetched separately — the importer does not crawl the rest of the site.
+          Pagination only (next page links). Enter 0 for no page limit. Product pages linked from those listings are fetched separately — the importer does not crawl the rest of the site.
         </span>
       </label>
       <label className="form-control">

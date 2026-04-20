@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const created = await createInventoryImportJob({
       userId: user.id,
       sourceUrl,
-      maxPages: parseIntOr(body?.maxPages, 20),
+      maxPages: parseIntOr(body?.maxPages, 2),
       maxItems,
     });
     void runInventoryImportJobById(created.id);

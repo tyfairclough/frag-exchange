@@ -55,10 +55,10 @@ export function PublishFetchJobButton({ jobId }: { jobId: string }) {
           onClick={() => void rejectAll()}
           disabled={publishing || rejecting}
         >
-          {rejecting ? "Removing..." : "Reject"}
+          {rejecting ? "Removing..." : "Reject all"}
         </button>
         <button type="button" className="btn btn-primary btn-sm rounded-xl" onClick={() => void publishAll()} disabled={publishing || rejecting}>
-          {publishing ? "Publishing..." : "Publish"}
+          {publishing ? "Publishing..." : "Add all"}
         </button>
       </div>
       {message ? <p className="max-w-sm text-right text-xs text-warning">{message}</p> : null}
