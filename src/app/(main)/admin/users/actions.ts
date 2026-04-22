@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { UserGlobalRole, UserPostingRole } from "@/generated/prisma/enums";
+import { BusinessAccountOwnership, UserGlobalRole, UserPostingRole } from "@/generated/prisma/enums";
 import { assertDatabaseReachable, getPrisma } from "@/lib/db";
 import { adminDeleteUserAndCollectNotifyRecipients } from "@/lib/admin-delete-user";
 import { logAdminAudit } from "@/lib/admin-audit";
@@ -192,9 +192,14 @@ export async function updateUserPostingRoleAction(formData: FormData) {
     redirect("/admin/users");
   }
 
+  const businessAccountOwnership: BusinessAccountOwnership =
+    nextRole === UserPostingRole.LFS || nextRole === UserPostingRole.ONLINE_RETAILER
+      ? BusinessAccountOwnership.UNCLAIMED
+      : BusinessAccountOwnership.CLAIMED;
+
   await db.user.update({
     where: { id: userId },
-    data: { postingRole: nextRole },
+    data: { postingRole: nextRole, businessAccountOwnership },
   });
 
   const ip = await getRequestIp();
@@ -207,11 +212,68 @@ export async function updateUserPostingRoleAction(formData: FormData) {
       email: target.email,
       from: target.postingRole,
       to: nextRole,
+      businessAccountOwnership,
     },
     ip,
   });
 
   revalidatePath("/admin");
   revalidatePath("/admin/users");
+  redirect("/admin/users?updated=1");
+}
+
+export async function updateUserBusinessOwnershipAction(formData: FormData) {
+  const actor = await requireSuperAdmin();
+  const userId = str(formData.get("userId"));
+  const nextRaw = str(formData.get("businessAccountOwnership"));
+
+  if (!userId || nextRaw !== BusinessAccountOwnership.CLAIMED) {
+    redirect("/admin/users?error=invalid");
+  }
+
+  const db = getPrisma();
+  const target = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      postingRole: true,
+      businessAccountOwnership: true,
+    },
+  });
+
+  if (!target) {
+    redirect("/admin/users?error=not-found");
+  }
+
+  if (
+    target.postingRole !== UserPostingRole.LFS &&
+    target.postingRole !== UserPostingRole.ONLINE_RETAILER
+  ) {
+    redirect("/admin/users?error=invalid");
+  }
+
+  if (target.businessAccountOwnership === BusinessAccountOwnership.CLAIMED) {
+    redirect("/admin/users");
+  }
+
+  await db.user.update({
+    where: { id: userId },
+    data: { businessAccountOwnership: BusinessAccountOwnership.CLAIMED },
+  });
+
+  const ip = await getRequestIp();
+  await logAdminAudit({
+    actorUserId: actor.id,
+    action: "user.business_account_ownership.update",
+    targetType: "user",
+    targetId: userId,
+    metadata: { email: target.email, to: BusinessAccountOwnership.CLAIMED },
+    ip,
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/business-claims");
   redirect("/admin/users?updated=1");
 }

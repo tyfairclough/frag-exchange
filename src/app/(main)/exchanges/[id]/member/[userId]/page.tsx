@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExchangeKind } from "@/generated/prisma/enums";
+import { BusinessAccountOwnership, ExchangeKind, UserPostingRole } from "@/generated/prisma/enums";
+import { hasRecentBusinessClaim } from "@/lib/business-claim";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canViewExchangeDirectory } from "@/lib/super-admin";
@@ -37,7 +38,13 @@ export default async function ExchangeMemberListingsPage({
 
   const owner = await getPrisma().user.findUnique({
     where: { id: ownerUserId },
-    select: { id: true, alias: true, avatarEmoji: true },
+    select: {
+      id: true,
+      alias: true,
+      avatarEmoji: true,
+      postingRole: true,
+      businessAccountOwnership: true,
+    },
   });
 
   if (!owner) {
@@ -57,6 +64,14 @@ export default async function ExchangeMemberListingsPage({
   });
 
   const isSelf = ownerUserId === viewer.id;
+
+  const isCommercialTier =
+    owner.postingRole === UserPostingRole.LFS || owner.postingRole === UserPostingRole.ONLINE_RETAILER;
+  const showClaimBusinessCta =
+    isSelf &&
+    isCommercialTier &&
+    owner.businessAccountOwnership === BusinessAccountOwnership.UNCLAIMED &&
+    !(await hasRecentBusinessClaim(getPrisma(), ownerUserId));
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
@@ -82,6 +97,15 @@ export default async function ExchangeMemberListingsPage({
           className="btn btn-primary btn-sm min-h-10 w-fit rounded-xl"
         >
           Start trade
+        </Link>
+      ) : null}
+
+      {showClaimBusinessCta ? (
+        <Link
+          href={`/exchanges/${encodeURIComponent(exchangeId)}/member/${encodeURIComponent(ownerUserId)}/claim`}
+          className="btn btn-secondary btn-sm min-h-10 w-fit rounded-xl"
+        >
+          Claim my business
         </Link>
       ) : null}
 

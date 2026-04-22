@@ -8,6 +8,7 @@ import {
   ListingIntent,
   CoralListingMode,
 } from "@/generated/prisma/enums";
+import { getAiSystemPrompt, getAiSystemPrompts } from "@/lib/ai-system-prompt-registry";
 import { mirrorHttpImageUrlToUploads } from "@/lib/coral-upload";
 import { getPrisma } from "@/lib/db";
 import { isKindAllowedOnExchange } from "@/lib/listing-eligibility";
@@ -343,8 +344,7 @@ async function discoverDetailLinksWithAi(params: {
   const anchorBlock = `\n\nANCHOR_CANDIDATES (${params.anchors.length} same-origin links on this page — pick from these exact hrefs only):\n${anchorLines}\n`;
   const maxCore = Math.max(400, MAX_AI_TEXT_LENGTH - anchorBlock.length);
   const core = params.pageText.length > maxCore ? params.pageText.slice(0, maxCore) : params.pageText;
-  const system =
-    'You are analysing a retail directory/listing page from an aquarium shop. From ANCHOR_CANDIDATES, return only the hrefs that link to an individual product detail page for one fish or one coral species/frag. Exclude category, navigation, pagination, filter, tag, account, cart, search, blog, and policy links. Output JSON only: {"detailUrls":string[]}. Each entry MUST be copied verbatim from ANCHOR_CANDIDATES — never invent, modify, or append parameters. Return an empty array if nothing looks like a product detail link.';
+  const system = await getAiSystemPrompt("inventory_discover_detail_links");
   const userMessage = `Page URL: ${params.pageUrl}\n\nPAGE TEXT:\n${core}${anchorBlock}`;
 
   const ac = new AbortController();
@@ -463,10 +463,8 @@ async function parseCandidatesWithAi(
   if (!key) return [];
   const model = process.env.CORAL_AI_MODEL?.trim() || "gpt-4o-mini";
   const payload = text.length > MAX_AI_TEXT_LENGTH ? text.slice(0, MAX_AI_TEXT_LENGTH) : text;
-  const systemListing =
-    'Extract retail listing items from page text. If IMAGE_URLS_FOUND_IN_HTML is present, each item imageUrl must be copied exactly from that list (the best match for that row\'s product image) or null — do not invent URLs. For each grid/listing row, set saleExternalUrl to the product detail page URL when clearly present in the row/snippet, otherwise null. Return JSON only: {"items":[{"title":string,"snippet":string,"kind":"CORAL"|"FISH"|"IGNORE","confidence":number,"name":string,"description":string,"imageUrl":string|null,"coralType":string|null,"colours":string[],"species":string|null,"reefSafe":boolean|null,"salePriceMinor":number|null,"saleCurrencyCode":string|null,"saleExternalUrl":string|null}]}. Include only likely individual listing rows/cards from this page.';
-  const systemDetail =
-    'This is a single product detail page. Extract at most one primary retail item. If IMAGE_URLS_FOUND_IN_HTML is present, imageUrl must be copied exactly from that list or null. Set saleExternalUrl to this page URL. Return JSON only: {"items":[{"title":string,"snippet":string,"kind":"CORAL"|"FISH"|"IGNORE","confidence":number,"name":string,"description":string,"imageUrl":string|null,"coralType":string|null,"colours":string[],"species":string|null,"reefSafe":boolean|null,"salePriceMinor":number|null,"saleCurrencyCode":string|null,"saleExternalUrl":string|null}]} — use an empty items array if there is no clear product.';
+  const { inventory_parse_listing_json: systemListing, inventory_parse_detail_json: systemDetail } =
+    await getAiSystemPrompts(["inventory_parse_listing_json", "inventory_parse_detail_json"]);
   const bodyStr = JSON.stringify({
     model,
     temperature: 0.2,
@@ -656,9 +654,6 @@ async function upsertInventoryImportCandidatesFromAi(params: {
   return { found, ready };
 }
 
-const NDJSON_FIELDS_HINT =
-  '{"title":string,"snippet":string,"kind":"CORAL"|"FISH"|"IGNORE","confidence":number,"name":string,"description":string,"imageUrl":string|null,"coralType":string|null,"colours":string[],"species":string|null,"reefSafe":boolean|null,"salePriceMinor":number|null,"saleCurrencyCode":string|null,"saleExternalUrl":string|null}';
-
 /** Optional counters for SSE reader diagnostics. */
 type SseReaderDebugStats = {
   rawLinesSeen: number;
@@ -790,14 +785,8 @@ async function streamNdjsonCandidatesFromOpenAi(params: {
   const model = process.env.CORAL_AI_MODEL?.trim() || "gpt-4o-mini";
   const payload =
     params.modelInput.length > MAX_AI_TEXT_LENGTH ? params.modelInput.slice(0, MAX_AI_TEXT_LENGTH) : params.modelInput;
-  const systemListing = `Extract retail listing items from page text. If IMAGE_URLS_FOUND_IN_HTML is present, each item imageUrl must be copied exactly from that list (the best match for that row's product image) or null — do not invent URLs. For each grid/listing row, set saleExternalUrl to the product detail page URL when clearly present in the row/snippet, otherwise null.
-
-Output format: JSON Lines (NDJSON). Emit exactly one ${NDJSON_FIELDS_HINT} object per line. Each line must be one complete JSON object. Do not wrap in an array or outer object. No markdown code fences or commentary. Include only likely individual listing rows/cards from this page.`;
-
-  const systemDetail = `This is a single product detail page. Extract at most one primary retail item. If IMAGE_URLS_FOUND_IN_HTML is present, imageUrl must be copied exactly from that list or null. Set saleExternalUrl to this page URL.
-
-Output format: JSON Lines (NDJSON). Emit at most one line: a single ${NDJSON_FIELDS_HINT} object. If there is no clear product, output zero lines (empty response). No markdown code fences.`;
-
+  const { inventory_stream_listing_ndjson: systemListing, inventory_stream_detail_ndjson: systemDetail } =
+    await getAiSystemPrompts(["inventory_stream_listing_ndjson", "inventory_stream_detail_ndjson"]);
   const system = params.mode === "detail" ? systemDetail : systemListing;
   const bodyStr = JSON.stringify({
     model,

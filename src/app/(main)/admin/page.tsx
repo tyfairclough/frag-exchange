@@ -98,11 +98,29 @@ export default async function AdminDashboardPage() {
           </li>
           <li>
             <Link
+              href="/admin/business-claims"
+              className="inline-flex min-h-11 items-center rounded-full border border-slate-300 bg-white px-5 text-sm font-semibold transition hover:border-slate-400 hover:bg-slate-50"
+              style={{ color: MARKETING_LINK_BLUE }}
+            >
+              Business claims
+            </Link>
+          </li>
+          <li>
+            <Link
               href="/me/admin/alias-words"
               className="inline-flex min-h-11 items-center rounded-full border border-slate-300 bg-white px-5 text-sm font-semibold transition hover:border-slate-400 hover:bg-slate-50"
               style={{ color: MARKETING_LINK_BLUE }}
             >
               Alias words
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/admin/ai-prompts"
+              className="inline-flex min-h-11 items-center rounded-full border border-slate-300 bg-white px-5 text-sm font-semibold transition hover:border-slate-400 hover:bg-slate-50"
+              style={{ color: MARKETING_LINK_BLUE }}
+            >
+              AI prompts
             </Link>
           </li>
         </ul>

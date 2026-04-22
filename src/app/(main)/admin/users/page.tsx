@@ -1,12 +1,17 @@
 import Link from "next/link";
 import {
+  BusinessAccountOwnership,
   ExchangeMembershipRole,
   UserGlobalRole,
   UserPostingRole,
 } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { AdminDeleteUserDialog } from "@/app/(main)/admin/users/admin-delete-user-dialog";
-import { updateUserGlobalRoleAction, updateUserPostingRoleAction } from "@/app/(main)/admin/users/actions";
+import {
+  updateUserBusinessOwnershipAction,
+  updateUserGlobalRoleAction,
+  updateUserPostingRoleAction,
+} from "@/app/(main)/admin/users/actions";
 import { MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
 
@@ -56,6 +61,7 @@ export default async function AdminUsersPage({
         alias: true,
         globalRole: true,
         postingRole: true,
+        businessAccountOwnership: true,
         createdAt: true,
         exchangeMemberships: {
           where: { role: ExchangeMembershipRole.EVENT_MANAGER },
@@ -136,6 +142,12 @@ export default async function AdminUsersPage({
                 <td className="px-4 py-3">
                   <div className="font-bold text-slate-900">{platformRoleLabel(u.globalRole)}</div>
                   <div className="mt-0.5 font-normal text-slate-600">{memberTierLabel(u.postingRole)}</div>
+                  {u.postingRole === UserPostingRole.LFS || u.postingRole === UserPostingRole.ONLINE_RETAILER ? (
+                    <div className="mt-1 text-xs text-slate-500">
+                      Storefront:{" "}
+                      {u.businessAccountOwnership === BusinessAccountOwnership.UNCLAIMED ? "Unclaimed" : "Claimed"}
+                    </div>
+                  ) : null}
                 </td>
                 <td className="px-4 py-3 text-slate-700">
                   {u.exchangeMemberships.length === 0 ? (
@@ -211,6 +223,20 @@ export default async function AdminUsersPage({
                         Save tier
                       </button>
                     </form>
+                    {(u.postingRole === UserPostingRole.LFS ||
+                      u.postingRole === UserPostingRole.ONLINE_RETAILER) &&
+                    u.businessAccountOwnership === BusinessAccountOwnership.UNCLAIMED ? (
+                      <form action={updateUserBusinessOwnershipAction} className="inline">
+                        <input type="hidden" name="userId" value={u.id} />
+                        <input type="hidden" name="businessAccountOwnership" value={BusinessAccountOwnership.CLAIMED} />
+                        <button
+                          type="submit"
+                          className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
+                        >
+                          Mark business claimed
+                        </button>
+                      </form>
+                    ) : null}
                     {u.id === actor.id ? null : (
                       <AdminDeleteUserDialog
                         userId={u.id}

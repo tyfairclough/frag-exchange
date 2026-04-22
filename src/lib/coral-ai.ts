@@ -9,6 +9,7 @@ import {
   EquipmentCondition as EquipmentConditionEnum,
   InventoryKind as InventoryKindEnum,
 } from "@/generated/prisma/enums";
+import { getAiSystemPrompt } from "@/lib/ai-system-prompt-registry";
 import { coerceAiColours, coerceAiCoralType } from "@/lib/coral-options";
 
 export type CoralAiEnrichmentInput = {
@@ -54,6 +55,7 @@ async function openAiEnrichment(name: string): Promise<CoralAiEnrichmentResult |
   }
 
   const model = process.env.CORAL_AI_MODEL?.trim() || "gpt-4o-mini";
+  const systemPrompt = await getAiSystemPrompt("coral_enrichment_from_name");
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -67,8 +69,7 @@ async function openAiEnrichment(name: string): Promise<CoralAiEnrichmentResult |
       messages: [
         {
           role: "system",
-          content:
-            'You help reef hobbyists describe corals for a swap site. Reply with JSON only: {"description": string (2-4 sentences, practical), "coralType": string|null (Soft, LPS, or SPS when inferable), "colours": string[] (every distinct visible body/mouth/tip/skeleton colour you can name—use plain words like green, orange, purple; include metallic or rainbow when appropriate; empty array if unsure), "colour": string|null (optional legacy single summary—omit if you use colours)}. Prefer filling "colours" over "colour".',
+          content: systemPrompt,
         },
         {
           role: "user",
@@ -149,6 +150,7 @@ async function openAiVisionEnrichment(input: CoralAiVisionInput): Promise<CoralA
 
   const model = process.env.CORAL_AI_MODEL?.trim() || "gpt-4o-mini";
   const dataUrl = `data:${input.mimeType};base64,${input.imageBase64}`;
+  const systemPrompt = await getAiSystemPrompt("coral_photo_colours");
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -163,8 +165,7 @@ async function openAiVisionEnrichment(input: CoralAiVisionInput): Promise<CoralA
       messages: [
         {
           role: "system",
-          content:
-            'You describe visible colours in reef aquarium coral photos for a hobbyist swap site. Do not identify species, strain, or coral type. Reply with JSON only: {"colours": string[] (every distinct visible colour region: polyps, tips, base, mouth, skeleton—plain words like green, orange, purple; include metallic or rainbow when appropriate; empty array if unsure), "colour": string|null (optional legacy single summary—omit if you use colours)}.',
+          content: systemPrompt,
         },
         {
           role: "user",
@@ -297,6 +298,7 @@ async function openAiInventoryVision(input: CoralAiVisionInput): Promise<Invento
 
   const model = process.env.CORAL_AI_MODEL?.trim() || "gpt-4o-mini";
   const dataUrl = `data:${input.mimeType};base64,${input.imageBase64}`;
+  const systemPrompt = await getAiSystemPrompt("inventory_listing_vision");
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -311,8 +313,7 @@ async function openAiInventoryVision(input: CoralAiVisionInput): Promise<Invento
       messages: [
         {
           role: "system",
-          content:
-            'You classify reef-hobby listings from photos. Reply JSON only: {"itemKind":"CORAL"|"FISH"|"EQUIPMENT"|null, "name":string|null, "description":string, "coralType":string|null, "colours":string[], "colour":string|null, "species":string|null, "reefSafe":boolean|null, "equipmentCategory":string|null, "equipmentCondition":string|null}. Rules: For CORAL only—do not guess species, strain, or Soft/LPS/SPS; set name, description, and coralType to null; list every distinct visible colour region (polyps, tips, base, mouth, skeleton) in "colours" using plain words; empty array if unsure. For FISH—name is a common hobby listing title (max 120 chars); description 2-4 sentences; "colours" for body/fin/tip/marking colours; species binomial when confident; reefSafe when inferable. For EQUIPMENT—short product-style name; description 2-4 sentences; equipmentCategory and equipmentCondition; "colours" empty. Prefer "colours" over legacy "colour" for CORAL and FISH.',
+          content: systemPrompt,
         },
         {
           role: "user",

@@ -45,6 +45,9 @@ model User {
   adminAuditLogs            AdminAuditLog[]
   inventoryImportJobs       InventoryImportJob[]
   inventoryImportCandidates InventoryImportCandidate[]
+  /// Whether a commercial-tier account is still operated by REEFX until the business claims it.
+  businessAccountOwnership  BusinessAccountOwnership @default(CLAIMED)
+  businessClaims            BusinessClaim[]
 
   @@map("users")
 }
@@ -74,6 +77,15 @@ model AliasGeneratorWord {
   @@map("alias_generator_words")
 }
 
+/// Super-admin-editable OpenAI system prompts (defaults live in code; DB stores overrides).
+model AiSystemPrompt {
+  key       String   @id @db.VarChar(80)
+  content   String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("ai_system_prompts")
+}
+
 /// Chunk 4 — exchange hub: event vs group, public vs private, membership + invites.
 model Exchange {
   id          String             @id @default(cuid())
@@ -99,6 +111,7 @@ model Exchange {
   invites     ExchangeInvite[]
   listings    ExchangeListing[]
   trades      Trade[]
+  businessClaims BusinessClaim[]
 
   @@index([visibility, kind])
   @@map("exchanges")
@@ -159,6 +172,26 @@ enum UserGlobalRole {
 enum UserPostingRole {
   LFS
   ONLINE_RETAILER
+}
+
+enum BusinessAccountOwnership {
+  CLAIMED
+  UNCLAIMED
+}
+
+/// Request from a commercial account holder to take over their REEFX-provisioned storefront.
+model BusinessClaim {
+  id             String   @id @default(cuid())
+  userId         String
+  exchangeId     String
+  fullName       String   @db.VarChar(160)
+  businessEmail  String   @db.VarChar(255)
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exchange       Exchange @relation(fields: [exchangeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("business_claims")
 }
 
 enum ExchangeKind {
