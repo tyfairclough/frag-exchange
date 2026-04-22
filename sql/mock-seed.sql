@@ -1,4 +1,4 @@
--- REEFX mock seed data
+-- REEFxCHANGE mock seed data
 -- Run this AFTER schema-setup.sql.
 -- Safe for non-production testing/staging data bootstrap.
 
@@ -27,7 +27,7 @@ START TRANSACTION;
 INSERT INTO `users`
   (`id`, `email`, `alias`, `avatarEmoji`, `tosAcceptedAt`, `tosVersion`, `privacyAcceptedAt`, `privacyVersion`, `contactPreference`, `onboardingPath`, `onboardingCompletedAt`, `globalRole`, `passwordHash`, `createdAt`, `updatedAt`)
 VALUES
-  ('usr_super_admin', 'admin@mock.example.test', 'REEFX Admin', '🪸', '2026-04-01 09:00:00.000', 'v1', '2026-04-01 09:00:00.000', 'v1', 'EMAIL', 'GROUP_AND_EVENT', '2026-04-01 09:10:00.000', 'SUPER_ADMIN', NULL, '2026-04-01 09:00:00.000', '2026-04-01 09:00:00.000'),
+  ('usr_super_admin', 'admin@mock.example.test', 'REEFxCHANGE Admin', '🪸', '2026-04-01 09:00:00.000', 'v1', '2026-04-01 09:00:00.000', 'v1', 'EMAIL', 'GROUP_AND_EVENT', '2026-04-01 09:10:00.000', 'SUPER_ADMIN', NULL, '2026-04-01 09:00:00.000', '2026-04-01 09:00:00.000'),
   ('usr_event_mgr', 'event.manager@mock.example.test', 'Event Manager', '🎟️', '2026-04-01 09:01:00.000', 'v1', '2026-04-01 09:01:00.000', 'v1', 'EMAIL', 'EVENT_ONLY', '2026-04-01 09:11:00.000', 'MEMBER', NULL, '2026-04-01 09:01:00.000', '2026-04-01 09:01:00.000'),
   ('usr_group_mgr', 'group.owner@mock.example.test', 'Group Owner', '🤿', '2026-04-01 09:02:00.000', 'v1', '2026-04-01 09:02:00.000', 'v1', 'EMAIL', 'GROUP_AND_EVENT', '2026-04-01 09:12:00.000', 'MEMBER', NULL, '2026-04-01 09:02:00.000', '2026-04-01 09:02:00.000'),
   ('usr_alice', 'alice@mock.example.test', 'Alice Reef', '🐠', '2026-04-01 09:03:00.000', 'v1', '2026-04-01 09:03:00.000', 'v1', 'EMAIL', 'GROUP_AND_EVENT', '2026-04-01 09:13:00.000', 'MEMBER', NULL, '2026-04-01 09:03:00.000', '2026-04-01 09:03:00.000'),

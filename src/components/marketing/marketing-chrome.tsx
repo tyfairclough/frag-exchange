@@ -27,7 +27,7 @@ export function MarketingSiteHeaderBrandOnly() {
         <AppLink href="/" className="flex items-center gap-2.5">
           <CoralLogo className="shrink-0" />
           <span className="text-lg font-semibold tracking-tight sm:text-xl" style={{ color: MARKETING_NAVY }}>
-            REEFX
+            REEFxCHANGE
           </span>
         </AppLink>
       </div>
@@ -42,7 +42,7 @@ export function MarketingSiteHeader() {
         <AppLink href="/" className="flex items-center gap-2.5">
           <CoralLogo className="shrink-0" />
           <span className="text-lg font-semibold tracking-tight sm:text-xl" style={{ color: MARKETING_NAVY }}>
-            REEFX
+            REEFxCHANGE
           </span>
           <span
             className="rounded-full px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide"
@@ -73,10 +73,10 @@ export function MarketingSiteFooter() {
             <AppLink href="/" className="flex items-center gap-2">
               <CoralLogo className="h-8 w-8 shrink-0" />
               <span className="text-base font-semibold" style={{ color: MARKETING_NAVY }}>
-                REEFX
+                REEFxCHANGE
               </span>
             </AppLink>
-            <p className="mt-3 text-xs text-slate-500">© {new Date().getFullYear()} REEFX</p>
+            <p className="mt-3 text-xs text-slate-500">© {new Date().getFullYear()} REEFxCHANGE</p>
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:gap-12">
             <div>
@@ -112,7 +112,7 @@ export function MarketingSiteFooter() {
                 </li>
                 <li>
                   <AppLink href="/auth/login" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
-                    Add REEFX to your event
+                    Add REEFxCHANGE to your event
                   </AppLink>
                 </li>
               </ul>

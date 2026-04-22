@@ -143,7 +143,7 @@ export default async function ExchangesPage({
           className="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
         >
           <div className="min-w-0 flex-1 space-y-2">
-            <p className="font-semibold text-emerald-950">Welcome to REEFX</p>
+            <p className="font-semibold text-emerald-950">Welcome to REEFxCHANGE</p>
             {welcomeBanner.kind === "manual" ? (
               <p className="text-emerald-900">
                 You have successfully joined. Browse the <span className="font-medium">Public exchanges</span> section below to find a community to join.

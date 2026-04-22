@@ -1,6 +1,6 @@
-# REEFX (web)
+# REEFxCHANGE (web)
 
-Next.js app for **REEFX** (reefx.net): mobile-first shell with **Neon Postgres** via **Prisma 7**, aligned with a **Hostinger Node.js** deployment (Next.js preset).
+Next.js app for **REEFxCHANGE** (reefx.net): mobile-first shell with **Neon Postgres** via **Prisma 7**, aligned with a **Hostinger Node.js** deployment (Next.js preset).
 
 Runtime DB access uses Prisma's native Postgres engine with `DATABASE_URL` (Neon pooled URL) and `DIRECT_URL` (Neon direct URL for migrations).
 UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) using custom themes: `fraglight` and `fragdark`.

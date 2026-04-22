@@ -53,7 +53,7 @@ export function CookieConsentBanner() {
             Analytics cookies
           </h2>
           <p id="cookie-consent-desc" className="leading-relaxed">
-            We use PostHog to understand aggregate usage and improve REEFX. Analytics cookies are only used if you
+            We use PostHog to understand aggregate usage and improve REEFxCHANGE. Analytics cookies are only used if you
             accept. See our{" "}
             <Link href="/legal/privacy" className="font-medium text-teal-700 underline-offset-2 hover:underline">
               privacy notice

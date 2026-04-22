@@ -131,7 +131,7 @@ export function DatabaseBootGate({ children }: { children: React.ReactNode }) {
                 Waking up
               </h2>
               <p id="db-boot-checking-desc" className="max-w-sm text-sm text-base-content/70">
-                REEFX was taking a nap. Please wait a moment while we wake up.
+                REEFxCHANGE was taking a nap. Please wait a moment while we wake up.
               </p>
             </>
           ) : (

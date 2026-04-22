@@ -58,7 +58,7 @@ export function AdminDeleteUserDialog({
           <h2 className="text-lg font-bold text-slate-900">Delete user?</h2>
           <p className="text-sm text-slate-600">
             This will permanently remove{" "}
-            <span className="font-semibold text-slate-800">“{email}”</span> from REEFX. All of their items will be
+            <span className="font-semibold text-slate-800">“{email}”</span> from REEFxCHANGE. All of their items will be
             removed from every exchange. Any confirmed trades they were part of will be cancelled. Other members with
             affected trades may be notified by email. This cannot be undone.
           </p>

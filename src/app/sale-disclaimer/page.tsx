@@ -51,8 +51,8 @@ export default function SaleDisclaimerPage() {
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-4 px-4 py-8">
       <h1 className="text-2xl font-semibold">Before you continue</h1>
       <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
-        REEFX is not involved in payment, delivery, shipping, or disputes for sale listings. Any sale is directly between
-        buyer and seller outside REEFX.
+        REEFxCHANGE is not involved in payment, delivery, shipping, or disputes for sale listings. Any sale is directly between
+        buyer and seller outside REEFxCHANGE.
       </div>
       <p className="text-sm text-base-content/70">You are about to open an external website.</p>
       <div className="flex flex-wrap gap-2">

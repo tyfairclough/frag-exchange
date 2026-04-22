@@ -29,7 +29,7 @@ export async function generateMetadata({
     return { title: "Listing unavailable" };
   }
   const title = `${listing.inventoryItem.name} on the ${listing.exchange.name} exchange`;
-  const intro = `I am sharing this ${getShareItemTypeLabel(listing.inventoryItem.kind)} on the swap site REEFX, check it out 🐠`;
+  const intro = `I am sharing this ${getShareItemTypeLabel(listing.inventoryItem.kind)} on the swap site REEFxCHANGE, check it out 🐠`;
   const itemDescription = listing.inventoryItem.description?.trim();
   const description = [intro, itemDescription || `Listed on ${listing.exchange.name}.`].join(" ");
   const url = buildSharedItemPath(exchangeId, itemId);

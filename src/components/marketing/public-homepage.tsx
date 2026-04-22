@@ -66,7 +66,7 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
             className="text-[1.65rem] font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.65rem] lg:leading-[1.12]"
             style={{ color: MARKETING_NAVY }}
           >
-            Build your reef with REEFX
+            Build your reef with REEFxCHANGE
           </h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
             Join events and local exchanges to swap corals, for free, with fellow reefers.
@@ -184,7 +184,7 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
             Pricing
           </h2>
           <p className="mt-3 text-slate-600">
-            Free for hobbyists. Organisers can add REEFX to an event or group to run swaps smoothly — sign in to
+            Free for hobbyists. Organisers can add REEFxCHANGE to an event or group to run swaps smoothly — sign in to
             learn more.
           </p>
         </div>

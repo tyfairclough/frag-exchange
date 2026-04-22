@@ -41,7 +41,7 @@ export async function sendMemberRemovedTradeCancelledEmailsThrottled(
 
   for (let i = 0; i < recipients.length; i++) {
     const rec = recipients[i]!;
-    const subject = "Trades cancelled on REEFX";
+    const subject = "Trades cancelled on REEFxCHANGE";
     const exchangesPhrase =
       rec.exchangeNames.length === 1
         ? `the exchange ${formatExchangeList(rec.exchangeNames)}`
@@ -50,23 +50,23 @@ export async function sendMemberRemovedTradeCancelledEmailsThrottled(
     const text = [
       "Hello,",
       "",
-      `A member was removed from REEFX. Any trades you had with them on ${exchangesPhrase} have been cancelled.`,
+      `A member was removed from REEFxCHANGE. Any trades you had with them on ${exchangesPhrase} have been cancelled.`,
       "",
       "We're sorry for the inconvenience this may cause.",
       "",
       `Browse exchanges: ${exchangesHref}`,
       "",
-      "— REEFX",
+      "— REEFxCHANGE",
     ].join("\n");
 
     const namesHtml = rec.exchangeNames.map((n) => `“${escapeHtml(n)}”`).join(", ");
     const html = `
     <div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.5;color:#111827">
       <p style="margin:0 0 16px 0">Hello,</p>
-      <p style="margin:0 0 16px 0">A member was removed from REEFX. All trades involving them with you on ${rec.exchangeNames.length === 1 ? "the exchange " : "these exchanges: "}${namesHtml} have been cancelled.</p>
+      <p style="margin:0 0 16px 0">A member was removed from REEFxCHANGE. All trades involving them with you on ${rec.exchangeNames.length === 1 ? "the exchange " : "these exchanges: "}${namesHtml} have been cancelled.</p>
       <p style="margin:0 0 16px 0">We're sorry for the inconvenience this may cause.</p>
       <p style="margin:0 0 16px 0"><a href="${escapeHtml(exchangesHref)}" style="color:#1d4ed8;text-decoration:underline">Open exchanges</a></p>
-      <p style="margin:24px 0 0 0;font-size:13px;color:#6b7280">REEFX notification</p>
+      <p style="margin:24px 0 0 0;font-size:13px;color:#6b7280">REEFxCHANGE notification</p>
     </div>
     `.trim();
 

@@ -1,4 +1,4 @@
--- REEFX MySQL schema bootstrap
+-- REEFxCHANGE MySQL schema bootstrap
 -- Creates all tables required by the current Prisma schema.
 -- Run first on an empty database, then run mock-seed.sql.
 

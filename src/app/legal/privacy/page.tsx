@@ -11,8 +11,8 @@ import {
 } from "@/lib/legal-version";
 
 export const metadata: Metadata = {
-  title: "Privacy notice — REEFX",
-  description: "How Furryflitchers Limited processes personal data when you use REEFX.",
+  title: "Privacy notice — REEFxCHANGE",
+  description: "How Furryflitchers Limited processes personal data when you use REEFxCHANGE.",
 };
 
 export default function PrivacyPage() {
@@ -26,7 +26,7 @@ export default function PrivacyPage() {
         <p className="mt-2 text-sm text-slate-500">
           Effective date: {LEGAL_VERSION}. This notice describes how{" "}
           <strong className="font-medium text-slate-800">{LEGAL_OPERATOR_NAME}</strong> (&quot;we&quot;, &quot;us&quot;,
-          &quot;our&quot;) uses personal data when you use <strong className="font-medium text-slate-800">REEFX</strong>{" "}
+          &quot;our&quot;) uses personal data when you use <strong className="font-medium text-slate-800">REEFxCHANGE</strong>{" "}
           (the &quot;Service&quot;). Our{" "}
           <Link href="/legal/terms" className="font-medium text-blue-700 hover:underline">
             Terms of Service
@@ -59,7 +59,7 @@ export default function PrivacyPage() {
 
         <section className="mt-8 space-y-3">
           <p className="text-lg font-bold leading-snug text-slate-500">
-            When and where this notice applies to your use of REEFX.
+            When and where this notice applies to your use of REEFxCHANGE.
           </p>
           <h2 className="text-base font-semibold text-slate-900">2. Scope</h2>
           <p>
@@ -173,7 +173,7 @@ export default function PrivacyPage() {
 
         <section className="mt-8 space-y-3">
           <p className="text-lg font-bold leading-snug text-slate-500">
-            Who we share data with to run REEFX, and that we never sell it.
+            Who we share data with to run REEFxCHANGE, and that we never sell it.
           </p>
           <h2 className="text-base font-semibold text-slate-900">6. Sharing, subprocessors, and sales</h2>
           <p>
@@ -297,7 +297,7 @@ export default function PrivacyPage() {
 
         <section className="mt-8 space-y-3">
           <p className="text-lg font-bold leading-snug text-slate-500">
-            REEFX is for adults aged 18 and over; we do not target children here.
+            REEFxCHANGE is for adults aged 18 and over; we do not target children here.
           </p>
           <h2 className="text-base font-semibold text-slate-900">12. Children</h2>
           <p>
@@ -338,7 +338,7 @@ export default function PrivacyPage() {
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] sm:px-4 sm:text-xs">
                     Session / auth cookies (names vary)
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 sm:px-4">REEFX</td>
+                  <td className="whitespace-nowrap px-3 py-2 sm:px-4">REEFxCHANGE</td>
                   <td className="px-3 py-2 sm:px-4">Keep you signed in and secure the Service.</td>
                   <td className="whitespace-nowrap px-3 py-2 sm:px-4">Session or up to ~30 days</td>
                 </tr>
@@ -397,8 +397,8 @@ export default function PrivacyPage() {
           </div>
           <h3 className="mt-8 text-sm font-semibold text-slate-900">13.3 Changing your preferences</h3>
           <p className="text-sm">
-            When you first visit REEFX, you can accept or decline analytics cookies using the banner at the bottom of
-            the screen. To withdraw consent or choose again, clear site data for REEFX in your browser settings, or use
+            When you first visit REEFxCHANGE, you can accept or decline analytics cookies using the banner at the bottom of
+            the screen. To withdraw consent or choose again, clear site data for REEFxCHANGE in your browser settings, or use
             the button below (this clears PostHog&apos;s opt-in/opt-out state for this browser and reloads the page so
             the banner can appear again).
           </p>

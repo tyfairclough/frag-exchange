@@ -113,7 +113,7 @@ export function OnboardingWizard({
       <div className="mx-auto w-full max-w-lg">
         <section className="rounded-3xl border border-slate-200/80 bg-white px-5 py-6 shadow-sm sm:px-7 sm:py-7">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: MARKETING_NAVY }}>
-            Welcome to REEFX
+            Welcome to REEFxCHANGE
           </h1>
           <p className="mt-2 text-sm text-slate-600">
             Welcome aboard! Let&apos;s get you setup, this only takes a minute.
@@ -133,7 +133,7 @@ export function OnboardingWizard({
                   The boring stuff
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  REEFX won&apos;t sell your data and follows GDPR regulations.
+                  REEFxCHANGE won&apos;t sell your data and follows GDPR regulations.
                 </p>
               </div>
               <label className="flex items-start gap-3 rounded-xl border border-slate-200 px-3 py-3">

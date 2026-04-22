@@ -16,7 +16,7 @@ export default function GlobalError({
       <body data-theme="fragdark" className="min-h-dvh bg-base-100 text-base-content antialiased">
         <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 py-12 text-center">
           <h1 className="text-xl font-semibold">
-            {dbDown ? "REEFX — database unavailable" : "REEFX — critical error"}
+            {dbDown ? "REEFxCHANGE — database unavailable" : "REEFxCHANGE — critical error"}
           </h1>
           <p className="max-w-sm text-sm text-base-content/70">
             {dbDown

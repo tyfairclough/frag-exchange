@@ -415,7 +415,7 @@ async function fetchPage(url: string): Promise<FetchedPage> {
   try {
     const res = await fetch(url, {
       redirect: "follow",
-      headers: { "User-Agent": "REEFXBot/1.0 (+inventory import)" },
+      headers: { "User-Agent": "REEFxCHANGEBot/1.0 (+inventory import)" },
       signal: controller.signal,
     });
     if (!res.ok) {

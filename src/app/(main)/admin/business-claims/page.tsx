@@ -29,7 +29,7 @@ export default async function AdminBusinessClaimsPage() {
             Business claims
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Requests from commercial accounts to take over their REEFX storefront.
+            Requests from commercial accounts to take over their REEFxCHANGE storefront.
           </p>
         </div>
       </div>

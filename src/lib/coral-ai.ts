@@ -41,7 +41,7 @@ function stubEnrichment(name: string): CoralAiEnrichmentResult {
   const trimmed = name.trim();
   const title = trimmed ? trimmed.slice(0, 1).toUpperCase() + trimmed.slice(1) : "Coral";
   return {
-    description: `${title}: hobbyist coral listing on REEFX. Add care notes, origin, and what you are looking for in a swap.`,
+    description: `${title}: hobbyist coral listing on REEFxCHANGE. Add care notes, origin, and what you are looking for in a swap.`,
     coralType: null,
     colours: [],
     source: "stub",

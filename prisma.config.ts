@@ -1,4 +1,4 @@
-// Prisma config — REEFX uses PostgreSQL (Neon) via `prisma/schema.prisma`.
+// Prisma config — REEFxCHANGE uses PostgreSQL (Neon) via `prisma/schema.prisma`.
 // DATABASE_URL: pooled runtime URL. DIRECT_URL: direct URL for migrations/introspection.
 import dotenv from "dotenv";
 import { defineConfig } from "prisma/config";

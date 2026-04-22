@@ -1,4 +1,4 @@
-# Local development only — PostgreSQL for REEFX (Prisma PostgreSQL provider).
+# Local development only — PostgreSQL for REEFxCHANGE (Prisma PostgreSQL provider).
 # From this folder: npm run db:up
 # Stop: npm run db:down
 #

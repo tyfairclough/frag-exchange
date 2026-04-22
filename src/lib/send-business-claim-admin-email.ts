@@ -30,7 +30,7 @@ export type BusinessClaimAdminEmailPayload = {
 };
 
 function buildEmail(params: BusinessClaimAdminEmailPayload) {
-  const subject = "New business claim on REEFX";
+  const subject = "New business claim on REEFxCHANGE";
   let logoSrc = "";
   try {
     logoSrc = `${new URL(params.adminClaimsUrl).origin}/reefx_logo.svg`;
@@ -39,7 +39,7 @@ function buildEmail(params: BusinessClaimAdminEmailPayload) {
   }
   const headerBlock = logoSrc
     ? `<div style="margin:0 0 28px 0;padding:0 0 24px 0;text-align:center;border-bottom:1px solid #e5e7eb">
-    <img src="${escapeHtml(logoSrc)}" alt="REEFX" width="140" height="42" style="display:inline-block;height:42px;width:auto;max-width:200px;border:0;outline:none;text-decoration:none" />
+    <img src="${escapeHtml(logoSrc)}" alt="REEFxCHANGE" width="140" height="42" style="display:inline-block;height:42px;width:auto;max-width:200px;border:0;outline:none;text-decoration:none" />
   </div>`
     : "";
   const claimsHref = escapeHtml(params.adminClaimsUrl);
@@ -61,7 +61,7 @@ function buildEmail(params: BusinessClaimAdminEmailPayload) {
   `.trim();
 
   const text = [
-    "Someone submitted a Claim my business request on REEFX.",
+    "Someone submitted a Claim my business request on REEFxCHANGE.",
     "",
     `Full name: ${params.fullName}`,
     `Business email: ${params.businessEmail}`,

@@ -1,4 +1,4 @@
-// REEFX — Prisma schema (PostgreSQL on Neon / Hostinger)
+// REEFxCHANGE — Prisma schema (PostgreSQL on Neon / Hostinger)
 // https://pris.ly/d/prisma-schema
 
 generator client {
@@ -45,7 +45,7 @@ model User {
   adminAuditLogs            AdminAuditLog[]
   inventoryImportJobs       InventoryImportJob[]
   inventoryImportCandidates InventoryImportCandidate[]
-  /// Whether a commercial-tier account is still operated by REEFX until the business claims it.
+  /// Whether a commercial-tier account is still operated by REEFxCHANGE until the business claims it.
   businessAccountOwnership  BusinessAccountOwnership @default(CLAIMED)
   businessClaims            BusinessClaim[]
 
@@ -179,7 +179,7 @@ enum BusinessAccountOwnership {
   UNCLAIMED
 }
 
-/// Request from a commercial account holder to take over their REEFX-provisioned storefront.
+/// Request from a commercial account holder to take over their REEFxCHANGE-provisioned storefront.
 model BusinessClaim {
   id             String   @id @default(cuid())
   userId         String

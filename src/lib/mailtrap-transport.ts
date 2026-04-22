@@ -14,7 +14,7 @@ export function parseEmailFrom(from: string): { name: string; email: string } | 
     return { name: angle[1].trim(), email: angle[2].trim() };
   }
   if (trimmed.includes("@")) {
-    return { name: "REEFX", email: trimmed };
+    return { name: "REEFxCHANGE", email: trimmed };
   }
   return null;
 }

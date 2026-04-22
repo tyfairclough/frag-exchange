@@ -38,7 +38,7 @@ export default async function LoginPage({
       <section className="mx-auto grid w-full max-w-6xl flex-1 gap-8 px-4 py-8 sm:px-6 sm:py-12 lg:grid-cols-2 lg:items-center lg:gap-10">
         <section className="order-1 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-black/5 sm:p-7">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl" style={{ color: MARKETING_NAVY }}>
-            Access REEFX
+            Access REEFxCHANGE
           </h1>
           <p className="mt-3 text-sm text-slate-600">
             New and returning reefers, access your account here.

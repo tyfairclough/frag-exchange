@@ -24,7 +24,7 @@ export async function geocodeTownCenter(input: {
 
   const ua =
     process.env.REEFX_NOMINATIM_USER_AGENT?.trim() ||
-    "REEFX/0.1 (contact: support@reefx.net)";
+    "REEFxCHANGE/0.1 (contact: support@reefx.net)";
 
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.searchParams.set("q", q);

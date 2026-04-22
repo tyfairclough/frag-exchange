@@ -9,7 +9,7 @@ import { ExploreHeaderChrome } from "@/components/explore-header-chrome";
 import { signOutAction } from "@/app/auth/actions";
 import { getExchangeIdFromPathname } from "@/lib/exchange-path";
 
-const DEFAULT_TITLE = "REEFX";
+const DEFAULT_TITLE = "REEFxCHANGE";
 
 type AppShellProfile = {
   aliasLabel: string;
@@ -103,8 +103,8 @@ function ShellTitleInner() {
 
   if (pathname === "/explore") {
     return (
-      <span className="min-w-0 truncate font-semibold tracking-tight text-[#122B49] sm:max-w-[12rem]" title="REEFX">
-        REEFX
+      <span className="min-w-0 truncate font-semibold tracking-tight text-[#122B49] sm:max-w-[12rem]" title="REEFxCHANGE">
+        REEFxCHANGE
       </span>
     );
   }

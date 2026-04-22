@@ -114,24 +114,24 @@ export function buildBodies(params: {
     "",
     ...params.lines,
     ...(params.actionUrl
-      ? ["", `${params.actionLabel ?? "Open in REEFX"}:`, params.actionUrl]
+      ? ["", `${params.actionLabel ?? "Open in REEFxCHANGE"}:`, params.actionUrl]
       : []),
     "",
-    "— REEFX",
+    "— REEFxCHANGE",
   ].join("\n");
 
   const linkBlock =
     params.actionUrl && params.actionLabel
       ? `<p><a href="${escapeHtml(params.actionUrl)}">${escapeHtml(params.actionLabel)}</a></p>`
       : params.actionUrl
-        ? `<p><a href="${escapeHtml(params.actionUrl)}">View in REEFX</a></p>`
+        ? `<p><a href="${escapeHtml(params.actionUrl)}">View in REEFxCHANGE</a></p>`
         : "";
 
   const html = `
     <p>${escapeHtml(params.title)}</p>
     ${params.lines.map((l) => `<p>${escapeHtml(l)}</p>`).join("")}
     ${linkBlock}
-    <p style="font-size:12px;color:#666">REEFX notification</p>
+    <p style="font-size:12px;color:#666">REEFxCHANGE notification</p>
   `.trim();
 
   return { text, html };

@@ -9,8 +9,8 @@ import {
 } from "@/lib/legal-version";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — REEFX",
-  description: "Terms of Service for REEFX, the reef hobbyist discovery platform (England and Wales).",
+  title: "Terms of Service — REEFxCHANGE",
+  description: "Terms of Service for REEFxCHANGE, the reef hobbyist discovery platform (England and Wales).",
 };
 
 export default function TermsPage() {
@@ -22,7 +22,7 @@ export default function TermsPage() {
       <article className="rounded-2xl border border-slate-200/80 bg-white p-5 text-slate-600 shadow-sm sm:p-7">
         <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">Terms of Service</h1>
         <p className="mt-2 text-sm text-slate-500">
-          Effective date: {LEGAL_VERSION}. These Terms apply to REEFX (the &quot;Service&quot;). For how we use personal
+          Effective date: {LEGAL_VERSION}. These Terms apply to REEFxCHANGE (the &quot;Service&quot;). For how we use personal
           data, see our{" "}
           <Link href="/legal/privacy" className="font-medium text-blue-700 hover:underline">
             Privacy notice
@@ -60,7 +60,7 @@ export default function TermsPage() {
           </p>
           <h2 className="text-base font-semibold text-slate-900">3. The Service</h2>
           <p>
-            REEFX is an online platform that helps reef aquarium hobbyists discover listings and connect with others. We
+            REEFxCHANGE is an online platform that helps reef aquarium hobbyists discover listings and connect with others. We
             provide software, discovery features, and related tools. The Service is offered in <strong>Beta</strong>:
             functionality, performance, and availability may change or be interrupted without notice.
           </p>
@@ -74,12 +74,12 @@ export default function TermsPage() {
 
         <section className="mt-8 space-y-3">
           <p className="text-lg font-bold leading-snug text-slate-600">
-            For-sale listings are external only; REEFX does not process payment or delivery.
+            For-sale listings are external only; REEFxCHANGE does not process payment or delivery.
           </p>
           <h2 className="text-base font-semibold text-slate-900">3A. External sale listings</h2>
           <p>
-            Where users mark items as &quot;for sale&quot;, REEFX only displays listing details and an external URL. Any
-            purchase, payment, shipping, collection, refund, or dispute happens outside REEFX directly between users.
+            Where users mark items as &quot;for sale&quot;, REEFxCHANGE only displays listing details and an external URL. Any
+            purchase, payment, shipping, collection, refund, or dispute happens outside REEFxCHANGE directly between users.
           </p>
           <p>
             We do not act as merchant of record, payment service provider, escrow agent, marketplace intermediary, or
@@ -106,7 +106,7 @@ export default function TermsPage() {
 
         <section className="mt-8 space-y-3">
           <p className="text-lg font-bold leading-snug text-slate-600">
-            Use REEFX lawfully: no fraud, abuse, hacking, scraping, or illegal trades.
+            Use REEFxCHANGE lawfully: no fraud, abuse, hacking, scraping, or illegal trades.
           </p>
           <h2 className="text-base font-semibold text-slate-900">5. Acceptable use</h2>
           <p>You agree that you will not:</p>
@@ -142,11 +142,11 @@ export default function TermsPage() {
 
         <section className="mt-8 space-y-3">
           <p className="text-lg font-bold leading-snug text-slate-600">
-            REEFX branding and software belong to us; your content stays yours.
+            REEFxCHANGE branding and software belong to us; your content stays yours.
           </p>
           <h2 className="text-base font-semibold text-slate-900">7. Intellectual property</h2>
           <p>
-            REEFX name, branding, logos, and the Service software are owned by us or our licensors. Except for the
+            REEFxCHANGE name, branding, logos, and the Service software are owned by us or our licensors. Except for the
             limited rights these Terms grant you, no rights are transferred to you.
           </p>
         </section>
@@ -203,7 +203,7 @@ export default function TermsPage() {
 
         <section className="mt-8 space-y-3">
           <p className="text-lg font-bold leading-snug text-slate-600">
-            We can suspend or close access for serious issues; you can stop using REEFX anytime.
+            We can suspend or close access for serious issues; you can stop using REEFxCHANGE anytime.
           </p>
           <h2 className="text-base font-semibold text-slate-900">11. Suspension and termination</h2>
           <p>

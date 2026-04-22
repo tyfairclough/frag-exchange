@@ -8,7 +8,7 @@ import { getRecentPublicExchangeListings } from "@/lib/marketing-listings";
 export const metadata: Metadata = {
   title: "Swap corals with local reefers",
   description:
-    "REEFX — join public exchanges and reefing events to list, discover, and trade coral frags with fellow hobbyists — free for members.",
+    "REEFxCHANGE — join public exchanges and reefing events to list, discover, and trade coral frags with fellow hobbyists — free for members.",
 };
 
 export const dynamic = "force-dynamic";

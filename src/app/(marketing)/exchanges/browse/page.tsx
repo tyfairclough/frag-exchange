@@ -8,7 +8,7 @@ import { getPublicBrowseEvents, getPublicBrowseGroups } from "@/lib/public-excha
 
 export const metadata: Metadata = {
   title: "Exchanges online",
-  description: "Browse public REEFX events and groups. Join to list and swap corals.",
+  description: "Browse public REEFxCHANGE events and groups. Join to list and swap corals.",
 };
 
 export const dynamic = "force-dynamic";

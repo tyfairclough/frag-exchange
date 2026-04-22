@@ -1,4 +1,4 @@
-# Deploying REEFX on Hostinger (Node.js / Next.js)
+# Deploying REEFxCHANGE on Hostinger (Node.js / Next.js)
 
 This app targets Hostinger’s **Node.js** hosting with the **Next.js** preset. Files you deploy should live under the panel’s **Node.js application root** (commonly `~/domains/<your-domain>/nodejs` or as shown in Hostinger’s docs). Do **not** assume you can replace `public_html/.htaccess` manually; follow their routing and preset instructions.
 
@@ -47,7 +47,7 @@ Do **not** commit `.env`; store secrets only in the panel or your secret manager
 
 ## 4b. Persistent uploads storage
 
-REEFX user uploads are runtime-generated files and must not be written into the app's own `public/` deploy folder.
+REEFxCHANGE user uploads are runtime-generated files and must not be written into the app's own `public/` deploy folder.
 
 - Point `UPLOADS_STORAGE_PATH` to a directory that survives releases (for example, a domain document root or mounted persistent volume).
 - Ensure the Node process user has read/write permissions on `UPLOADS_STORAGE_PATH`.

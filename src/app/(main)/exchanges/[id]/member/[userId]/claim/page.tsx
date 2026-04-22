@@ -10,7 +10,7 @@ import { submitBusinessClaimAction } from "./actions";
 const claimErrors: Record<string, string> = {
   invalid: "Please check your details and try again.",
   forbidden: "You do not have permission to submit a claim here.",
-  recent: `You already submitted a claim recently. If you need help, contact REEFX using the details in our privacy notice.`,
+  recent: `You already submitted a claim recently. If you need help, contact REEFxCHANGE using the details in our privacy notice.`,
 };
 
 export default async function ClaimBusinessPage({
@@ -92,7 +92,7 @@ export default async function ClaimBusinessPage({
         <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           <p className="font-medium text-emerald-900">Thank you</p>
           <p className="mt-2">
-            REEFX will contact you by phone or via any official channel you have published within the next 48–72 hours.
+            REEFxCHANGE will contact you by phone or via any official channel you have published within the next 48–72 hours.
           </p>
           <p className="mt-3">
             <Link href={memberHref} className="font-semibold text-emerald-900 underline">
@@ -110,7 +110,7 @@ export default async function ClaimBusinessPage({
 
       {!submitted && recent ? (
         <p className="text-sm text-base-content/70">
-          We already have a claim from this account within the last {RECENT_BUSINESS_CLAIM_COOLDOWN_DAYS} days. REEFX
+          We already have a claim from this account within the last {RECENT_BUSINESS_CLAIM_COOLDOWN_DAYS} days. REEFxCHANGE
           will be in touch if we need
           anything further.
         </p>

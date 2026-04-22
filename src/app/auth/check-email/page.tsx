@@ -31,7 +31,7 @@ export default async function CheckEmailPage({
             Check your email
           </h1>
           <p className="mt-3 text-sm text-slate-600">
-            A REEFX access link was sent to{" "}
+            A REEFxCHANGE access link was sent to{" "}
             <span className="font-medium text-slate-700">{params.email ?? "your email"}</span>.
           </p>
           <p className="mt-3 text-xs leading-relaxed text-slate-500">

@@ -22,10 +22,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://reefx.net"),
   title: {
-    default: "REEFX",
-    template: "%s · REEFX",
+    default: "REEFxCHANGE",
+    template: "%s · REEFxCHANGE",
   },
-  description: "REEFX — coral frags, swaps, and exchanges for reefers.",
+  description: "REEFxCHANGE — coral frags, swaps, and exchanges for reefers.",
 };
 
 export const viewport: Viewport = {

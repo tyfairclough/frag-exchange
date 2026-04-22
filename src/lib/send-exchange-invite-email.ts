@@ -34,13 +34,13 @@ export async function sendExchangeInviteEmail(params: {
   const exchangeNameEsc = escapeHtml(params.exchangeName);
   const headerBlock = logoSrc
     ? `<div style="margin:0 0 28px 0;padding:0 0 24px 0;text-align:center;border-bottom:1px solid #e5e7eb">
-    <img src="${escapeHtml(logoSrc)}" alt="REEFX" width="140" height="42" style="display:inline-block;height:42px;width:auto;max-width:200px;border:0;outline:none;text-decoration:none" />
+    <img src="${escapeHtml(logoSrc)}" alt="REEFxCHANGE" width="140" height="42" style="display:inline-block;height:42px;width:auto;max-width:200px;border:0;outline:none;text-decoration:none" />
   </div>`
     : "";
 
   const footerHtml = siteUrl
-    ? `<p style="margin:28px 0 0 0;padding-top:20px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">Sent from <a href="${escapeHtml(siteUrl)}" style="color:#374151;text-decoration:underline">REEFX</a></p>`
-    : `<p style="margin:28px 0 0 0;padding-top:20px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">Sent from REEFX</p>`;
+    ? `<p style="margin:28px 0 0 0;padding-top:20px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">Sent from <a href="${escapeHtml(siteUrl)}" style="color:#374151;text-decoration:underline">REEFxCHANGE</a></p>`
+    : `<p style="margin:28px 0 0 0;padding-top:20px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">Sent from REEFxCHANGE</p>`;
 
   const inviteHref = escapeHtml(params.inviteUrl);
   const buttonFont =
@@ -60,7 +60,7 @@ export async function sendExchangeInviteEmail(params: {
   const html = `
     <div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.5;color:#111827">
     ${headerBlock}
-    <p style="margin:0 0 16px 0">You have been invited to join <strong>${exchangeNameEsc}</strong> on REEFX.</p>
+    <p style="margin:0 0 16px 0">You have been invited to join <strong>${exchangeNameEsc}</strong> on REEFxCHANGE.</p>
     <p style="margin:0 0 16px 0">Use this link to accept (expires in 14 days). You must sign in with <strong>this email address</strong> (${escapeHtml(params.to)}):</p>
     ${ctaBlock}
     <p style="margin:0">If you were not expecting this, you can ignore this email.</p>
@@ -69,7 +69,7 @@ export async function sendExchangeInviteEmail(params: {
   `.trim();
 
   const text = [
-    `You have been invited to join "${params.exchangeName}" on REEFX.`,
+    `You have been invited to join "${params.exchangeName}" on REEFxCHANGE.`,
     "",
     "Use this link to accept (expires in 14 days). You must sign in with this email address:",
     params.to,
@@ -78,7 +78,7 @@ export async function sendExchangeInviteEmail(params: {
     "",
     "If you were not expecting this, you can ignore this email.",
     "",
-    siteUrl ? `Sent from REEFX — ${siteUrl}` : "Sent from REEFX",
+    siteUrl ? `Sent from REEFxCHANGE — ${siteUrl}` : "Sent from REEFxCHANGE",
   ].join("\n");
 
   const r = await sendMailtrapTransactional({

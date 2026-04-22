@@ -23,7 +23,7 @@ export function buildShareMessage(params: {
 }): string {
   const description = params.description?.trim();
   const messageLines = [
-    `I am sharing this ${getShareItemTypeLabel(params.kind)} on the swap site REEFX, check it out 🐠`,
+    `I am sharing this ${getShareItemTypeLabel(params.kind)} on the swap site REEFxCHANGE, check it out 🐠`,
     `${params.itemName} on the ${params.exchangeName} exchange`,
     ...(description ? [description] : []),
     "www.reefx.net",

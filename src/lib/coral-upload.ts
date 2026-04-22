@@ -50,7 +50,7 @@ export async function fetchRemoteImageBufferForInventory(url: string): Promise<B
     const res = await fetch(trimmed, {
       signal: controller.signal,
       headers: {
-        "User-Agent": "ReefX/1.0 (+https://reefx.net)",
+        "User-Agent": "REEFxCHANGE/1.0 (+https://reefx.net)",
         Accept: "image/*,*/*;q=0.8",
       },
       redirect: "follow",

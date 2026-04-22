@@ -35,16 +35,16 @@ export async function sendMagicLinkEmail(params: {
     /* verifyUrl is always a full URL from auth flow; leave header/footer links out if malformed */
   }
 
-  const subject = "Your REEFX access link";
+  const subject = "Your REEFxCHANGE access link";
   const headerBlock = logoSrc
     ? `<div style="margin:0 0 28px 0;padding:0 0 24px 0;text-align:center;border-bottom:1px solid #e5e7eb">
-    <img src="${escapeHtml(logoSrc)}" alt="REEFX" width="140" height="42" style="display:inline-block;height:42px;width:auto;max-width:200px;border:0;outline:none;text-decoration:none" />
+    <img src="${escapeHtml(logoSrc)}" alt="REEFxCHANGE" width="140" height="42" style="display:inline-block;height:42px;width:auto;max-width:200px;border:0;outline:none;text-decoration:none" />
   </div>`
     : "";
 
   const footerHtml = siteUrl
-    ? `<p style="margin:28px 0 0 0;padding-top:20px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">Sent from <a href="${escapeHtml(siteUrl)}" style="color:#374151;text-decoration:underline">REEFX</a></p>`
-    : `<p style="margin:28px 0 0 0;padding-top:20px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">Sent from REEFX</p>`;
+    ? `<p style="margin:28px 0 0 0;padding-top:20px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">Sent from <a href="${escapeHtml(siteUrl)}" style="color:#374151;text-decoration:underline">REEFxCHANGE</a></p>`
+    : `<p style="margin:28px 0 0 0;padding-top:20px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">Sent from REEFxCHANGE</p>`;
 
   const verifyHref = escapeHtml(params.verifyUrl);
   const buttonFont =
@@ -53,7 +53,7 @@ export async function sendMagicLinkEmail(params: {
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 10px 0;border-collapse:collapse">
       <tr>
         <td style="border-radius:9999px;background-color:${CTA_BUTTON_BG}">
-          <a href="${verifyHref}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 24px;font-family:${buttonFont};font-size:14px;font-weight:600;line-height:1.25;color:#ffffff;text-decoration:none;border-radius:9999px">Access REEFX</a>
+          <a href="${verifyHref}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 24px;font-family:${buttonFont};font-size:14px;font-weight:600;line-height:1.25;color:#ffffff;text-decoration:none;border-radius:9999px">Access REEFxCHANGE</a>
         </td>
       </tr>
     </table>
@@ -64,7 +64,7 @@ export async function sendMagicLinkEmail(params: {
   const html = `
     <div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.5;color:#111827">
     ${headerBlock}
-    <p style="margin:0 0 16px 0">Use this link to access REEFX (expires in 20 minutes):</p>
+    <p style="margin:0 0 16px 0">Use this link to access REEFxCHANGE (expires in 20 minutes):</p>
     ${accessButtonBlock}
     <p style="margin:0">If you did not request this, you can ignore this email.</p>
     ${footerHtml}
@@ -72,12 +72,12 @@ export async function sendMagicLinkEmail(params: {
   `.trim();
 
   const text = [
-    "Use this link to access REEFX (expires in 20 minutes):",
+    "Use this link to access REEFxCHANGE (expires in 20 minutes):",
     params.verifyUrl,
     "",
     "If you did not request this, you can ignore this email.",
     "",
-    siteUrl ? `Sent from REEFX — ${siteUrl}` : "Sent from REEFX",
+    siteUrl ? `Sent from REEFxCHANGE — ${siteUrl}` : "Sent from REEFxCHANGE",
   ].join("\n");
 
   const r = await sendMailtrapTransactional({

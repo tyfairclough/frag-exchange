@@ -1,4 +1,4 @@
-# REEFX SQL Bootstrap (Legacy MariaDB)
+# REEFxCHANGE SQL Bootstrap (Legacy MariaDB)
 
 These scripts are legacy helpers for MariaDB/MySQL snapshots only.
 Primary production database is now Neon Postgres via Prisma migrations.
