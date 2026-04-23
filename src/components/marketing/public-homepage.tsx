@@ -69,7 +69,7 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
             Build your reef with REEFxCHANGE
           </h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
-            Join events and local exchanges to swap corals, for free, with fellow reefers.
+            Building a marketplace powered by reefers and retailers together.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <AppLink
