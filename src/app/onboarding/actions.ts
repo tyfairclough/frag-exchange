@@ -19,6 +19,7 @@ import {
   otherUserHasAlias,
   pickUniqueAliasCandidate,
 } from "@/lib/suggested-alias";
+import { saveUserAvatarToPublic, validateAvatarUpload } from "@/lib/avatar-image-upload";
 
 function str(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -76,6 +77,10 @@ export async function completeOnboardingAction(formData: FormData) {
   const explicitAlias = clampAliasFromClient(str(formData.get("alias")));
   const suggestedAlias = clampAliasFromClient(str(formData.get("suggestedAlias")));
   const avatarEmoji = str(formData.get("avatarEmoji"));
+  const avatarModeRaw = str(formData.get("avatarMode"));
+  const avatarMode = avatarModeRaw === "image" ? "image" : "emoji";
+  const avatarFileRaw = formData.get("avatarFile");
+  const avatarFile = avatarFileRaw instanceof File ? avatarFileRaw : null;
   const tos = formData.get("tosAccepted") === "on";
   const privacy = formData.get("privacyAccepted") === "on";
   if (!tos) {
@@ -122,13 +127,42 @@ export async function completeOnboardingAction(formData: FormData) {
   }
 
   const now = new Date();
+  let uploadedAvatar:
+    | {
+        avatar40Url: string;
+        avatar80Url: string;
+        avatar256Url: string;
+        avatarUpdatedAt: Date;
+      }
+    | null = null;
+
+  if (avatarMode === "image" && (!avatarFile || avatarFile.size <= 0)) {
+    redirect(`/onboarding?error=${encodeURIComponent("avatar-upload")}`);
+  }
+
+  if (avatarMode === "image" && avatarFile && avatarFile.size > 0) {
+    const error = validateAvatarUpload(avatarFile);
+    if (error) {
+      redirect(`/onboarding?error=${encodeURIComponent("avatar-upload")}`);
+    }
+    const arrayBuffer = await avatarFile.arrayBuffer();
+    uploadedAvatar = await saveUserAvatarToPublic({
+      userId: user.id,
+      buffer: Buffer.from(arrayBuffer),
+      mimeType: avatarFile.type || "image/webp",
+    });
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: user.id },
       data: {
         alias: resolvedAlias,
-        avatarEmoji: avatarEmoji || null,
+        avatarEmoji: avatarMode === "emoji" ? avatarEmoji || null : null,
+        avatar40Url: avatarMode === "image" ? uploadedAvatar?.avatar40Url ?? undefined : null,
+        avatar80Url: avatarMode === "image" ? uploadedAvatar?.avatar80Url ?? undefined : null,
+        avatar256Url: avatarMode === "image" ? uploadedAvatar?.avatar256Url ?? undefined : null,
+        avatarUpdatedAt: avatarMode === "image" ? uploadedAvatar?.avatarUpdatedAt ?? undefined : null,
         tosAcceptedAt: now,
         tosVersion: LEGAL_VERSION,
         privacyAcceptedAt: now,

@@ -25,7 +25,12 @@ export default async function MePage() {
       <section className="card border border-base-content/10 bg-base-100 shadow-sm">
         <div className="card-body p-5 text-sm">
           <div className="flex items-center gap-3">
-            <MeAvatarSection avatarEmoji={user.avatarEmoji} />
+            <MeAvatarSection
+              avatarEmoji={user.avatarEmoji}
+              avatar40Url={user.avatar40Url}
+              avatar80Url={user.avatar80Url}
+              avatar256Url={user.avatar256Url}
+            />
             <div>
               <p className="text-base font-semibold">{user.alias ?? "No alias yet"}</p>
               <p className="text-base-content/70">{user.email}</p>

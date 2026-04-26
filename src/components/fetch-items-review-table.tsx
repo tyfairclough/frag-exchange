@@ -64,6 +64,47 @@ function kindLabel(kind: InventoryKind | null) {
   return "—";
 }
 
+function fallbackVisual(kind: InventoryKind | null): { symbol: string; label: string } {
+  if (kind === InventoryKind.CORAL) return { symbol: "🪸", label: "Coral placeholder" };
+  if (kind === InventoryKind.FISH) return { symbol: "🐟", label: "Fish placeholder" };
+  return { symbol: "📦", label: "Item placeholder" };
+}
+
+function CandidateImageThumb({ imageUrl, kind }: { imageUrl: string | null; kind: InventoryKind | null }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const trimmedUrl = imageUrl?.trim() ? imageUrl.trim() : null;
+  const showRemote = Boolean(trimmedUrl && failedUrl !== trimmedUrl);
+  const fallback = fallbackVisual(kind);
+
+  useEffect(() => {
+    setFailedUrl(null);
+  }, [trimmedUrl]);
+
+  if (!showRemote) {
+    return (
+      <span
+        className="flex h-10 w-10 items-center justify-center rounded-md border border-base-content/10 bg-base-200 text-sm"
+        role="img"
+        aria-label={fallback.label}
+        title={fallback.label}
+      >
+        {fallback.symbol}
+      </span>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={trimmedUrl ?? undefined}
+      alt=""
+      className="h-10 w-10 rounded-md border border-base-content/10 object-cover"
+      loading="lazy"
+      onError={() => setFailedUrl(trimmedUrl)}
+    />
+  );
+}
+
 export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: JobPayload; exchanges: ExchangeOption[] }) {
   const [job, setJob] = useState<JobPayload>(initialJob);
   const [busyCandidateId, setBusyCandidateId] = useState<string | null>(null);
@@ -484,17 +525,7 @@ export function FetchItemsReviewTable({ initialJob, exchanges }: { initialJob: J
                       />
                     </td>
                     <td>
-                      {c.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={c.imageUrl}
-                          alt=""
-                          className="h-10 w-10 rounded-md border border-base-content/10 object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="text-xs text-base-content/40">—</span>
-                      )}
+                      <CandidateImageThumb imageUrl={c.imageUrl} kind={c.kind} />
                     </td>
                     <td className="whitespace-nowrap text-sm">{kindLabel(c.kind)}</td>
                     <td className="max-w-40">

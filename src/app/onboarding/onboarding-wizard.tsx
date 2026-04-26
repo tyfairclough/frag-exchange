@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { completeOnboardingAction } from "@/app/onboarding/actions";
 import { IdealPostcodesAddressLookup } from "@/app/onboarding/ideal-postcodes-address-lookup";
 import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { SquareImageUploadField } from "@/components/square-image-upload-field";
 
 const avatarChoices = ["🐠", "🪸", "🐙", "🦀", "🐡", "🐟", "🦐", "🪼"] as const;
 const TOTAL_STEPS = 4;
@@ -12,6 +13,8 @@ const TOTAL_STEPS = 4;
 type WizardValues = {
   alias: string;
   avatarEmoji: string;
+  avatarMode: "emoji" | "image";
+  avatarImageUrl: string | null;
   tosAccepted: boolean;
   privacyAccepted: boolean;
   line1: string;
@@ -75,6 +78,9 @@ export function OnboardingWizard({
     if (initialError === "alias-length") {
       return "Alias must be 80 characters or fewer.";
     }
+    if (initialError === "avatar-upload") {
+      return "Upload a JPG, PNG, or WebP image up to 6MB.";
+    }
     return null;
   }, [clientError, initialError]);
 
@@ -126,6 +132,7 @@ export function OnboardingWizard({
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</div>
           ) : null}
 
+          <form action={completeOnboardingAction} className="contents">
           {step === 1 ? (
             <div className="mt-6 space-y-4">
               <div>
@@ -200,18 +207,47 @@ export function OnboardingWizard({
               <h2 className="text-lg font-semibold" style={{ color: MARKETING_NAVY }}>
                 Choose your avatar
               </h2>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setValues((v) => ({ ...v, avatarMode: "emoji" }))}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                    values.avatarMode === "emoji" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  Emoji
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setValues((v) => ({ ...v, avatarMode: "image" }))}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                    values.avatarMode === "image" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  Upload image
+                </button>
+              </div>
+              <SquareImageUploadField
+                inputName="avatarFile"
+                initialImageUrl={values.avatarImageUrl}
+                label="Avatar image"
+                helpText="Crop to square before saving. JPG, PNG, or WebP up to 6MB."
+                outputFileName="avatar.webp"
+                className={values.avatarMode === "image" ? "" : "hidden"}
+              />
               <div className="grid grid-cols-4 gap-2">
                 {avatarChoices.map((emoji) => (
                   <button
                     key={emoji}
                     type="button"
-                    onClick={() => setValues((v) => ({ ...v, avatarEmoji: emoji }))}
+                    onClick={() => setValues((v) => ({ ...v, avatarEmoji: emoji, avatarMode: "emoji" }))}
                     className="rounded-xl border px-2 py-3 text-2xl transition"
                     style={{
                       borderColor: values.avatarEmoji === emoji ? MARKETING_LINK_BLUE : "#CBD5E1",
-                      backgroundColor: values.avatarEmoji === emoji ? "#DBEAFE" : "white",
+                      backgroundColor:
+                        values.avatarMode === "emoji" && values.avatarEmoji === emoji ? "#DBEAFE" : "white",
                     }}
-                    aria-pressed={values.avatarEmoji === emoji}
+                    aria-pressed={values.avatarMode === "emoji" && values.avatarEmoji === emoji}
                   >
                     {emoji}
                   </button>
@@ -270,12 +306,13 @@ export function OnboardingWizard({
                 {step === 1 ? "Agree and continue" : "Continue"}
               </button>
             ) : (
-              <form action={completeOnboardingAction} className="ml-auto">
+              <div className="ml-auto">
                 {values.tosAccepted ? <input type="hidden" name="tosAccepted" value="on" /> : null}
                 {values.privacyAccepted ? <input type="hidden" name="privacyAccepted" value="on" /> : null}
                 <input type="hidden" name="alias" value={values.alias} />
                 <input type="hidden" name="suggestedAlias" value={suggestedAlias} />
                 <input type="hidden" name="avatarEmoji" value={values.avatarEmoji} />
+                <input type="hidden" name="avatarMode" value={values.avatarMode} />
                 <input type="hidden" name="line1" value={values.line1} />
                 <input type="hidden" name="line2" value={values.line2} />
                 <input type="hidden" name="town" value={values.town} />
@@ -290,9 +327,10 @@ export function OnboardingWizard({
                 >
                   Complete onboarding
                 </button>
-              </form>
+              </div>
             )}
           </div>
+          </form>
         </section>
       </div>
     </main>

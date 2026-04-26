@@ -15,7 +15,11 @@ model User {
   id                        String               @id @default(cuid())
   email                     String               @unique @db.VarChar(255)
   alias                     String?              @db.VarChar(80)
-  avatarEmoji              String?              @db.VarChar(12)
+  avatarEmoji               String?              @db.VarChar(12)
+  avatar40Url               String?              @db.VarChar(2048)
+  avatar80Url               String?              @db.VarChar(2048)
+  avatar256Url              String?              @db.VarChar(2048)
+  avatarUpdatedAt           DateTime?
   tosAcceptedAt             DateTime?
   tosVersion                String?              @db.VarChar(40)
   privacyAcceptedAt         DateTime?

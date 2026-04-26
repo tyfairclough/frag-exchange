@@ -7,12 +7,26 @@ import { getExchangeIdFromPathname } from "@/lib/exchange-path";
 import { useInventoryEditBottomNav } from "@/components/inventory-edit-bottom-nav-context";
 import { INVENTORY_IMAGE_PICKER_OPEN_EVENT } from "@/components/inventory-item-image-field";
 import { FetchImportActivitySheet } from "@/components/fetch-import-activity-sheet";
+import { userAvatarUrlForUi } from "@/lib/avatar-image-urls";
 
 type NavIconItem = { key: string; href: string; label: string; kind: "icon"; icon: typeof HomeIcon };
-type NavAvatarItem = { key: string; href: string; label: string; kind: "avatar"; avatarEmoji: string };
+type NavAvatarItem = {
+  key: string;
+  href: string;
+  label: string;
+  kind: "avatar";
+  avatarEmoji: string;
+  avatarImageUrl: string | null;
+};
 type NavItem = NavIconItem | NavAvatarItem;
 
-export type BottomNavProfile = { aliasLabel: string; avatarEmoji: string };
+export type BottomNavProfile = {
+  aliasLabel: string;
+  avatarEmoji: string;
+  avatar40Url: string | null;
+  avatar80Url: string | null;
+  avatar256Url: string | null;
+};
 
 function exploreHrefForPath(pathname: string, exploreExchangeIdParam: string | null): string {
   const fromPath = getExchangeIdFromPathname(pathname);
@@ -58,13 +72,18 @@ function AdminNavLinks() {
   );
 }
 
-function MeNavAvatar({ emoji }: { emoji: string }) {
+function MeNavAvatar({ emoji, imageUrl }: { emoji: string; imageUrl: string | null }) {
   return (
     <span
-      className="inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-slate-800 text-[15px] leading-none text-white"
+      className="inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-800 text-[15px] leading-none text-white"
       aria-hidden
     >
-      {emoji}
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        emoji
+      )}
     </span>
   );
 }
@@ -77,6 +96,15 @@ function NavLinks({
   profile: BottomNavProfile;
 }) {
   const pathname = usePathname();
+  const avatarImageUrl = useMemo(
+    () =>
+      userAvatarUrlForUi({
+        avatar40Url: profile.avatar40Url,
+        avatar80Url: profile.avatar80Url,
+        avatar256Url: profile.avatar256Url,
+      }),
+    [profile.avatar40Url, profile.avatar80Url, profile.avatar256Url],
+  );
   const nav: NavItem[] = useMemo(() => {
     const items: NavItem[] = [
       { key: "exchanges", href: "/exchanges", label: "Exchanges", kind: "icon", icon: HomeIcon },
@@ -99,6 +127,7 @@ function NavLinks({
               label: "Me",
               kind: "avatar" as const,
               avatarEmoji: profile.avatarEmoji,
+              avatarImageUrl,
             }
           : i,
       );
@@ -115,7 +144,7 @@ function NavLinks({
       return next.filter((i) => i.key !== "explore");
     }
     return next;
-  }, [pathname, exploreExchangeIdParam, profile.avatarEmoji]);
+  }, [avatarImageUrl, pathname, exploreExchangeIdParam, profile.avatarEmoji]);
 
   return (
     <ul className="mx-auto flex max-w-2xl items-stretch justify-around gap-1 px-2 pt-1">
@@ -128,7 +157,7 @@ function NavLinks({
         const Icon = item.kind === "icon" ? item.icon : null;
         const glyph =
           item.kind === "avatar" ? (
-            <MeNavAvatar emoji={item.avatarEmoji} />
+            <MeNavAvatar emoji={item.avatarEmoji} imageUrl={item.avatarImageUrl} />
           ) : Icon ? (
             <Icon />
           ) : null;
@@ -186,7 +215,13 @@ function BottomNavInner({ profile }: { profile: BottomNavProfile }) {
 }
 
 export function BottomNav({ profile }: { profile: BottomNavProfile }) {
-  const fallbackProfile: BottomNavProfile = { aliasLabel: "Me", avatarEmoji: "🐠" };
+  const fallbackProfile: BottomNavProfile = {
+    aliasLabel: "Me",
+    avatarEmoji: "🐠",
+    avatar40Url: null,
+    avatar80Url: null,
+    avatar256Url: null,
+  };
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200/90 bg-white/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur supports-[backdrop-filter]:bg-white/90 md:left-1/2 md:max-w-2xl md:-translate-x-1/2 md:rounded-t-2xl md:border md:border-b-0 md:shadow-lg"

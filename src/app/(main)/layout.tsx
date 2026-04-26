@@ -32,7 +32,13 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   return (
     <ExploreShellProvider>
       <AppShell
-        profile={{ aliasLabel, avatarEmoji: user.avatarEmoji ?? "🐠" }}
+        profile={{
+          aliasLabel,
+          avatarEmoji: user.avatarEmoji ?? "🐠",
+          avatar40Url: user.avatar40Url,
+          avatar80Url: user.avatar80Url,
+          avatar256Url: user.avatar256Url,
+        }}
         showSuperAdminMenu={isSuperAdmin(user)}
         operatorManagedExchanges={operatorManagedExchanges}
       >

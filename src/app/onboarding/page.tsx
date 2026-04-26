@@ -93,6 +93,8 @@ export default async function OnboardingPage({
       initialValues={{
         alias: user.alias ?? "",
         avatarEmoji: user.avatarEmoji ?? "🐠",
+        avatarMode: user.avatar80Url || user.avatar256Url || user.avatar40Url ? "image" : "emoji",
+        avatarImageUrl: user.avatar80Url ?? user.avatar256Url ?? user.avatar40Url ?? null,
         tosAccepted: false,
         privacyAccepted: false,
         line1: addr?.line1 ?? "",

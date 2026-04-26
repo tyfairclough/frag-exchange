@@ -9,12 +9,16 @@ import { InventoryEditBottomNavProvider } from "@/components/inventory-edit-bott
 import { ExploreHeaderChrome } from "@/components/explore-header-chrome";
 import { signOutAction } from "@/app/auth/actions";
 import { getExchangeIdFromPathname } from "@/lib/exchange-path";
+import { userAvatarUrlForUi } from "@/lib/avatar-image-urls";
 
 const DEFAULT_TITLE = "REEFxCHANGE";
 
 type AppShellProfile = {
   aliasLabel: string;
   avatarEmoji: string;
+  avatar40Url: string | null;
+  avatar80Url: string | null;
+  avatar256Url: string | null;
 };
 
 type OperatorManagedExchange = { id: string; name: string };
@@ -202,6 +206,11 @@ function ShellProfileMenu({
   const adminActive = pathname.startsWith("/admin");
   const operatorActive = pathname === "/operator" || pathname.startsWith("/operator/");
   const sectionActive = meActive || adminActive || operatorActive;
+  const avatarImageUrl = userAvatarUrlForUi({
+    avatar40Url: profile.avatar40Url,
+    avatar80Url: profile.avatar80Url,
+    avatar256Url: profile.avatar256Url,
+  });
   const manageExchangeHref =
     operatorManagedExchanges.length === 1
       ? `/operator/${encodeURIComponent(operatorManagedExchanges[0].id)}`
@@ -239,11 +248,13 @@ function ShellProfileMenu({
         onClick={() => setOpen((v) => !v)}
         className={`inline-flex max-w-[140px] items-center gap-1 rounded-full border py-1 pl-1.5 pr-3 text-sm font-medium shadow-sm transition-colors active:bg-slate-100 ${profilePillClass(sectionActive)}`}
       >
-        <span
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-lg leading-none text-white"
-          aria-hidden
-        >
-          {profile.avatarEmoji}
+        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-800 text-lg leading-none text-white" aria-hidden>
+          {avatarImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarImageUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            profile.avatarEmoji
+          )}
         </span>
         <span className="min-w-0 flex-1 truncate text-left">{profile.aliasLabel}</span>
         <svg

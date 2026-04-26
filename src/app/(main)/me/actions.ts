@@ -14,6 +14,7 @@ import {
   MAX_TRADE_SEEKING_WORDS,
   tradeSeekingWordCount,
 } from "@/lib/trade-seeking-notes";
+import { saveUserAvatarToPublic, validateAvatarUpload } from "@/lib/avatar-image-upload";
 
 function str(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -158,16 +159,58 @@ export async function setUserAvatarAction(
   formData: FormData,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireUser();
+  const avatarModeRaw = formData.get("avatarMode");
+  const avatarMode = typeof avatarModeRaw === "string" && avatarModeRaw === "image" ? "image" : "emoji";
   const avatarRaw = formData.get("avatarEmoji");
   const avatar = typeof avatarRaw === "string" ? avatarRaw.trim() : "";
+  const avatarFileRaw = formData.get("avatarFile");
+  const avatarFile = avatarFileRaw instanceof File ? avatarFileRaw : null;
 
-  if (!avatar || !AVATAR_CHOICES.includes(avatar as (typeof AVATAR_CHOICES)[number])) {
+  if (avatarMode === "emoji" && (!avatar || !AVATAR_CHOICES.includes(avatar as (typeof AVATAR_CHOICES)[number]))) {
     return { ok: false, error: "Choose one of the available avatars." };
+  }
+
+  let uploadedAvatar:
+    | {
+        avatar40Url: string;
+        avatar80Url: string;
+        avatar256Url: string;
+        avatarUpdatedAt: Date;
+      }
+    | null = null;
+
+  if (
+    avatarMode === "image" &&
+    (!avatarFile || avatarFile.size <= 0) &&
+    !user.avatar40Url &&
+    !user.avatar80Url &&
+    !user.avatar256Url
+  ) {
+    return { ok: false, error: "Upload an image to use as your avatar." };
+  }
+
+  if (avatarMode === "image" && avatarFile && avatarFile.size > 0) {
+    const validationError = validateAvatarUpload(avatarFile);
+    if (validationError) {
+      return { ok: false, error: validationError };
+    }
+    const imageBuffer = Buffer.from(await avatarFile.arrayBuffer());
+    uploadedAvatar = await saveUserAvatarToPublic({
+      userId: user.id,
+      buffer: imageBuffer,
+      mimeType: avatarFile.type || "image/webp",
+    });
   }
 
   await getPrisma().user.update({
     where: { id: user.id },
-    data: { avatarEmoji: avatar },
+    data: {
+      avatarEmoji: avatarMode === "emoji" ? avatar : null,
+      avatar40Url: avatarMode === "image" ? uploadedAvatar?.avatar40Url ?? undefined : null,
+      avatar80Url: avatarMode === "image" ? uploadedAvatar?.avatar80Url ?? undefined : null,
+      avatar256Url: avatarMode === "image" ? uploadedAvatar?.avatar256Url ?? undefined : null,
+      avatarUpdatedAt: avatarMode === "image" ? uploadedAvatar?.avatarUpdatedAt ?? undefined : null,
+    },
   });
 
   revalidatePath("/me");
