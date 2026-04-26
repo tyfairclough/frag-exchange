@@ -3,11 +3,14 @@ import type { Prisma } from "@/generated/prisma/client";
 import {
   InventoryImportEventLevel,
   InventoryImportEventStage,
+  InventoryImportJobRunKind,
   InventoryImportJobStatus,
   InventoryKind,
   ListingIntent,
   CoralListingMode,
 } from "@/generated/prisma/enums";
+import { deleteInventoryItemForBulkImportSystem } from "@/lib/bulk-import-inventory-delete";
+import { normalizeProductUrl } from "@/lib/bulk-import-product-url";
 import { getAiSystemPrompt, getAiSystemPrompts } from "@/lib/ai-system-prompt-registry";
 import { mirrorHttpImageUrlToUploads } from "@/lib/coral-upload";
 import { getPrisma } from "@/lib/db";
@@ -81,6 +84,8 @@ export async function createInventoryImportJob(params: {
   maxPages: number;
   maxItems?: number | null;
   maxDepth?: number;
+  bulkImportSourceId?: string | null;
+  runKind?: InventoryImportJobRunKind;
 }): Promise<{ id: string }> {
   const valid = canFetchSourceUrl(params.sourceUrl);
   if (!valid.ok) {
@@ -100,6 +105,8 @@ export async function createInventoryImportJob(params: {
     maxDepth: Math.min(Math.max(params.maxDepth ?? 0, 0), 3),
     crawlDelayMs: 250,
     status: InventoryImportJobStatus.QUEUED,
+    bulkImportSourceId: params.bulkImportSourceId ?? undefined,
+    runKind: params.runKind ?? InventoryImportJobRunKind.INTERACTIVE,
   };
   const created = await getPrisma().inventoryImportJob.create({
     data: dbPayload,
@@ -539,19 +546,37 @@ function isParsedCandidateShape(value: unknown): value is ParsedCandidate {
   return true;
 }
 
+type BulkImportSourceDefaults = {
+  defaultKind: InventoryKind | null;
+  defaultExchangeIds: string[];
+};
+
 async function upsertOneInventoryImportCandidateFromAi(params: {
   jobId: string;
   userId: string;
   pageUrl: string;
   item: ParsedCandidate;
+  importDefaults?: BulkImportSourceDefaults | null;
 }): Promise<{ found: number; ready: number }> {
   const { jobId, userId, pageUrl, item } = params;
+  const importDefaults = params.importDefaults ?? null;
   if (item.kind !== "CORAL" && item.kind !== "FISH") {
     await appendImportEvent({
       jobId,
       stage: InventoryImportEventStage.SKIP,
       message: "Skipped non-fish/non-coral candidate.",
       meta: { url: pageUrl, kind: item.kind, title: item.title ?? null },
+    });
+    return { found: 0, ready: 0 };
+  }
+  const resolvedKind = item.kind === "CORAL" ? InventoryKind.CORAL : InventoryKind.FISH;
+  if (importDefaults?.defaultKind && resolvedKind !== importDefaults.defaultKind) {
+    await appendImportEvent({
+      jobId,
+      stage: InventoryImportEventStage.SKIP,
+      level: InventoryImportEventLevel.WARN,
+      message: "Skipped candidate: kind does not match this import source default.",
+      meta: { url: pageUrl, aiKind: item.kind, defaultKind: importDefaults.defaultKind },
     });
     return { found: 0, ready: 0 };
   }
@@ -574,6 +599,10 @@ async function upsertOneInventoryImportCandidateFromAi(params: {
     userId,
     imageUrl: item.imageUrl || null,
   });
+  const defaultExchangeIds =
+    importDefaults?.defaultExchangeIds?.length && importDefaults.defaultExchangeIds.length > 0
+      ? [...new Set(importDefaults.defaultExchangeIds)]
+      : [];
   await getPrisma().inventoryImportCandidate.upsert({
     where: { jobId_sourceHash: { jobId, sourceHash } },
     create: {
@@ -583,7 +612,7 @@ async function upsertOneInventoryImportCandidateFromAi(params: {
       sourceHash,
       title: item.title?.slice(0, 240) || null,
       snippet: item.snippet || null,
-      kind: item.kind === "CORAL" ? InventoryKind.CORAL : InventoryKind.FISH,
+      kind: resolvedKind,
       confidenceScore: Math.max(0, Math.min(1, Number(item.confidence) || 0.4)),
       name: name.slice(0, 120),
       description: (item.description?.trim() || "").slice(0, 8000) || null,
@@ -596,12 +625,13 @@ async function upsertOneInventoryImportCandidateFromAi(params: {
       salePriceMinor,
       saleCurrencyCode,
       saleExternalUrl,
+      selectedExchangeIds: defaultExchangeIds,
       aiRaw: item as unknown as object,
     },
     update: {
       title: item.title?.slice(0, 240) || null,
       snippet: item.snippet || null,
-      kind: item.kind === "CORAL" ? InventoryKind.CORAL : InventoryKind.FISH,
+      kind: resolvedKind,
       confidenceScore: Math.max(0, Math.min(1, Number(item.confidence) || 0.4)),
       name: name.slice(0, 120),
       description: (item.description?.trim() || "").slice(0, 8000) || null,
@@ -639,6 +669,7 @@ async function upsertInventoryImportCandidatesFromAi(params: {
   /** Running total before this batch; stop when initialFound + batchFound reaches maxFound. */
   initialFound?: number;
   maxFound?: number | null;
+  importDefaults?: BulkImportSourceDefaults | null;
 }): Promise<{ found: number; ready: number }> {
   const { jobId, userId, pageUrl, aiItems } = params;
   const initialFound = params.initialFound ?? 0;
@@ -647,7 +678,13 @@ async function upsertInventoryImportCandidatesFromAi(params: {
   let ready = 0;
   for (const item of aiItems) {
     if (maxFound != null && initialFound + found >= maxFound) break;
-    const u = await upsertOneInventoryImportCandidateFromAi({ jobId, userId, pageUrl, item });
+    const u = await upsertOneInventoryImportCandidateFromAi({
+      jobId,
+      userId,
+      pageUrl,
+      item,
+      importDefaults: params.importDefaults,
+    });
     found += u.found;
     ready += u.ready;
   }
@@ -1022,9 +1059,20 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
       maxPages: true,
       maxItems: true,
       attemptCount: true,
+      runKind: true,
+      bulkImportSourceId: true,
+      bulkImportSource: {
+        select: { defaultKind: true, defaultExchangeIds: true },
+      },
     },
   });
   if (!job) return;
+  const importDefaults: BulkImportSourceDefaults | null = job.bulkImportSource
+    ? {
+        defaultKind: job.bulkImportSource.defaultKind,
+        defaultExchangeIds: job.bulkImportSource.defaultExchangeIds ?? [],
+      }
+    : null;
   const origin = new URL(job.sourceUrl).origin;
   const itemCap = job.maxItems;
   const capReached = () => itemCap != null && found >= itemCap;
@@ -1260,6 +1308,7 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
               userId: job.userId,
               pageUrl: fetched.finalUrl,
               item,
+              importDefaults,
             });
             found += upserted.found;
             ready += upserted.ready;
@@ -1284,6 +1333,7 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
               aiItems: detailItems,
               initialFound: found,
               maxFound: itemCap,
+              importDefaults,
             });
             found += upserted.found;
             ready += upserted.ready;
@@ -1359,6 +1409,90 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
     });
   }
 
+  const crawlDoneMeta = {
+    pagesVisited,
+    pagesParsed,
+    detailUrlsDiscovered: detailDiscovered.size,
+    detailUrlsProcessed: detailProcessed,
+    candidatesFound: found,
+    candidatesReady: ready,
+    candidatesFailed: failed,
+    itemCap: itemCap ?? null,
+    stoppedForItemCap: itemCap != null && found >= itemCap,
+  };
+
+  if (job.runKind === InventoryImportJobRunKind.SCHEDULED_DELTA && job.bulkImportSourceId) {
+    await getPrisma().inventoryImportJob.updateMany({
+      where: { id: jobId, runToken },
+      data: {
+        status: InventoryImportJobStatus.RUNNING,
+        pagesVisited,
+        pagesParsed,
+        detailUrlsDiscovered: detailDiscovered.size,
+        detailUrlsProcessed: detailProcessed,
+        candidatesFound: found,
+        candidatesReady: ready,
+        candidatesFailed: failed,
+        runLeaseExpiresAt: new Date(Date.now() + IMPORT_JOB_LEASE_MS),
+      },
+    });
+    try {
+      const delta = await applyScheduledImportDiff({
+        jobId,
+        userId: job.userId,
+        bulkImportSourceId: job.bulkImportSourceId,
+      });
+      await getPrisma().inventoryImportJob.updateMany({
+        where: { id: jobId, runToken },
+        data: {
+          status: InventoryImportJobStatus.COMPLETED,
+          pagesVisited,
+          pagesParsed,
+          detailUrlsDiscovered: detailDiscovered.size,
+          detailUrlsProcessed: detailProcessed,
+          candidatesFound: found,
+          candidatesReady: ready,
+          candidatesFailed: failed,
+          finishedAt: new Date(),
+          runToken: null,
+          runLeaseExpiresAt: null,
+        },
+      });
+      await appendImportEvent({
+        jobId,
+        stage: InventoryImportEventStage.SCHEDULED_APPLY,
+        message: `Scheduled refresh applied: ${delta.addedCount} added, ${delta.removedCount} removed, ${delta.skippedDeletes} delete(s) skipped.`,
+        meta: { ...crawlDoneMeta, ...delta },
+      });
+      await sendImportCompletionEmail(jobId, true, undefined, { scheduledSummary: delta });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      await appendImportEvent({
+        jobId,
+        stage: InventoryImportEventStage.FAIL,
+        level: InventoryImportEventLevel.ERROR,
+        message: "Scheduled refresh failed while applying inventory changes.",
+        meta: { error: message.slice(0, 500) },
+      });
+      await getPrisma().inventoryImportJob.updateMany({
+        where: { id: jobId, runToken },
+        data: {
+          status: InventoryImportJobStatus.FAILED,
+          lastError: message.slice(0, 8000),
+          finishedAt: new Date(),
+          runToken: null,
+          runLeaseExpiresAt: null,
+        },
+      });
+      await getPrisma().inventoryBulkImportSource.update({
+        where: { id: job.bulkImportSourceId },
+        data: { lastScheduledRunError: message.slice(0, 2000) },
+      });
+      await sendImportCompletionEmail(jobId, false, message);
+    }
+    return;
+  }
+
   await getPrisma().inventoryImportJob.updateMany({
     where: { id: jobId, runToken },
     data: {
@@ -1382,44 +1516,202 @@ async function processClaimedJob(jobId: string, runToken: string): Promise<void>
       itemCap != null && found >= itemCap
         ? `Import stopped after ${found} saved item(s) (limit ${itemCap}). Ready for review.`
         : "Import parsing complete and ready for review.",
-    meta: {
-      pagesVisited,
-      pagesParsed,
-      detailUrlsDiscovered: detailDiscovered.size,
-      detailUrlsProcessed: detailProcessed,
-      candidatesFound: found,
-      candidatesReady: ready,
-      candidatesFailed: failed,
-      itemCap: itemCap ?? null,
-      stoppedForItemCap: itemCap != null && found >= itemCap,
-    },
+    meta: crawlDoneMeta,
   });
   await sendImportCompletionEmail(jobId, true);
 }
 
-async function sendImportCompletionEmail(jobId: string, success: boolean, error?: string) {
+export type ScheduledImportSummary = {
+  addedCount: number;
+  removedCount: number;
+  skippedDeletes: number;
+};
+
+export async function applyScheduledImportDiff(params: {
+  jobId: string;
+  userId: string;
+  bulkImportSourceId: string;
+}): Promise<ScheduledImportSummary> {
+  const { jobId, userId, bulkImportSourceId } = params;
+  const db = getPrisma();
+
+  const allCandidates = await db.inventoryImportCandidate.findMany({
+    where: {
+      jobId,
+      userId,
+      kind: { in: [InventoryKind.CORAL, InventoryKind.FISH] },
+    },
+    select: { id: true, saleExternalUrl: true },
+  });
+
+  const crawlNormUrls = new Set<string>();
+  for (const c of allCandidates) {
+    const n = normalizeProductUrl(c.saleExternalUrl);
+    if (n) crawlNormUrls.add(n);
+  }
+
+  const items = await db.inventoryItem.findMany({
+    where: { userId, bulkImportSourceId },
+    select: { id: true, saleExternalUrl: true },
+  });
+
+  let removedCount = 0;
+  let skippedDeletes = 0;
+  for (const row of items) {
+    const n = normalizeProductUrl(row.saleExternalUrl);
+    if (!n) {
+      skippedDeletes += 1;
+      await appendImportEvent({
+        jobId,
+        stage: InventoryImportEventStage.SCHEDULED_DELETE_SKIPPED,
+        level: InventoryImportEventLevel.WARN,
+        message: "Scheduled refresh: skipped item with no normalizable product URL.",
+        meta: { inventoryItemId: row.id },
+      });
+      continue;
+    }
+    if (crawlNormUrls.has(n)) continue;
+    const del = await deleteInventoryItemForBulkImportSystem({
+      inventoryItemId: row.id,
+      userId,
+    });
+    if (del.ok) {
+      removedCount += 1;
+      await appendImportEvent({
+        jobId,
+        stage: InventoryImportEventStage.SCHEDULED_APPLY,
+        message: "Scheduled refresh: removed inventory item no longer present on source.",
+        meta: { inventoryItemId: row.id },
+      });
+    } else {
+      skippedDeletes += 1;
+      await appendImportEvent({
+        jobId,
+        stage: InventoryImportEventStage.SCHEDULED_DELETE_SKIPPED,
+        level: InventoryImportEventLevel.WARN,
+        message: "Scheduled refresh: could not remove item (blocked).",
+        meta: { inventoryItemId: row.id, reason: del.reason },
+      });
+    }
+  }
+
+  const existingAfterRemovals = await db.inventoryItem.findMany({
+    where: { userId, bulkImportSourceId },
+    select: { saleExternalUrl: true },
+  });
+  const existingNorm = new Set<string>();
+  for (const r of existingAfterRemovals) {
+    const n = normalizeProductUrl(r.saleExternalUrl);
+    if (n) existingNorm.add(n);
+  }
+
+  const publishCand = await db.inventoryImportCandidate.findMany({
+    where: {
+      jobId,
+      userId,
+      createdItemId: null,
+      kind: { in: [InventoryKind.CORAL, InventoryKind.FISH] },
+      name: { not: null },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  const seenPub = new Set<string>();
+  const candidateIdsToPublish: string[] = [];
+  for (const c of publishCand) {
+    const n = normalizeProductUrl(c.saleExternalUrl);
+    if (!n || existingNorm.has(n)) continue;
+    if (seenPub.has(n)) continue;
+    seenPub.add(n);
+    existingNorm.add(n);
+    candidateIdsToPublish.push(c.id);
+  }
+
+  let addedCount = 0;
+  if (candidateIdsToPublish.length > 0) {
+    const pub = await publishImportJobCandidates({
+      userId,
+      jobId,
+      candidateIds: candidateIdsToPublish,
+    });
+    addedCount = pub.createdCount;
+  }
+
+  await db.inventoryImportCandidate.deleteMany({
+    where: { jobId, userId, createdItemId: null },
+  });
+
+  const errSummary =
+    skippedDeletes > 0 ? `${skippedDeletes} item(s) could not be removed automatically (e.g. active trade).` : null;
+  await db.inventoryBulkImportSource.update({
+    where: { id: bulkImportSourceId },
+    data: {
+      lastScheduledRunAt: new Date(),
+      lastScheduledRunError: errSummary,
+    },
+  });
+
+  return { addedCount, removedCount, skippedDeletes };
+}
+
+async function sendImportCompletionEmail(
+  jobId: string,
+  success: boolean,
+  error?: string,
+  opts?: { scheduledSummary?: ScheduledImportSummary },
+) {
   const job = await getPrisma().inventoryImportJob.findUnique({
     where: { id: jobId },
-    include: { user: { select: { id: true, email: true, alias: true, contactPreference: true } } },
+    select: {
+      id: true,
+      notifiedAt: true,
+      sourceUrl: true,
+      candidatesReady: true,
+      runKind: true,
+      user: { select: { id: true, email: true, alias: true, contactPreference: true } },
+    },
   });
   if (!job || job.notifiedAt) return;
   const base = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || "").replace(/\/$/, "");
   const reviewUrl = base ? `${base}/my-items/bulk-add/${job.id}` : `/my-items/bulk-add/${job.id}`;
-  const subject = success ? "Your bulk add is ready for review" : "Your bulk add ended with an error";
-  const lines = success
-    ? [
-        `We finished scanning ${job.sourceUrl}.`,
-        `${job.candidatesReady} candidate items are ready to review.`,
-        "Open the review table to edit items, then publish.",
-      ]
-    : [`We could not finish scanning ${job.sourceUrl}.`, error ? `Error: ${error}` : "Please retry with a smaller page limit."];
+  const sourcesUrl = base ? `${base}/my-items/bulk-import-sources` : `/my-items/bulk-import-sources`;
+  const isScheduled =
+    success && opts?.scheduledSummary && job.runKind === InventoryImportJobRunKind.SCHEDULED_DELTA;
+  const subject = !success
+    ? "Your bulk add ended with an error"
+    : isScheduled
+      ? "Your scheduled bulk import refresh finished"
+      : "Your bulk add is ready for review";
+  const lines = !success
+    ? [`We could not finish scanning ${job.sourceUrl}.`, error ? `Error: ${error}` : "Please retry with a smaller page limit."]
+    : isScheduled && opts?.scheduledSummary
+      ? [
+          `We refreshed your catalog from ${job.sourceUrl}.`,
+          `Added ${opts.scheduledSummary.addedCount} item(s), removed ${opts.scheduledSummary.removedCount}.`,
+          opts.scheduledSummary.skippedDeletes > 0
+            ? `${opts.scheduledSummary.skippedDeletes} removal(s) were skipped (see import activity for details).`
+            : "All matching removals were applied.",
+          `Manage sources: ${sourcesUrl}`,
+        ]
+      : [
+          `We finished scanning ${job.sourceUrl}.`,
+          `${job.candidatesReady} candidate items are ready to review.`,
+          "Open the review table to edit items, then publish.",
+        ];
+  const linkLine = isScheduled ? `Sources: ${sourcesUrl}` : `Review: ${reviewUrl}`;
+  const linkHref = isScheduled ? sourcesUrl : reviewUrl;
+  const linkLabel = isScheduled ? "Open bulk import sources" : "Open review";
   await dispatchUserNotification({
     user: job.user,
     eventType: success ? "inventory.import_complete" : "inventory.import_failed",
     subject,
-    textBody: `${subject}\n\n${lines.join("\n")}\n\nReview: ${reviewUrl}`,
-    htmlBody: `<p>${subject}</p>${lines.map((l) => `<p>${l}</p>`).join("")}<p><a href="${reviewUrl}">Open review</a></p>`,
-    secondaryPayload: { importJobId: job.id, success },
+    textBody: `${subject}\n\n${lines.join("\n")}\n\n${linkLine}`,
+    htmlBody: `<p>${subject}</p>${lines.map((l) => `<p>${l}</p>`).join("")}<p><a href="${linkHref}">${linkLabel}</a></p>`,
+    secondaryPayload: {
+      importJobId: job.id,
+      success,
+      scheduled: Boolean(isScheduled),
+      scheduledSummary: opts?.scheduledSummary ?? null,
+    },
   });
   await getPrisma().inventoryImportJob.update({
     where: { id: jobId },
@@ -1434,7 +1726,7 @@ export async function publishImportJobCandidates(params: {
 }) {
   const job = await getPrisma().inventoryImportJob.findFirst({
     where: { id: params.jobId, userId: params.userId },
-    select: { id: true },
+    select: { id: true, bulkImportSourceId: true },
   });
   if (!job) {
     throw new Error("Import job not found.");
@@ -1503,6 +1795,7 @@ export async function publishImportJobCandidates(params: {
         reefSafe: c.kind === InventoryKind.FISH ? c.reefSafe : null,
         equipmentCategory: null,
         equipmentCondition: null,
+        bulkImportSourceId: job.bulkImportSourceId ?? undefined,
       },
       select: { id: true },
     });

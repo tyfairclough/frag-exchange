@@ -6,6 +6,7 @@ import {
   labelForAiSystemPromptKey,
 } from "@/lib/ai-system-prompt-registry";
 import { MARKETING_CTA_GREEN, MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { BackLink } from "@/components/back-link";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
 import { resetAiSystemPromptAction, saveAllAiPromptsAction } from "./actions";
 
@@ -78,13 +79,14 @@ export default async function AiPromptsAdminPage({
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link
+          <BackLink
             href="/admin"
-            className="mb-3 inline-flex min-h-10 items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+            variant="text"
+            className="mb-3 min-h-10 rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 no-underline transition hover:border-slate-400 hover:bg-slate-50"
             style={{ color: MARKETING_LINK_BLUE }}
           >
             Back to admin
-          </Link>
+          </BackLink>
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: MARKETING_NAVY }}>
             AI system prompts
           </h1>

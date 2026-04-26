@@ -3,6 +3,7 @@ import { ExchangeMembershipRole } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { BackLink } from "@/components/back-link";
 
 export default async function OperatorExchangeListPage() {
   const user = await requireUser();
@@ -47,13 +48,14 @@ export default async function OperatorExchangeListPage() {
         </ul>
       )}
 
-      <Link
+      <BackLink
         href="/exchanges"
-        className="inline-flex min-h-10 w-fit items-center rounded-full px-4 text-sm font-semibold text-white transition hover:opacity-95"
+        variant="text"
+        className="min-h-10 rounded-full px-4 text-white no-underline transition hover:opacity-95"
         style={{ backgroundColor: MARKETING_LINK_BLUE }}
       >
         Back to exchanges
-      </Link>
+      </BackLink>
     </div>
   );
 }

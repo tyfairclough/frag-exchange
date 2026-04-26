@@ -51,8 +51,13 @@ export function MyItemsAddSplitButton({ showBulkAdd }: { showBulkAdd: boolean })
           className="menu dropdown-content mt-1 min-w-[12.5rem] rounded-box border border-base-content/10 bg-base-100 p-2 shadow-lg"
         >
           <li>
+            <Link href="/my-items/bulk-import-sources" className="rounded-lg">
+              Bulk import sources
+            </Link>
+          </li>
+          <li>
             <Link href="/my-items/bulk-add" className="rounded-lg">
-              Bulk add items
+              Classic bulk add
             </Link>
           </li>
         </ul>

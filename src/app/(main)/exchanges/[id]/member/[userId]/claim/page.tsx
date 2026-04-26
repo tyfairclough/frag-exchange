@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { hasRecentBusinessClaim, RECENT_BUSINESS_CLAIM_COOLDOWN_DAYS } from "@/lib/business-claim";
 import { getPrisma } from "@/lib/db";
 import { canViewExchangeDirectory } from "@/lib/super-admin";
+import { BackLink } from "@/components/back-link";
 import { submitBusinessClaimAction } from "./actions";
 
 const claimErrors: Record<string, string> = {
@@ -76,9 +77,9 @@ export default async function ClaimBusinessPage({
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
-      <Link href={memberHref} className="btn btn-ghost btn-sm min-h-10 w-fit rounded-xl">
+      <BackLink href={memberHref} className="min-h-10">
         Back to your listings
-      </Link>
+      </BackLink>
 
       <header className="space-y-2">
         <h1 className="text-xl font-semibold text-base-content">Claim my business</h1>

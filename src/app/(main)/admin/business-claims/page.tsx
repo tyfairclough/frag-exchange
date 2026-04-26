@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getPrisma } from "@/lib/db";
 import { MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { BackLink } from "@/components/back-link";
 
 export default async function AdminBusinessClaimsPage() {
   const db = getPrisma();
@@ -15,15 +16,13 @@ export default async function AdminBusinessClaimsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <Link
+        <BackLink
           href="/admin"
-          className="inline-flex w-fit items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          variant="text"
+          className="w-fit rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
         >
-          <span aria-hidden className="mr-1.5">
-            ←
-          </span>
           Back to dashboard
-        </Link>
+        </BackLink>
         <div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: MARKETING_NAVY }}>
             Business claims

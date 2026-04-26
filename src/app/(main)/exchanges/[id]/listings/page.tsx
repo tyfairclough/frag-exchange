@@ -7,6 +7,7 @@ import { canManageEventDesk, canViewExchangeDirectory } from "@/lib/super-admin"
 import { ExchangeMemberListingsPanel } from "@/app/(main)/exchanges/components/exchange-member-listings-panel";
 import { EventDateHighlight } from "@/app/(main)/exchanges/components/event-datetime-highlight";
 import { MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { BackLink } from "@/components/back-link";
 
 const listingErrors: Record<string, string> = {
   forbidden: "You do not have permission for that action.",
@@ -75,12 +76,12 @@ export default async function ExchangeListingsPage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
-      <Link
+      <BackLink
         href={`/exchanges/${encodeURIComponent(exchangeId)}`}
-        className="btn btn-ghost btn-sm w-fit px-0 text-primary hover:bg-transparent hover:underline"
+        className="px-0 text-primary hover:bg-transparent"
       >
-        ← Back to Exchange
-      </Link>
+        Back to Exchange
+      </BackLink>
 
       <header className="space-y-2">
         <h1 className="text-xl font-semibold" style={{ color: MARKETING_NAVY }}>

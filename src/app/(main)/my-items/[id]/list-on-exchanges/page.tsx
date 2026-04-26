@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { PostSaveItemListings } from "@/components/post-save-item-listings";
+import { BackLink } from "@/components/back-link";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -68,18 +69,18 @@ export default async function ListNewItemOnExchangesPage({ params }: Props) {
               <Link href="/exchanges" className="btn btn-primary btn-sm min-h-10 rounded-xl">
                 Browse exchanges
               </Link>
-              <Link href="/my-items" className="btn btn-ghost btn-sm min-h-10 rounded-xl">
+              <BackLink href="/my-items" className="min-h-10">
                 Back to My items
-              </Link>
+              </BackLink>
             </div>
           </div>
         </section>
       ) : item.remainingQuantity <= 0 ? (
         <p className="text-sm text-base-content/70">
           This item has no quantity left to list.{" "}
-          <Link href="/my-items" className="link link-primary">
+          <BackLink href="/my-items" variant="text" className="link link-primary">
             Back to My items
-          </Link>
+          </BackLink>
         </p>
       ) : (
         <PostSaveItemListings

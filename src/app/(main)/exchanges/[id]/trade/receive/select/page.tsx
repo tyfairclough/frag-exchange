@@ -4,6 +4,7 @@ import { getTradeInitiationDraft } from "@/lib/trade-initiation-draft";
 import { loadTradeInitiationContext, tradeInitiationErrors } from "@/lib/trade-initiation-data";
 import { InventoryItemCard } from "@/components/inventory-item-card";
 import { updateTradeReceiveSelectionAction } from "@/app/(main)/exchanges/trade-actions";
+import { BackLink } from "@/components/back-link";
 
 export default async function ExchangeTradeReceiveSelectPage({
   params,
@@ -19,9 +20,9 @@ export default async function ExchangeTradeReceiveSelectPage({
   if (!peerUserId) {
     return (
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
-        <Link href={`/explore?exchangeId=${encodeURIComponent(exchangeId)}`} className="btn btn-ghost btn-sm min-h-10 w-fit rounded-xl">
+        <BackLink href={`/explore?exchangeId=${encodeURIComponent(exchangeId)}`} className="min-h-10">
           Back to explore
-        </Link>
+        </BackLink>
         <p className="text-sm text-base-content/70">Open this page from a listing to choose a trade partner.</p>
       </div>
     );
@@ -34,12 +35,12 @@ export default async function ExchangeTradeReceiveSelectPage({
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
-      <Link
+      <BackLink
         href={`/exchanges/${encodeURIComponent(exchangeId)}/trade/receive?with=${encodeURIComponent(peerUserId)}`}
-        className="btn btn-ghost btn-sm min-h-10 w-fit rounded-xl"
+        className="min-h-10"
       >
         Back to you receive
-      </Link>
+      </BackLink>
 
       <header className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-wide text-base-content/50">Step 1 of 3</p>

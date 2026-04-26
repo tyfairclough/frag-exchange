@@ -70,7 +70,19 @@ Background expiry work (90-day listing cleanup, trade expiry + notifications) is
 
    Alternatively, `GET` with `?secret=YOUR_CRON_SECRET` works if your cron job cannot send headers.
 
-The endpoint returns JSON counts (`listingsRemoved`, `tradesExpired`). Without `CRON_SECRET`, it responds **401**.
+The endpoint returns JSON counts (`listingsRemoved`, `tradesExpired`, `importJobsProcessed`). Without `CRON_SECRET`, it responds **401**.
+
+## 6b. Bulk import weekly refresh (optional)
+
+Commercial accounts can enable **weekly** automatic rescans per catalog URL. Eligibility is enforced in code (7 days since the last successful scheduled run, or since auto-refresh was turned on when no run has completed yet). The handler enqueues due jobs and processes **one** import job per invocation to reduce fetch/LLM rate pressure.
+
+Expose **`/api/cron/bulk-import-refresh`** (same `CRON_SECRET` auth as housekeeping).
+
+Schedule it **weekly** (or at most daily; extra calls no-op until sources are due), for example:
+
+`curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" "https://yourdomain.com/api/cron/bulk-import-refresh"`
+
+Response JSON includes `bulkImportJobsEnqueued` and `importJobsProcessed`.
 
 ## 7. Checklist
 
@@ -81,6 +93,7 @@ The endpoint returns JSON counts (`listingsRemoved`, `tradesExpired`). Without `
 - [ ] `npm run start` matches panel port / proxy settings  
 - [ ] `/api/health` returns `{ "ok": true, "database": "up" }` when DB is reachable  
 - [ ] Optional: `CRON_SECRET` + cron hitting `/api/cron/housekeeping` for listing/trade expiry  
+- [ ] Optional: weekly `CRON_SECRET` + cron hitting `/api/cron/bulk-import-refresh` for bulk import auto-refresh  
 
 **After changing schema:** commit new files under `prisma/migrations/`, deploy — `npm run build` on the server applies any pending migrations.
 

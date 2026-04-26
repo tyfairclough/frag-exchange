@@ -60,7 +60,7 @@ async function runHousekeeping(req: Request) {
 
   const { removed } = await removeExpiredExchangeListings(db, now);
   const { expiredTradeCount } = await expireDueTradesAndNotify(db, { baseUrl, now });
-  const { processed: importJobsProcessed } = await runInventoryImportWorker(2);
+  const { processed: importJobsProcessed } = await runInventoryImportWorker(1);
 
   return NextResponse.json({
     ok: true,

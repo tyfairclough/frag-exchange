@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { PosthogConsentResetButton } from "@/components/posthog-consent-reset-button";
 import {
   LEGAL_COMPANY_NUMBER,
@@ -18,9 +19,9 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-4 px-4 py-8 sm:px-6 sm:py-12">
-      <Link href="/auth/login" className="text-sm font-semibold text-blue-700 hover:underline">
-        ← Back to sign in
-      </Link>
+      <BackLink href="/auth/login" variant="text" className="text-blue-700">
+        Back to sign in
+      </BackLink>
       <article className="rounded-2xl border border-slate-200/80 bg-white p-5 text-slate-600 shadow-sm sm:p-7">
         <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">Privacy notice</h1>
         <p className="mt-2 text-sm text-slate-500">

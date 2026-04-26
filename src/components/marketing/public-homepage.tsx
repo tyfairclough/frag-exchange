@@ -1,4 +1,5 @@
 import { AppLink } from "@/components/app-link";
+import { AuroraBrandText } from "@/components/aurora-brand-text";
 import {
   MARKETING_CTA_GREEN,
   MARKETING_LINK_BLUE,
@@ -66,7 +67,8 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
             className="text-[1.65rem] font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.65rem] lg:leading-[1.12]"
             style={{ color: MARKETING_NAVY }}
           >
-            Build your reef with REEFxCHANGE
+            Build your reef with{" "}
+            <AuroraBrandText className="font-bold tracking-tight" size="lg" textColor={MARKETING_NAVY} />
           </h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
             Building a marketplace powered by reefers and retailers together.

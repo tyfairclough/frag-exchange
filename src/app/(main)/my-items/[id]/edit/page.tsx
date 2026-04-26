@@ -4,6 +4,7 @@ import { CoralProfileStatus, InventoryKind } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { updateInventoryItemAction } from "@/app/(main)/my-items/actions";
+import { BackLink } from "@/components/back-link";
 import { coralColoursToFormValue, coralTypeToFormValue } from "@/lib/coral-options";
 import {
   CoralKindEditForm,
@@ -36,9 +37,7 @@ export default async function EditItemPage({
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
-      <Link href="/my-items" className="btn btn-ghost btn-sm w-fit rounded-xl">
-        Back to My items
-      </Link>
+      <BackLink href="/my-items">Back to My items</BackLink>
 
       <h1 className="text-xl font-semibold text-base-content">Edit {item.name}</h1>
 

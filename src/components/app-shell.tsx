@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLink } from "@/components/app-link";
+import { AuroraBrandText } from "@/components/aurora-brand-text";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
@@ -103,9 +104,11 @@ function ShellTitleInner() {
 
   if (pathname === "/explore") {
     return (
-      <span className="min-w-0 truncate font-semibold tracking-tight text-[#122B49] sm:max-w-[12rem]" title="REEFxCHANGE">
-        REEFxCHANGE
-      </span>
+      <AuroraBrandText
+        className="min-w-0 font-semibold tracking-tight sm:max-w-[12rem]"
+        textColor="#122B49"
+        title="REEFxCHANGE"
+      />
     );
   }
 

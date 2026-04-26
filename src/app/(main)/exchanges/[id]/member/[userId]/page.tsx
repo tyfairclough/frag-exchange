@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { canViewExchangeDirectory } from "@/lib/super-admin";
 import { CoralListingCard } from "@/components/coral-listing-card";
 import { discoverExchangeListings } from "@/lib/discover-listings";
+import { BackLink } from "@/components/back-link";
 
 export default async function ExchangeMemberListingsPage({
   params,
@@ -75,9 +76,9 @@ export default async function ExchangeMemberListingsPage({
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
-      <Link href={`/explore?exchangeId=${encodeURIComponent(exchangeId)}`} className="btn btn-ghost btn-sm min-h-10 w-fit rounded-xl">
+      <BackLink href={`/explore?exchangeId=${encodeURIComponent(exchangeId)}`} className="min-h-10">
         Back to explore
-      </Link>
+      </BackLink>
 
       <header className="space-y-2">
         <h1 className="text-xl font-semibold text-base-content">

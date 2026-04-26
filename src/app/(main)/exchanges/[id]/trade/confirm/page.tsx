@@ -6,6 +6,7 @@ import { loadTradeInitiationContext, tradeInitiationErrors } from "@/lib/trade-i
 import { InventoryItemCard } from "@/components/inventory-item-card";
 import { submitTradeInitiationAction } from "@/app/(main)/exchanges/trade-actions";
 import { ListingIntent } from "@/generated/prisma/enums";
+import { BackLink } from "@/components/back-link";
 
 export default async function ExchangeTradeConfirmPage({
   params,
@@ -39,12 +40,12 @@ export default async function ExchangeTradeConfirmPage({
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
-      <Link
+      <BackLink
         href={`/exchanges/${encodeURIComponent(exchangeId)}/trade/offer?with=${encodeURIComponent(peerUserId)}`}
-        className="btn btn-ghost btn-sm min-h-10 w-fit rounded-xl"
+        className="min-h-10"
       >
         Back to you offer
-      </Link>
+      </BackLink>
 
       <header className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-wide text-base-content/50">Step 3 of 3</p>

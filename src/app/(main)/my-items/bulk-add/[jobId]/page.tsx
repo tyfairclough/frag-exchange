@@ -6,6 +6,7 @@ import { canUseBulkItemFetch } from "@/lib/posting-role";
 import { DismissibleFetchImportNotice } from "@/components/dismissible-fetch-import-notice";
 import { FetchItemsReviewTable } from "@/components/fetch-items-review-table";
 import { PublishFetchJobButton } from "@/components/publish-fetch-job-button";
+import { BackLink } from "@/components/back-link";
 
 export default async function FetchItemsReviewPage({ params }: { params: Promise<{ jobId: string }> }) {
   const user = await requireUser();
@@ -36,9 +37,9 @@ export default async function FetchItemsReviewPage({ params }: { params: Promise
   return (
     <>
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-4 pb-6">
-        <Link href="/my-items" className="btn btn-ghost btn-sm mr-4 mt-6 w-fit rounded-xl">
+        <BackLink href="/my-items" className="mr-4 mt-6">
           Back to My items
-        </Link>
+        </BackLink>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-xl font-semibold text-base-content">Review items to add</h1>

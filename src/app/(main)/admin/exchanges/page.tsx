@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ExchangeKind, ExchangeVisibility } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
 import { MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { BackLink } from "@/components/back-link";
 import {
   exchangeLogoSrcSetForListThumbnail,
   exchangeLogoUrlForListThumbnail,
@@ -28,13 +29,14 @@ export default async function AdminExchangesPage() {
           </h1>
           <p className="mt-1 text-sm text-slate-600">Includes private exchanges for support and setup.</p>
         </div>
-        <Link
+        <BackLink
           href="/admin"
-          className="text-sm font-semibold hover:underline"
+          variant="text"
+          className="text-sm font-semibold"
           style={{ color: MARKETING_LINK_BLUE }}
         >
           Back to dashboard
-        </Link>
+        </BackLink>
       </div>
 
       {exchanges.length === 0 ? (

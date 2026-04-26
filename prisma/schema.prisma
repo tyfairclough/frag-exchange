@@ -45,6 +45,7 @@ model User {
   adminAuditLogs            AdminAuditLog[]
   inventoryImportJobs       InventoryImportJob[]
   inventoryImportCandidates InventoryImportCandidate[]
+  inventoryBulkImportSources  InventoryBulkImportSource[]
   /// Whether a commercial-tier account is still operated by REEFxCHANGE until the business claims it.
   businessAccountOwnership  BusinessAccountOwnership @default(CLAIMED)
   businessClaims            BusinessClaim[]
@@ -263,9 +264,12 @@ model InventoryItem {
   exchangeListings ExchangeListing[]
   tradeLines     TradeInventoryLine[]
   importCandidates InventoryImportCandidate[]
+  bulkImportSourceId String?
+  bulkImportSource   InventoryBulkImportSource? @relation(fields: [bulkImportSourceId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([kind])
+  @@index([bulkImportSourceId])
   @@map("inventory_items")
 }
 
@@ -295,6 +299,37 @@ enum InventoryImportJobStatus {
   CANCELLED
 }
 
+enum InventoryImportJobRunKind {
+  INTERACTIVE
+  SCHEDULED_DELTA
+}
+
+/// User-managed catalog root URL for bulk crawl + optional weekly refresh.
+model InventoryBulkImportSource {
+  id                    String    @id @default(cuid())
+  userId                String
+  sourceUrl             String    @db.VarChar(2048)
+  sourceHost            String    @db.VarChar(255)
+  maxPages              Int       @default(2)
+  maxItems              Int?
+  defaultKind           InventoryKind?
+  defaultExchangeIds    String[]  @default([])
+  autoRefreshEnabled    Boolean   @default(false)
+  autoRefreshEnabledAt  DateTime?
+  lastScheduledRunAt    DateTime?
+  lastScheduledRunError String?   @db.Text
+  disabledAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importJobs            InventoryImportJob[]
+  inventoryItems        InventoryItem[]
+
+  @@index([userId, disabledAt])
+  @@index([userId, autoRefreshEnabled])
+  @@map("inventory_bulk_import_sources")
+}
+
 enum InventoryImportEventLevel {
   INFO
   WARN
@@ -310,6 +345,8 @@ enum InventoryImportEventStage {
   SKIP
   DONE
   FAIL
+  SCHEDULED_APPLY
+  SCHEDULED_DELETE_SKIPPED
 }
 
 model InventoryImportJob {
@@ -341,12 +378,16 @@ model InventoryImportJob {
   notifiedAt       DateTime?
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
+  bulkImportSourceId String?
+  runKind          InventoryImportJobRunKind @default(INTERACTIVE)
   user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bulkImportSource InventoryBulkImportSource? @relation(fields: [bulkImportSourceId], references: [id], onDelete: SetNull)
   candidates       InventoryImportCandidate[]
   events           InventoryImportEvent[]
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([bulkImportSourceId, status])
   @@map("inventory_import_jobs")
 }
 

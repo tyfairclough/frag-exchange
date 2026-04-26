@@ -1,4 +1,5 @@
 import { AppLink } from "@/components/app-link";
+import { AuroraBrandText } from "@/components/aurora-brand-text";
 
 export const MARKETING_NAVY = "#0B1E3B";
 export const MARKETING_CTA_GREEN = "#22B41C";
@@ -26,9 +27,10 @@ export function MarketingSiteHeaderBrandOnly() {
       <div className="mx-auto flex max-w-6xl items-center px-4 py-4 sm:px-6">
         <AppLink href="/" className="flex items-center gap-2.5">
           <CoralLogo className="shrink-0" />
-          <span className="text-lg font-semibold tracking-tight sm:text-xl" style={{ color: MARKETING_NAVY }}>
-            REEFxCHANGE
-          </span>
+          <AuroraBrandText
+            className="text-lg font-semibold tracking-tight sm:text-xl"
+            textColor={MARKETING_NAVY}
+          />
         </AppLink>
       </div>
     </header>
@@ -41,9 +43,10 @@ export function MarketingSiteHeader() {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <AppLink href="/" className="flex items-center gap-2.5">
           <CoralLogo className="shrink-0" />
-          <span className="text-lg font-semibold tracking-tight sm:text-xl" style={{ color: MARKETING_NAVY }}>
-            REEFxCHANGE
-          </span>
+          <AuroraBrandText
+            className="text-lg font-semibold tracking-tight sm:text-xl"
+            textColor={MARKETING_NAVY}
+          />
           <span
             className="rounded-full px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide"
             style={{ backgroundColor: "#E0F2FE", color: "#0369A1" }}
@@ -72,9 +75,12 @@ export function MarketingSiteFooter() {
           <div>
             <AppLink href="/" className="flex items-center gap-2">
               <CoralLogo className="h-8 w-8 shrink-0" />
-              <span className="text-base font-semibold" style={{ color: MARKETING_NAVY }}>
-                REEFxCHANGE
-              </span>
+              <AuroraBrandText
+                className="text-base font-semibold"
+                size="sm"
+                textColor={MARKETING_NAVY}
+                background={MARKETING_FOOTER_BG}
+              />
             </AppLink>
             <p className="mt-3 text-xs text-slate-500">© {new Date().getFullYear()} REEFxCHANGE</p>
           </div>

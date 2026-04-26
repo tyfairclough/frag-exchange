@@ -13,6 +13,7 @@ import { OperatorExchangeTabs } from "@/app/(main)/operator/components/operator-
 import { getRequestOrigin } from "@/lib/request-origin";
 import { expireDueTradesAndNotify } from "@/lib/trade-expire-notify";
 import { isTradePending, tradeResponderUserId } from "@/lib/trade-state";
+import { BackLink } from "@/components/back-link";
 
 function tradeListHint(
   trade: { status: TradeStatus; initiatorUserId: string; peerUserId: string },
@@ -88,12 +89,12 @@ export default async function ExchangeTradesListPage({ params }: { params: Promi
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       {operatorTabs}
 
-      <Link
+      <BackLink
         href={`/exchanges/${encodeURIComponent(exchangeId)}`}
-        className="btn btn-ghost btn-sm w-fit px-0 text-primary hover:bg-transparent hover:underline"
+        className="px-0 text-primary hover:bg-transparent"
       >
-        ← Back to Exchange
-      </Link>
+        Back to Exchange
+      </BackLink>
 
       <header className="space-y-1">
         <h1 className="text-xl font-semibold text-base-content">Trades</h1>

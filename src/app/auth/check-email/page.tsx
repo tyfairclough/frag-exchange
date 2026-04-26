@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
+import { BackLink } from "@/components/back-link";
 import { isDevMagicLinkViaEmail } from "@/lib/dev-magic-link-mode";
 import { ensureDatabaseReady } from "@/lib/db-warm";
 
@@ -49,12 +50,13 @@ export default async function CheckEmailPage({
                 Open debug magic link
               </Link>
             ) : null}
-            <Link
+            <BackLink
               href="/auth/login"
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-medium text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+              variant="text"
+              className="min-h-11 w-full justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-medium text-slate-800 no-underline transition hover:border-slate-400 hover:bg-slate-50"
             >
               Back to sign in
-            </Link>
+            </BackLink>
           </div>
         </section>
 
