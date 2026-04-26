@@ -1,5 +1,6 @@
 import { ExchangeMembershipRole, ExchangeVisibility } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
+import { canPostingRoleJoinExchange } from "@/lib/exchange-join-eligibility";
 
 type AutoJoinResult = {
   destination: string;
@@ -28,10 +29,26 @@ export async function autoJoinOnboardingDestination(userId: string, destination:
 
   const exchange = await getPrisma().exchange.findFirst({
     where: { id: exchangeId, visibility: ExchangeVisibility.PUBLIC },
-    select: { id: true },
+    select: {
+      id: true,
+      allowNormalMembersToJoin: true,
+      allowOnlineRetailersToJoin: true,
+      allowLocalFishStoresToJoin: true,
+    },
   });
   if (!exchange) {
     return { destination, joined: false, exchangeId };
+  }
+  const user = await getPrisma().user.findUnique({
+    where: { id: userId },
+    select: { postingRole: true },
+  });
+  if (!user || !canPostingRoleJoinExchange(user, exchange)) {
+    return {
+      destination: `/exchanges?error=join-tier-blocked`,
+      joined: false,
+      exchangeId,
+    };
   }
 
   await getPrisma().exchangeMembership.upsert({

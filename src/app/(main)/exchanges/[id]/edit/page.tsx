@@ -23,6 +23,7 @@ const editErrors: Record<string, string> = {
   name: "Enter a name for the exchange.",
   logo: "Upload a valid logo image (JPG, PNG, or WebP up to 6MB).",
   "item-types": "Select at least one item type.",
+  "join-tiers": "Select at least one member tier that can join.",
   "not-found": "That exchange could not be updated.",
 };
 
@@ -193,6 +194,37 @@ export default async function EditExchangePage({
                 defaultChecked={exchange.allowItemsForSale}
               />
               <span className="text-sm text-slate-700">Allow for sale listings (external links)</span>
+            </label>
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-semibold text-slate-700">Who can join this exchange</legend>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input
+                type="checkbox"
+                name="allowNormalMembersToJoin"
+                className="mt-0.5"
+                defaultChecked={exchange.allowNormalMembersToJoin}
+              />
+              <span className="text-sm text-slate-700">Normal members</span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input
+                type="checkbox"
+                name="allowOnlineRetailersToJoin"
+                className="mt-0.5"
+                defaultChecked={exchange.allowOnlineRetailersToJoin}
+              />
+              <span className="text-sm text-slate-700">Online retailers</span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input
+                type="checkbox"
+                name="allowLocalFishStoresToJoin"
+                className="mt-0.5"
+                defaultChecked={exchange.allowLocalFishStoresToJoin}
+              />
+              <span className="text-sm text-slate-700">Local fish stores</span>
             </label>
           </fieldset>
 

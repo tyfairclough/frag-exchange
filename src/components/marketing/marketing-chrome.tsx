@@ -47,12 +47,6 @@ export function MarketingSiteHeader() {
             className="text-lg font-semibold tracking-tight sm:text-xl"
             textColor={MARKETING_NAVY}
           />
-          <span
-            className="rounded-full px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide"
-            style={{ backgroundColor: "#E0F2FE", color: "#0369A1" }}
-          >
-            Beta
-          </span>
         </AppLink>
         <AppLink
           href="/auth/login"
@@ -66,8 +60,6 @@ export function MarketingSiteHeader() {
 }
 
 export function MarketingSiteFooter() {
-  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL;
-
   return (
     <footer className="border-t border-slate-200/80" style={{ backgroundColor: MARKETING_FOOTER_BG }}>
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -84,68 +76,7 @@ export function MarketingSiteFooter() {
             </AppLink>
             <p className="mt-3 text-xs text-slate-500">© {new Date().getFullYear()} REEFxCHANGE</p>
           </div>
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:gap-12">
-            <div>
-              <p className="text-sm font-bold" style={{ color: MARKETING_LINK_BLUE }}>
-                Events
-              </p>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li>
-                  <AppLink
-                    href="/exchanges/browse?tab=events"
-                    className="hover:underline"
-                    style={{ color: MARKETING_LINK_BLUE }}
-                  >
-                    Upcoming events
-                  </AppLink>
-                </li>
-                <li>
-                  <AppLink href="/auth/login" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
-                    Add your event
-                  </AppLink>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <p className="text-sm font-bold" style={{ color: MARKETING_LINK_BLUE }}>
-                Pricing
-              </p>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li>
-                  <AppLink href="/#pricing" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
-                    Free for hobbyists
-                  </AppLink>
-                </li>
-                <li>
-                  <AppLink href="/auth/login" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
-                    Add REEFxCHANGE to your event
-                  </AppLink>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <p className="text-sm font-bold" style={{ color: MARKETING_LINK_BLUE }}>
-                Support
-              </p>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li>
-                  <AppLink href="/#swap-guide" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
-                    FAQs
-                  </AppLink>
-                </li>
-                <li>
-                  {contactEmail ? (
-                    <a href={`mailto:${contactEmail}`} className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
-                      Contact us
-                    </a>
-                  ) : (
-                    <AppLink href="/auth/login" className="hover:underline" style={{ color: MARKETING_LINK_BLUE }}>
-                      Contact us
-                    </AppLink>
-                  )}
-                </li>
-              </ul>
-            </div>
+          <div>
             <div>
               <p className="text-sm font-bold" style={{ color: MARKETING_LINK_BLUE }}>
                 Legal

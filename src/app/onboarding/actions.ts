@@ -180,6 +180,9 @@ export async function completeOnboardingAction(formData: FormData) {
     revalidatePath(`/exchanges/${autoJoin.exchangeId}/listings`);
     redirect(autoJoin.destination);
   }
+  if (!autoJoin.joined && autoJoin.destination !== destination) {
+    redirect(autoJoin.destination);
+  }
 
   const inviteMatch = destination.match(/^\/exchanges\/invite\/([^/?#]+)$/);
   if (inviteMatch) {

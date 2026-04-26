@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import { AppLink } from "@/components/app-link";
 import { AuroraBrandText } from "@/components/aurora-brand-text";
 import {
@@ -11,6 +15,112 @@ import {
 import type { PublicMarketingListingRow } from "@/lib/marketing-listings";
 
 type ListingRow = PublicMarketingListingRow;
+type HowItWorksStep = {
+  title: string;
+  body: string;
+  link?: {
+    href: string;
+    label: string;
+  };
+};
+
+type HowItWorksTab = {
+  id: "frag-swap-events" | "hobbyist-sellers" | "sellers";
+  label: string;
+  subtitle: string;
+  steps: HowItWorksStep[];
+};
+
+const HOW_IT_WORKS_TABS: HowItWorksTab[] = [
+  {
+    id: "frag-swap-events",
+    label: "Frag Swap Events",
+    subtitle: "Get swapping in less than 10 minutes",
+    steps: [
+      {
+        title: "Attend a reefing event.",
+        body: "Your organiser will send you an invite.",
+        link: { href: "/exchanges/browse?tab=events", label: "See upcoming events" },
+      },
+      {
+        title: "Join an exchange.",
+        body: "Not attending an event? No problem, join an open exchange instead.",
+        link: { href: "/exchanges/browse?tab=groups", label: "Join an exchange" },
+      },
+      {
+        title: "List your corals.",
+        body: "Describe your coral and add a photo.",
+      },
+      {
+        title: "Search the exchange.",
+        body: "Search for corals you would like in your tank.",
+      },
+      {
+        title: "Negotiate an exchange.",
+        body: "Send and receive offers that you can accept or reject.",
+      },
+      {
+        title: "Get new coral!",
+        body: "Take home new corals for your tank!",
+      },
+    ],
+  },
+  {
+    id: "hobbyist-sellers",
+    label: "Hobbyist Sellers",
+    subtitle: "Sell your frags with a simple exchange flow",
+    steps: [
+      {
+        title: "Join an exchange.",
+        body: "Choose an exchange to join. Different exchanges cater to different markets.",
+      },
+      {
+        title: "List your items.",
+        body: "Add your listings based on each exchange's listing requirements.",
+      },
+      {
+        title: "Respond to reefer requests.",
+        body: "Handle incoming requests via the site, SMS, or WhatsApp.",
+      },
+      {
+        title: "Complete your sale.",
+        body: "Finalize the sale and hand off your livestock to buyers.",
+      },
+    ],
+  },
+  {
+    id: "sellers",
+    label: "Sellers",
+    subtitle: "Turn exchanges into a repeatable growth channel",
+    steps: [
+      {
+        title: "Join an exchange.",
+        body: "Choose from any eligible exchange that matches your goals.",
+      },
+      {
+        title: "Build your itinerary automatically.",
+        body: "Use the auto listing tool to build your itinerary from your website.",
+      },
+      {
+        title: "Drive traffic to your site.",
+        body: "Use your exchange presence to direct reefers back to your storefront.",
+      },
+      {
+        title: "Review dashboard performance.",
+        body: "Track outcomes and optimize your strategy from your dashboard.",
+      },
+    ],
+  },
+];
+
+function shuffleListings(rows: ListingRow[]): ListingRow[] {
+  const shuffled = [...rows];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 function ListingCard({ row }: { row: ListingRow }) {
   const { inventoryItem: item, exchange } = row;
@@ -57,6 +167,11 @@ function ListingCard({ row }: { row: ListingRow }) {
 }
 
 export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
+  const randomizedListings = shuffleListings(listings);
+  const [activeHowItWorksTabId, setActiveHowItWorksTabId] = useState<HowItWorksTab["id"]>("frag-swap-events");
+  const activeHowItWorksTab =
+    HOW_IT_WORKS_TABS.find((tab) => tab.id === activeHowItWorksTabId) ?? HOW_IT_WORKS_TABS[0];
+
   return (
     <div className="min-h-dvh bg-white text-slate-600">
       <MarketingSiteHeader />
@@ -108,7 +223,7 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
       <section className="py-12 sm:py-16" style={{ backgroundColor: MARKETING_NAVY }}>
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <h2 className="text-center text-xl font-semibold text-white sm:text-2xl">
-            Corals available right now…
+            Live items on REEFxCHANGE
           </h2>
           {listings.length === 0 ? (
             <p className="mx-auto mt-6 max-w-lg text-center text-sm leading-relaxed text-white/80">
@@ -116,7 +231,7 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
             </p>
           ) : (
             <div className="mt-8 flex gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
-              {listings.map((row) => (
+              {randomizedListings.map((row) => (
                 <ListingCard key={row.id} row={row} />
               ))}
             </div>
@@ -128,36 +243,39 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: MARKETING_NAVY }}>
           How it works
         </h2>
-        <p className="mx-auto mt-2 max-w-xl text-center text-slate-600">Get swapping in less than 10 minutes</p>
-        <ol className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {[
-            {
-              title: "Attend a reefing event.",
-              body: "Your organiser will send you an invite.",
-              link: { href: "/exchanges/browse?tab=events", label: "See upcoming events" },
-            },
-            {
-              title: "Join an exchange.",
-              body: "Not attending an event? No problem, join an open exchange instead.",
-              link: { href: "/exchanges/browse?tab=groups", label: "Join an exchange" },
-            },
-            {
-              title: "List your corals.",
-              body: "Describe your coral and add a photo.",
-            },
-            {
-              title: "Search the exchange.",
-              body: "Search for corals you would like in your tank.",
-            },
-            {
-              title: "Negotiate an exchange.",
-              body: "Send and receive offers that you can accept or reject.",
-            },
-            {
-              title: "Get new coral!",
-              body: "Take home new corals for your tank!",
-            },
-          ].map((step, i) => (
+        <div className="mt-6 flex flex-wrap justify-center gap-2" role="tablist" aria-label="How it works use cases">
+          {HOW_IT_WORKS_TABS.map((tab) => {
+            const isActive = tab.id === activeHowItWorksTab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                className="rounded-full border px-4 py-2 text-sm font-semibold transition sm:text-base"
+                style={
+                  isActive
+                    ? {
+                        backgroundColor: MARKETING_NAVY,
+                        borderColor: MARKETING_NAVY,
+                        color: "#fff",
+                      }
+                    : {
+                        backgroundColor: "#fff",
+                        borderColor: "#CBD5E1",
+                        color: "#334155",
+                      }
+                }
+                onClick={() => setActiveHowItWorksTabId(tab.id)}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mx-auto mt-4 max-w-xl text-center text-slate-600">{activeHowItWorksTab.subtitle}</p>
+        <ol className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {activeHowItWorksTab.steps.map((step, i) => (
             <li
               key={step.title}
               className="flex flex-col rounded-2xl p-4 sm:p-5"
@@ -188,8 +306,8 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
             Pricing
           </h2>
           <p className="mt-3 text-slate-600">
-            Free for hobbyists. Organisers can add REEFxCHANGE to an event or group to run swaps smoothly — sign in to
-            learn more.
+            Free for hobbyists. Event organisers can run Frag Swaps and Retailers can promote their listings. — Sign-in
+            to learn more.
           </p>
         </div>
       </section>

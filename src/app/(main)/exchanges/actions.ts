@@ -7,6 +7,7 @@ import {
   ExchangeKind,
   ExchangeMembershipRole,
   ExchangeVisibility,
+  UserPostingRole,
 } from "@/generated/prisma/enums";
 import { assertDatabaseReachable, getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -26,6 +27,7 @@ import { saveExchangeLogoToPublic, validateExchangeLogoUpload } from "@/lib/exch
 import { hashExchangeInviteToken } from "@/lib/exchange-invite-token-hash";
 import { normalizeInviteEmail } from "@/lib/bulk-invite-parse";
 import { sendExchangeInviteEmail } from "@/lib/send-exchange-invite-email";
+import { canPostingRoleJoinExchange } from "@/lib/exchange-join-eligibility";
 
 function makeToken() {
   return randomBytes(32).toString("hex");
@@ -64,12 +66,41 @@ function parseAllowedItemTypes(formData: FormData) {
   return { allowCoral, allowFish, allowEquipment, allowItemsForSale };
 }
 
+function parseAllowedJoinTiers(formData: FormData) {
+  const allowNormalMembersToJoin = formData.get("allowNormalMembersToJoin") === "on";
+  const allowOnlineRetailersToJoin = formData.get("allowOnlineRetailersToJoin") === "on";
+  const allowLocalFishStoresToJoin = formData.get("allowLocalFishStoresToJoin") === "on";
+  return { allowNormalMembersToJoin, allowOnlineRetailersToJoin, allowLocalFishStoresToJoin };
+}
+
 function hasAtLeastOneAllowedItemType(allowed: {
   allowCoral: boolean;
   allowFish: boolean;
   allowEquipment: boolean;
 }) {
   return allowed.allowCoral || allowed.allowFish || allowed.allowEquipment;
+}
+
+function hasAtLeastOneAllowedJoinTier(allowed: {
+  allowNormalMembersToJoin: boolean;
+  allowOnlineRetailersToJoin: boolean;
+  allowLocalFishStoresToJoin: boolean;
+}) {
+  return allowed.allowNormalMembersToJoin || allowed.allowOnlineRetailersToJoin || allowed.allowLocalFishStoresToJoin;
+}
+
+function disallowedPostingRolesForJoinTiers(allowed: {
+  allowNormalMembersToJoin: boolean;
+  allowOnlineRetailersToJoin: boolean;
+  allowLocalFishStoresToJoin: boolean;
+}) {
+  return {
+    disallowNormal: !allowed.allowNormalMembersToJoin,
+    disallowedRoles: [
+      ...(!allowed.allowOnlineRetailersToJoin ? [UserPostingRole.ONLINE_RETAILER] : []),
+      ...(!allowed.allowLocalFishStoresToJoin ? [UserPostingRole.LFS] : []),
+    ],
+  };
 }
 
 function normalizeEmail(email: string) {
@@ -110,6 +141,7 @@ export async function createExchangeAction(formData: FormData) {
   const kind = parseKind(str(formData.get("kind")));
   const visibility = parseVisibility(str(formData.get("visibility")));
   const allowedTypes = parseAllowedItemTypes(formData);
+  const allowedJoinTiers = parseAllowedJoinTiers(formData);
   const eventDateRaw = str(formData.get("eventDate"));
   let eventDate: Date | null = null;
   if (eventDateRaw) {
@@ -131,6 +163,9 @@ export async function createExchangeAction(formData: FormData) {
   if (!hasAtLeastOneAllowedItemType(allowedTypes)) {
     redirect("/exchanges/new?error=item-types");
   }
+  if (!hasAtLeastOneAllowedJoinTier(allowedJoinTiers)) {
+    redirect("/exchanges/new?error=join-tiers");
+  }
 
   try {
     const created = await getPrisma().exchange.create({
@@ -144,6 +179,9 @@ export async function createExchangeAction(formData: FormData) {
         allowFish: allowedTypes.allowFish,
         allowEquipment: allowedTypes.allowEquipment,
         allowItemsForSale: allowedTypes.allowItemsForSale,
+        allowNormalMembersToJoin: allowedJoinTiers.allowNormalMembersToJoin,
+        allowOnlineRetailersToJoin: allowedJoinTiers.allowOnlineRetailersToJoin,
+        allowLocalFishStoresToJoin: allowedJoinTiers.allowLocalFishStoresToJoin,
         createdById: admin.id,
         memberships: {
           create: {
@@ -215,6 +253,7 @@ export async function updateExchangeAction(formData: FormData) {
   const name = str(formData.get("name"));
   const description = str(formData.get("description")) || null;
   const allowedTypes = parseAllowedItemTypes(formData);
+  const allowedJoinTiers = parseAllowedJoinTiers(formData);
   const eventDateRaw = str(formData.get("eventDate"));
   let eventDate: Date | null = null;
   if (eventDateRaw) {
@@ -230,6 +269,10 @@ export async function updateExchangeAction(formData: FormData) {
   if (!hasAtLeastOneAllowedItemType(allowedTypes)) {
     redirect(`/exchanges/${exchangeId}/edit?error=item-types`);
   }
+  if (!hasAtLeastOneAllowedJoinTier(allowedJoinTiers)) {
+    redirect(`/exchanges/${exchangeId}/edit?error=join-tiers`);
+  }
+  const disallowedJoinRoles = disallowedPostingRolesForJoinTiers(allowedJoinTiers);
 
   try {
     if (superUser) {
@@ -248,8 +291,26 @@ export async function updateExchangeAction(formData: FormData) {
             allowFish: allowedTypes.allowFish,
             allowEquipment: allowedTypes.allowEquipment,
             allowItemsForSale: allowedTypes.allowItemsForSale,
+            allowNormalMembersToJoin: allowedJoinTiers.allowNormalMembersToJoin,
+            allowOnlineRetailersToJoin: allowedJoinTiers.allowOnlineRetailersToJoin,
+            allowLocalFishStoresToJoin: allowedJoinTiers.allowLocalFishStoresToJoin,
           },
         });
+        if (disallowedJoinRoles.disallowNormal || disallowedJoinRoles.disallowedRoles.length > 0) {
+          await tx.exchangeMembership.deleteMany({
+            where: {
+              exchangeId,
+              user: {
+                OR: [
+                  ...(disallowedJoinRoles.disallowNormal ? [{ postingRole: null }] : []),
+                  ...(disallowedJoinRoles.disallowedRoles.length > 0
+                    ? [{ postingRole: { in: disallowedJoinRoles.disallowedRoles } }]
+                    : []),
+                ],
+              },
+            },
+          });
+        }
         if (kind === ExchangeKind.GROUP) {
           await tx.exchangeMembership.updateMany({
             where: { exchangeId, role: ExchangeMembershipRole.EVENT_MANAGER },
@@ -258,17 +319,37 @@ export async function updateExchangeAction(formData: FormData) {
         }
       });
     } else {
-      await db.exchange.update({
-        where: { id: exchangeId },
-        data: {
-          name,
-          description,
-          eventDate,
-          allowCoral: allowedTypes.allowCoral,
-          allowFish: allowedTypes.allowFish,
-          allowEquipment: allowedTypes.allowEquipment,
-          allowItemsForSale: allowedTypes.allowItemsForSale,
-        },
+      await db.$transaction(async (tx) => {
+        await tx.exchange.update({
+          where: { id: exchangeId },
+          data: {
+            name,
+            description,
+            eventDate,
+            allowCoral: allowedTypes.allowCoral,
+            allowFish: allowedTypes.allowFish,
+            allowEquipment: allowedTypes.allowEquipment,
+            allowItemsForSale: allowedTypes.allowItemsForSale,
+            allowNormalMembersToJoin: allowedJoinTiers.allowNormalMembersToJoin,
+            allowOnlineRetailersToJoin: allowedJoinTiers.allowOnlineRetailersToJoin,
+            allowLocalFishStoresToJoin: allowedJoinTiers.allowLocalFishStoresToJoin,
+          },
+        });
+        if (disallowedJoinRoles.disallowNormal || disallowedJoinRoles.disallowedRoles.length > 0) {
+          await tx.exchangeMembership.deleteMany({
+            where: {
+              exchangeId,
+              user: {
+                OR: [
+                  ...(disallowedJoinRoles.disallowNormal ? [{ postingRole: null }] : []),
+                  ...(disallowedJoinRoles.disallowedRoles.length > 0
+                    ? [{ postingRole: { in: disallowedJoinRoles.disallowedRoles } }]
+                    : []),
+                ],
+              },
+            },
+          });
+        }
       });
     }
     const logo = await processExchangeLogoFromFormData(exchangeId, formData);
@@ -431,10 +512,19 @@ export async function joinPublicExchangeFormAction(formData: FormData) {
 
   const exchange = await getPrisma().exchange.findFirst({
     where: { id: exchangeId, visibility: ExchangeVisibility.PUBLIC },
+    select: {
+      id: true,
+      allowNormalMembersToJoin: true,
+      allowOnlineRetailersToJoin: true,
+      allowLocalFishStoresToJoin: true,
+    },
   });
 
   if (!exchange) {
     redirect("/exchanges?error=join-not-found");
+  }
+  if (!canPostingRoleJoinExchange(user, exchange)) {
+    redirect("/exchanges?error=join-tier-blocked");
   }
 
   await getPrisma().exchangeMembership.upsert({
@@ -630,7 +720,16 @@ export async function acceptInviteAction(token: string) {
 
   const invite = await getPrisma().exchangeInvite.findUnique({
     where: { tokenHash },
-    include: { exchange: true },
+    include: {
+      exchange: {
+        select: {
+          id: true,
+          allowNormalMembersToJoin: true,
+          allowOnlineRetailersToJoin: true,
+          allowLocalFishStoresToJoin: true,
+        },
+      },
+    },
   });
 
   if (!invite || invite.usedAt || invite.expiresAt <= new Date()) {
@@ -639,6 +738,9 @@ export async function acceptInviteAction(token: string) {
 
   if (normalizeEmail(user.email) !== normalizeEmail(invite.email)) {
     redirect(`/exchanges/invite/${encodeURIComponent(token)}?error=email-mismatch`);
+  }
+  if (!canPostingRoleJoinExchange(user, invite.exchange)) {
+    redirect("/exchanges?error=join-tier-blocked");
   }
 
   const db = getPrisma();

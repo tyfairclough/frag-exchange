@@ -19,6 +19,7 @@ import {
   exchangeLogoSrcSetForListThumbnail,
   exchangeLogoUrlForListThumbnail,
 } from "@/lib/exchange-logo-urls";
+import { canPostingRoleJoinExchange } from "@/lib/exchange-join-eligibility";
 
 function reefersLabel(count: number): string {
   return count === 1 ? "1 reefer" : `${count} reefers`;
@@ -32,6 +33,7 @@ const detailErrors: Record<string, string> = {
   "listing-coral": "That item cannot be listed on this exchange.",
   "listing-kind": "That item type is not enabled on this exchange.",
   "listing-invalid": "That listing request was incomplete.",
+  "join-tier-blocked": "Your current member tier cannot join this exchange.",
 };
 
 export default async function ExchangeDetailPage({
@@ -151,6 +153,7 @@ export default async function ExchangeDetailPage({
   const listingsHref = `/exchanges/${encodeURIComponent(exchange.id)}/listings`;
   const headerLogoUrl = exchangeLogoUrlForListThumbnail(exchange);
   const headerLogoSrcSet = exchangeLogoSrcSetForListThumbnail(exchange);
+  const tierCanJoin = canPostingRoleJoinExchange(user, exchange);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -255,17 +258,27 @@ export default async function ExchangeDetailPage({
       {!membership && exchange.visibility === ExchangeVisibility.PUBLIC ? (
         <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
           <div className="flex flex-row flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-slate-700">Join this public exchange to list items and browse other reefers.</p>
-            <form action={joinPublicExchangeFormAction}>
-              <input type="hidden" name="exchangeId" value={exchange.id} />
-              <button
-                type="submit"
-                className="inline-flex min-h-10 items-center rounded-full px-5 text-sm font-semibold text-white transition hover:opacity-95"
-                style={{ backgroundColor: MARKETING_CTA_GREEN }}
-              >
-                Join
-              </button>
-            </form>
+            <p className="text-sm text-slate-700">
+              {tierCanJoin
+                ? "Join this public exchange to list items and browse other reefers."
+                : "This public exchange currently does not allow your member tier to join."}
+            </p>
+            {tierCanJoin ? (
+              <form action={joinPublicExchangeFormAction}>
+                <input type="hidden" name="exchangeId" value={exchange.id} />
+                <button
+                  type="submit"
+                  className="inline-flex min-h-10 items-center rounded-full px-5 text-sm font-semibold text-white transition hover:opacity-95"
+                  style={{ backgroundColor: MARKETING_CTA_GREEN }}
+                >
+                  Join
+                </button>
+              </form>
+            ) : (
+              <span className="inline-flex min-h-10 items-center rounded-full border border-slate-200 bg-slate-100 px-5 text-sm font-semibold text-slate-500">
+                Join unavailable
+              </span>
+            )}
           </div>
         </section>
       ) : null}

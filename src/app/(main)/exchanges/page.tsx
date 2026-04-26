@@ -10,6 +10,7 @@ import {
   exchangeLogoSrcSetForListThumbnail,
   exchangeLogoUrlForListThumbnail,
 } from "@/lib/exchange-logo-urls";
+import { canPostingRoleJoinExchange } from "@/lib/exchange-join-eligibility";
 
 function reefersLabel(count: number): string {
   return count === 1 ? "1 reefer" : `${count} reefers`;
@@ -26,6 +27,7 @@ function normalizeEmail(email: string) {
 const exchangeErrors: Record<string, string> = {
   forbidden: "You do not have permission for that action.",
   "join-not-found": "That public exchange was not found.",
+  "join-tier-blocked": "Your current member tier cannot join that exchange.",
   "invite-invalid": "This invite link is invalid or has expired.",
   "listing-invalid": "That listing request was incomplete.",
   "listing-forbidden": "Join this exchange before listing items here.",
@@ -256,6 +258,7 @@ export default async function ExchangesPage({
             {joinablePublicExchanges.map((ex) => {
               const listLogoUrl = exchangeLogoUrlForListThumbnail(ex);
               const listLogoSrcSet = exchangeLogoSrcSetForListThumbnail(ex);
+              const tierCanJoin = canPostingRoleJoinExchange(user, ex);
               return (
               <li key={ex.id}>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
@@ -286,16 +289,22 @@ export default async function ExchangesPage({
                         </p>
                       </div>
                     </div>
-                    <form action={joinPublicExchangeFormAction}>
-                      <input type="hidden" name="exchangeId" value={ex.id} />
-                      <button
-                        type="submit"
-                        className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold transition hover:border-slate-400 hover:bg-slate-100"
-                        style={{ color: MARKETING_LINK_BLUE }}
-                      >
-                        Join
-                      </button>
-                    </form>
+                    {tierCanJoin ? (
+                      <form action={joinPublicExchangeFormAction}>
+                        <input type="hidden" name="exchangeId" value={ex.id} />
+                        <button
+                          type="submit"
+                          className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold transition hover:border-slate-400 hover:bg-slate-100"
+                          style={{ color: MARKETING_LINK_BLUE }}
+                        >
+                          Join
+                        </button>
+                      </form>
+                    ) : (
+                      <span className="inline-flex min-h-10 items-center rounded-full border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-500">
+                        Not available for your tier
+                      </span>
+                    )}
                   </div>
                 </div>
               </li>

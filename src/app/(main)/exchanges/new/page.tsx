@@ -16,6 +16,7 @@ export default async function NewExchangePage({
   const logoError = params.error === "logo";
   const eventDateError = params.error === "event-date";
   const itemTypesError = params.error === "item-types";
+  const joinTiersError = params.error === "join-tiers";
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -57,6 +58,11 @@ export default async function NewExchangePage({
       {itemTypesError ? (
         <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Select at least one item type.
+        </div>
+      ) : null}
+      {joinTiersError ? (
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Select at least one member tier that can join.
         </div>
       ) : null}
 
@@ -116,6 +122,22 @@ export default async function NewExchangePage({
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
               <input type="checkbox" name="allowItemsForSale" className="mt-0.5" />
               <span className="text-sm text-slate-700">Allow for sale listings (external links)</span>
+            </label>
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-semibold text-slate-700">Who can join this exchange</legend>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input type="checkbox" name="allowNormalMembersToJoin" className="mt-0.5" defaultChecked />
+              <span className="text-sm text-slate-700">Normal members</span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input type="checkbox" name="allowOnlineRetailersToJoin" className="mt-0.5" defaultChecked />
+              <span className="text-sm text-slate-700">Online retailers</span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <input type="checkbox" name="allowLocalFishStoresToJoin" className="mt-0.5" defaultChecked />
+              <span className="text-sm text-slate-700">Local fish stores</span>
             </label>
           </fieldset>
 

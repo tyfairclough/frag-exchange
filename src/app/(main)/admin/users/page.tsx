@@ -200,81 +200,83 @@ export default async function AdminUsersPage({
                   {u.createdAt.toISOString().slice(0, 10)}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      {u.globalRole === UserGlobalRole.SUPER_ADMIN ? (
-                        <form action={updateUserGlobalRoleAction} className="inline">
+                  <details className="group relative inline-block text-left">
+                    <summary className="cursor-pointer list-none rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                      Actions
+                    </summary>
+                    <div className="absolute right-0 z-10 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+                      <div className="flex flex-col items-stretch gap-2">
+                        {u.globalRole === UserGlobalRole.SUPER_ADMIN ? (
+                          <form action={updateUserGlobalRoleAction} className="inline">
+                            <input type="hidden" name="userId" value={u.id} />
+                            <input type="hidden" name="globalRole" value={UserGlobalRole.MEMBER} />
+                            <button
+                              type="submit"
+                              className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              Make member
+                            </button>
+                          </form>
+                        ) : (
+                          <form action={updateUserGlobalRoleAction} className="inline">
+                            <input type="hidden" name="userId" value={u.id} />
+                            <input type="hidden" name="globalRole" value={UserGlobalRole.SUPER_ADMIN} />
+                            <button
+                              type="submit"
+                              className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              Make super admin
+                            </button>
+                          </form>
+                        )}
+                        <form action={updateUserPostingRoleAction} className="flex flex-col gap-2">
                           <input type="hidden" name="userId" value={u.id} />
-                          <input type="hidden" name="globalRole" value={UserGlobalRole.MEMBER} />
+                          <label className="sr-only" htmlFor={`posting-role-${u.id}`}>
+                            Posting tier
+                          </label>
+                          <select
+                            id={`posting-role-${u.id}`}
+                            name="postingRole"
+                            defaultValue={u.postingRole ?? ""}
+                            className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800"
+                          >
+                            <option value="">None</option>
+                            <option value={UserPostingRole.LFS}>LFS</option>
+                            <option value={UserPostingRole.ONLINE_RETAILER}>Online retailer</option>
+                          </select>
                           <button
                             type="submit"
-                            className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                           >
-                            Make member
+                            Save tier
                           </button>
                         </form>
-                      ) : (
-                        <form action={updateUserGlobalRoleAction} className="inline">
-                          <input type="hidden" name="userId" value={u.id} />
-                          <input type="hidden" name="globalRole" value={UserGlobalRole.SUPER_ADMIN} />
-                          <button
-                            type="submit"
-                            className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                          >
-                            Make super admin
-                          </button>
-                        </form>
-                      )}
+                        {(u.postingRole === UserPostingRole.LFS ||
+                          u.postingRole === UserPostingRole.ONLINE_RETAILER) &&
+                        u.businessAccountOwnership === BusinessAccountOwnership.UNCLAIMED ? (
+                          <form action={updateUserBusinessOwnershipAction} className="inline">
+                            <input type="hidden" name="userId" value={u.id} />
+                            <input type="hidden" name="businessAccountOwnership" value={BusinessAccountOwnership.CLAIMED} />
+                            <button
+                              type="submit"
+                              className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
+                            >
+                              Mark business claimed
+                            </button>
+                          </form>
+                        ) : null}
+                        {u.id === actor.id ? null : (
+                          <AdminDeleteUserDialog
+                            userId={u.id}
+                            email={u.email}
+                            disabled={
+                              u.globalRole === UserGlobalRole.SUPER_ADMIN && superAdminCount <= 1
+                            }
+                          />
+                        )}
+                      </div>
                     </div>
-                    <form
-                      action={updateUserPostingRoleAction}
-                      className="flex max-w-full flex-wrap items-center justify-end gap-2"
-                    >
-                      <input type="hidden" name="userId" value={u.id} />
-                      <label className="sr-only" htmlFor={`posting-role-${u.id}`}>
-                        Posting tier
-                      </label>
-                      <select
-                        id={`posting-role-${u.id}`}
-                        name="postingRole"
-                        defaultValue={u.postingRole ?? ""}
-                        className="max-w-[12rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800"
-                      >
-                        <option value="">None</option>
-                        <option value={UserPostingRole.LFS}>LFS</option>
-                        <option value={UserPostingRole.ONLINE_RETAILER}>Online retailer</option>
-                      </select>
-                      <button
-                        type="submit"
-                        className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                      >
-                        Save tier
-                      </button>
-                    </form>
-                    {(u.postingRole === UserPostingRole.LFS ||
-                      u.postingRole === UserPostingRole.ONLINE_RETAILER) &&
-                    u.businessAccountOwnership === BusinessAccountOwnership.UNCLAIMED ? (
-                      <form action={updateUserBusinessOwnershipAction} className="inline">
-                        <input type="hidden" name="userId" value={u.id} />
-                        <input type="hidden" name="businessAccountOwnership" value={BusinessAccountOwnership.CLAIMED} />
-                        <button
-                          type="submit"
-                          className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
-                        >
-                          Mark business claimed
-                        </button>
-                      </form>
-                    ) : null}
-                    {u.id === actor.id ? null : (
-                      <AdminDeleteUserDialog
-                        userId={u.id}
-                        email={u.email}
-                        disabled={
-                          u.globalRole === UserGlobalRole.SUPER_ADMIN && superAdminCount <= 1
-                        }
-                      />
-                    )}
-                  </div>
+                  </details>
                 </td>
               </tr>
             ))}
