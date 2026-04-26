@@ -23,6 +23,9 @@ import {
 
 export type DiscoverItemTab = "coral" | "fish" | "equipment";
 
+/** URL `sort=` values for explore listing order (see explore-search-href). */
+export type DiscoverSortMode = "recent" | "price_asc" | "price_desc";
+
 export type DiscoverRow = {
   listingId: string;
   itemId: string;
@@ -80,6 +83,7 @@ export type DiscoverParams = {
   equipmentConditions?: string[];
   allowedKinds?: InventoryKind[];
   allowItemsForSale?: boolean;
+  sort?: DiscoverSortMode;
 };
 
 function listingModeFilter(
@@ -301,12 +305,47 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
     return row.kind === InventoryKind.CORAL || row.kind === InventoryKind.FISH;
   });
 
-  saleEligibleRows.sort((a, b) => {
+  const sortMode = params.sort;
+
+  const defaultIntentThenRecency = (a: DiscoverRow, b: DiscoverRow) => {
+    const tieListing = a.listingId.localeCompare(b.listingId);
     const rank = (intent: ListingIntent) =>
       intent === ListingIntent.SWAP ? 0 : intent === ListingIntent.FREE ? 1 : 2;
     const byIntent = rank(a.listingIntent) - rank(b.listingIntent);
     if (byIntent !== 0) return byIntent;
-    return b.listedAt.getTime() - a.listedAt.getTime();
+    const byTime = b.listedAt.getTime() - a.listedAt.getTime();
+    return byTime !== 0 ? byTime : tieListing;
+  };
+
+  saleEligibleRows.sort((a, b) => {
+    const tieListing = a.listingId.localeCompare(b.listingId);
+
+    if (sortMode === "recent") {
+      const byTime = b.listedAt.getTime() - a.listedAt.getTime();
+      return byTime !== 0 ? byTime : tieListing;
+    }
+
+    if (sortMode === "price_asc" || sortMode === "price_desc") {
+      const pa = a.salePriceMinor;
+      const pb = b.salePriceMinor;
+      const aNull = pa == null;
+      const bNull = pb == null;
+      if (aNull && bNull) {
+        return defaultIntentThenRecency(a, b);
+      }
+      if (aNull) {
+        return 1;
+      }
+      if (bNull) {
+        return -1;
+      }
+      if (pa !== pb) {
+        return sortMode === "price_asc" ? pa - pb : pb - pa;
+      }
+      return tieListing;
+    }
+
+    return defaultIntentThenRecency(a, b);
   });
 
   const maxKm = params.maxKm;

@@ -1,6 +1,8 @@
 /** URL builder for /explore — must stay aligned with explore page searchParams handling. */
 
-import type { DiscoverItemTab } from "@/lib/discover-listings";
+import type { DiscoverItemTab, DiscoverSortMode } from "@/lib/discover-listings";
+
+export type ExploreSortMode = DiscoverSortMode;
 
 export type ExploreFilterState = {
   q: string;
@@ -16,6 +18,8 @@ export type ExploreFilterState = {
   reefSafeOnly: boolean;
   equipmentCategories: string[];
   equipmentConditions: string[];
+  /** Omitted or undefined = default feed order (intent buckets + recency). */
+  sort?: ExploreSortMode;
 };
 
 function uniqueTrimmed(values: string[]): string[] {
@@ -36,6 +40,39 @@ function parseItemTab(sp: URLSearchParams): DiscoverItemTab {
   return "coral";
 }
 
+function parseSort(sp: URLSearchParams): ExploreSortMode | undefined {
+  const v = sp.get("sort")?.trim().toLowerCase();
+  if (v === "recent" || v === "price_asc" || v === "price_desc") {
+    return v;
+  }
+  return undefined;
+}
+
+/**
+ * True when filter fields alone would scope the explore feed (excluding `searched=1`).
+ * Keep aligned with explore page `searchActive` minus the searched flag.
+ */
+export function exploreFiltersImplyScopedSearch(filters: ExploreFilterState): boolean {
+  const fulfilmentActive = filters.fulfilment === "POST" || filters.fulfilment === "MEET";
+  const maxKmRaw = filters.maxKm.trim();
+  const maxKmNum = maxKmRaw ? Number(maxKmRaw) : NaN;
+  const maxKmActive = maxKmRaw !== "" && Number.isFinite(maxKmNum);
+  return (
+    Boolean(filters.q.trim()) ||
+    filters.coralTypes.length > 0 ||
+    filters.colours.length > 0 ||
+    filters.freeOnly ||
+    filters.saleOnly ||
+    filters.excludeSale ||
+    fulfilmentActive ||
+    maxKmActive ||
+    Boolean(filters.species.trim()) ||
+    filters.reefSafeOnly ||
+    filters.equipmentCategories.length > 0 ||
+    filters.equipmentConditions.length > 0
+  );
+}
+
 /** Read repeated coralType / colour / equipment params; supports legacy single-value URLs. */
 export function parseExploreFiltersFromSearchParams(sp: URLSearchParams): ExploreFilterState {
   const fulfilment = sp.get("fulfilment");
@@ -49,6 +86,8 @@ export function parseExploreFiltersFromSearchParams(sp: URLSearchParams): Explor
   const equipCondAll = sp
     .getAll("equipmentCondition")
     .flatMap((s) => s.split(",").map((x) => x.trim()).filter(Boolean));
+
+  const sort = parseSort(sp);
 
   return {
     q: sp.get("q")?.trim() ?? "",
@@ -64,6 +103,7 @@ export function parseExploreFiltersFromSearchParams(sp: URLSearchParams): Explor
     reefSafeOnly: sp.get("reefSafe") === "1",
     equipmentCategories: uniqueTrimmed(equipCatAll),
     equipmentConditions: uniqueTrimmed(equipCondAll),
+    ...(sort ? { sort } : {}),
   };
 }
 
@@ -123,6 +163,9 @@ export function buildExploreSearchHref(args: {
   }
   for (const c of f.equipmentConditions) {
     p.append("equipmentCondition", c);
+  }
+  if (f.sort === "recent" || f.sort === "price_asc" || f.sort === "price_desc") {
+    p.set("sort", f.sort);
   }
   const qs = p.toString();
   return qs ? `/explore?${qs}` : "/explore";

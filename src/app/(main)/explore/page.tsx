@@ -9,7 +9,11 @@ import {
   type DiscoverItemTab,
   discoverExchangeListings,
 } from "@/lib/discover-listings";
-import { buildExploreSearchHref, parseExploreFiltersFromSearchParams } from "@/lib/explore-search-href";
+import {
+  buildExploreSearchHref,
+  exploreFiltersImplyScopedSearch,
+  parseExploreFiltersFromSearchParams,
+} from "@/lib/explore-search-href";
 import { ExploreOwnerScopeNote, ExploreResultsGrid } from "./_components/explore-results-grid";
 import { ExploreShellSync } from "./_components/explore-shell-sync";
 
@@ -83,20 +87,7 @@ export default async function ExplorePage({
   const maxKmRaw = filters.maxKm;
   const maxKm = maxKmRaw ? Number(maxKmRaw) : undefined;
 
-  const searchActive =
-    str(sp.searched) === "1" ||
-    Boolean(filters.q.trim()) ||
-    filters.coralTypes.length > 0 ||
-    filters.colours.length > 0 ||
-    filters.freeOnly ||
-    filters.saleOnly ||
-    filters.excludeSale ||
-    fulfilmentParsed != null ||
-    (maxKm != null && Number.isFinite(maxKm)) ||
-    Boolean(filters.species.trim()) ||
-    filters.reefSafeOnly ||
-    filters.equipmentCategories.length > 0 ||
-    filters.equipmentConditions.length > 0;
+  const searchActive = str(sp.searched) === "1" || exploreFiltersImplyScopedSearch(filters);
 
   let validatedOwnerUserId: string | null = null;
   if (ownerParam && exchangeId) {
@@ -147,6 +138,7 @@ export default async function ExplorePage({
           equipmentConditions: filters.equipmentConditions.length ? filters.equipmentConditions : undefined,
           allowedKinds,
           allowItemsForSale: selected.exchange.allowItemsForSale,
+          sort: filters.sort,
         })
       : [];
 

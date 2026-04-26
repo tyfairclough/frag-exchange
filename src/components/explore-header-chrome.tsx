@@ -15,8 +15,10 @@ import {
 } from "@/lib/equipment-options";
 import {
   buildExploreSearchHref,
+  exploreFiltersImplyScopedSearch,
   parseExploreFiltersFromSearchParams,
   type ExploreFilterState,
+  type ExploreSortMode,
 } from "@/lib/explore-search-href";
 import type { EquipmentCategory, EquipmentCondition } from "@/generated/prisma/enums";
 
@@ -26,9 +28,16 @@ type MenuKey =
   | "colour"
   | "keyword"
   | "filters"
+  | "sort"
   | "species"
   | "equipCat"
   | "equipCond";
+
+const EXPLORE_SORT_OPTIONS: { value: ExploreSortMode; label: string }[] = [
+  { value: "price_asc", label: "Price (lowest to highest)" },
+  { value: "price_desc", label: "Price (highest to lowest)" },
+  { value: "recent", label: "Most recently added" },
+];
 
 type MobileSection =
   | "keyword"
@@ -145,11 +154,13 @@ export function ExploreHeaderChrome() {
   const rootRef = useRef<HTMLDivElement>(null);
   const searchModalRef = useRef<HTMLDivElement>(null);
   const filtersModalRef = useRef<HTMLDivElement>(null);
+  const sortModalRef = useRef<HTMLDivElement>(null);
   const lastTriggerRef = useRef<HTMLElement | null>(null);
   const modalHistoryRef = useRef(0);
 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [mobileSortOpen, setMobileSortOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [isDesktopCompact, setIsDesktopCompact] = useState(false);
   const [expanded, setExpanded] = useState<MobileSection | null>("keyword");
@@ -180,6 +191,7 @@ export function ExploreHeaderChrome() {
     const onPop = () => {
       setMobileSearchOpen(false);
       setMobileFiltersOpen(false);
+      setMobileSortOpen(false);
       modalHistoryRef.current = Math.max(0, modalHistoryRef.current - 1);
     };
     window.addEventListener("popstate", onPop);
@@ -197,6 +209,7 @@ export function ExploreHeaderChrome() {
     } else {
       setMobileSearchOpen(false);
       setMobileFiltersOpen(false);
+      setMobileSortOpen(false);
     }
     setTimeout(() => lastTriggerRef.current?.focus(), 0);
   }, []);
@@ -255,7 +268,7 @@ export function ExploreHeaderChrome() {
     };
   }, []);
 
-  const overlayOpen = mobileSearchOpen || mobileFiltersOpen;
+  const overlayOpen = mobileSearchOpen || mobileFiltersOpen || mobileSortOpen;
 
   useEffect(() => {
     if (!overlayOpen) {
@@ -346,11 +359,51 @@ export function ExploreHeaderChrome() {
     return () => document.removeEventListener("keydown", onKey);
   }, [mobileFiltersOpen, dismissModalOverlay]);
 
+  useEffect(() => {
+    if (!mobileSortOpen) {
+      return;
+    }
+    const el = sortModalRef.current;
+    if (!el) {
+      return;
+    }
+    const focusables = el.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    const list = [...focusables].filter((n) => !n.hasAttribute("disabled") && n.offsetParent !== null);
+    const first = list[0];
+    const last = list[list.length - 1];
+    first?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        dismissModalOverlay();
+        return;
+      }
+      if (e.key !== "Tab" || list.length === 0) {
+        return;
+      }
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        }
+      } else if (document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileSortOpen, dismissModalOverlay]);
+
   const openMobileSearch = useCallback(
     (el: HTMLElement | null) => {
       lastTriggerRef.current = el;
       pushModalHistory();
       setMobileFiltersOpen(false);
+      setMobileSortOpen(false);
       setMobileSearchOpen(true);
       setExpanded("keyword");
     },
@@ -362,7 +415,19 @@ export function ExploreHeaderChrome() {
       lastTriggerRef.current = el;
       pushModalHistory();
       setMobileSearchOpen(false);
+      setMobileSortOpen(false);
       setMobileFiltersOpen(true);
+    },
+    [pushModalHistory],
+  );
+
+  const openMobileSort = useCallback(
+    (el: HTMLElement | null) => {
+      lastTriggerRef.current = el;
+      pushModalHistory();
+      setMobileSearchOpen(false);
+      setMobileFiltersOpen(false);
+      setMobileSortOpen(true);
     },
     [pushModalHistory],
   );
@@ -485,6 +550,7 @@ export function ExploreHeaderChrome() {
         reefSafeOnly: false,
         equipmentCategories: [],
         equipmentConditions: [],
+        sort: d.sort,
       };
     });
     setExpanded("keyword");
@@ -499,14 +565,17 @@ export function ExploreHeaderChrome() {
     const normalizedTab = allowedTabs.some(([id]) => id === draft.itemTab)
       ? draft.itemTab
       : firstAllowed;
+    const filtersForHref = { ...draft, itemTab: normalizedTab };
+    const markSearched =
+      searchParams.get("searched") === "1" || exploreFiltersImplyScopedSearch(filtersForHref);
     const href = buildExploreSearchHref({
       exchangeId: draftExchangeId || model.exchangeId,
       ownerUserId: model.ownerUserId,
-      filters: { ...draft, itemTab: normalizedTab },
-      markSearched: true,
+      filters: filtersForHref,
+      markSearched,
     });
     navigateAfterClosingOverlay(href);
-  }, [draft, draftExchangeId, model, navigateAfterClosingOverlay]);
+  }, [draft, draftExchangeId, model, navigateAfterClosingOverlay, searchParams]);
 
   const clearFilters = useCallback(() => {
     if (!model) {
@@ -521,6 +590,27 @@ export function ExploreHeaderChrome() {
     });
     navigateAfterClosingOverlay(href);
   }, [draftExchangeId, model, navigateAfterClosingOverlay]);
+
+  const clearSort = useCallback(() => {
+    if (!model) {
+      return;
+    }
+    const allowedTabs = itemTabOptionsFor(model.allowedItemTabs);
+    const firstAllowed = allowedTabs[0]?.[0] ?? "coral";
+    const normalizedTab = allowedTabs.some(([id]) => id === draft.itemTab) ? draft.itemTab : firstAllowed;
+    const nextFilters: ExploreFilterState = { ...draft, itemTab: normalizedTab };
+    delete nextFilters.sort;
+    setDraft(nextFilters);
+    const markSearched =
+      searchParams.get("searched") === "1" || exploreFiltersImplyScopedSearch(nextFilters);
+    const href = buildExploreSearchHref({
+      exchangeId: draftExchangeId || model.exchangeId,
+      ownerUserId: model.ownerUserId,
+      filters: nextFilters,
+      markSearched,
+    });
+    navigateAfterClosingOverlay(href);
+  }, [draft, draftExchangeId, model, navigateAfterClosingOverlay, searchParams]);
 
   const clearMobileSearchFields = useCallback(() => {
     setDraft((d) => {
@@ -1518,6 +1608,73 @@ export function ExploreHeaderChrome() {
     </>
   );
 
+  const sortPanelInner = (
+    <div role="radiogroup" aria-label="Sort listings" className="flex flex-col gap-2">
+      {EXPLORE_SORT_OPTIONS.map(({ value, label }) => (
+        <label
+          key={value}
+          className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200/80 px-3 py-2.5 text-sm text-slate-800 hover:bg-slate-50 has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50/40"
+        >
+          <input
+            type="radio"
+            name="explore-sort"
+            className="radio radio-sm"
+            checked={draft.sort === value}
+            onChange={() => setDraft((d) => ({ ...d, sort: value }))}
+          />
+          {label}
+        </label>
+      ))}
+    </div>
+  );
+
+  const sortModal = (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 px-3 pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)] sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sort"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        aria-label="Close sort"
+        onClick={dismissModalOverlay}
+      />
+      <div
+        ref={sortModalRef}
+        className="relative z-[1] mb-3 w-full max-w-lg rounded-2xl border border-slate-200/90 bg-white shadow-lg sm:mb-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm min-h-9 rounded-full px-2 text-[#122B49]"
+            onClick={dismissModalOverlay}
+          >
+            <ChevronLeftIcon className="h-5 w-5" />
+            <span className="sr-only">Back</span>
+          </button>
+          <span className="text-sm font-semibold text-[#122B49]">Sort</span>
+          <span className="w-9" aria-hidden />
+        </div>
+        <div className="max-h-[min(70vh,28rem)] space-y-3 overflow-y-auto px-4 py-4">{sortPanelInner}</div>
+        <div className="flex gap-2 border-t border-slate-100 px-4 py-3">
+          <button type="button" className="btn btn-ghost btn-sm flex-1 rounded-full" onClick={clearSort}>
+            Clear
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm flex-1 rounded-full border-0 bg-emerald-500 hover:bg-emerald-600"
+            onClick={apply}
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div ref={rootRef} className="flex min-w-0 w-full md:flex-1 flex-col items-stretch justify-center gap-2 md:gap-2">
@@ -1527,10 +1684,10 @@ export function ExploreHeaderChrome() {
             <button
               type="button"
               className="btn btn-ghost btn-square btn-sm min-h-9 min-w-9 shrink-0 rounded-full text-[#122B49]"
-              aria-label="Back"
-              onClick={() => router.back()}
+              aria-label="Sort"
+              onClick={(e) => openMobileSort(e.currentTarget)}
             >
-              <ChevronLeftIcon className="h-5 w-5" />
+              <SortIcon className="h-5 w-5" />
             </button>
             <button
               type="button"
@@ -1559,36 +1716,76 @@ export function ExploreHeaderChrome() {
           {itemTabRow}
           <div className="flex min-w-0 w-full flex-1 items-center justify-center">
             {desktopPill}
-            <div className="relative ml-2 shrink-0">
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white px-4 py-2 text-sm font-medium text-[#122B49] shadow-sm hover:bg-slate-50"
-                onClick={() => setOpenMenu((m) => (m === "filters" ? null : "filters"))}
-                aria-expanded={openMenu === "filters"}
-              >
-                <FilterIcon className="h-4 w-4" />
-                Filters
-              </button>
-              {openMenu === "filters" ? (
-                <div className="absolute right-0 top-full z-30 mt-2 w-[min(100vw-2rem,22rem)] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-                  <div className="flex max-h-[min(70vh,28rem)] flex-col gap-3 overflow-y-auto">{filtersPanelInner}</div>
-                  <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3">
-                    <button type="button" className="btn btn-ghost btn-sm flex-1 rounded-full" onClick={clearFilters}>
-                      Clear
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm flex-1 rounded-full border-0 bg-emerald-500 hover:bg-emerald-600"
-                      onClick={() => {
-                        setOpenMenu(null);
-                        apply();
-                      }}
-                    >
-                      Apply
-                    </button>
+            <div className="ml-2 flex shrink-0 items-center gap-2">
+              <div className="relative">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white px-4 py-2 text-sm font-medium text-[#122B49] shadow-sm hover:bg-slate-50"
+                  onClick={() => setOpenMenu((m) => (m === "sort" ? null : "sort"))}
+                  aria-expanded={openMenu === "sort"}
+                >
+                  <SortIcon className="h-4 w-4" />
+                  Sort
+                </button>
+                {openMenu === "sort" ? (
+                  <div className="absolute right-0 top-full z-30 mt-2 w-[min(100vw-2rem,22rem)] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+                    <div className="flex max-h-[min(70vh,28rem)] flex-col gap-3 overflow-y-auto">{sortPanelInner}</div>
+                    <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm flex-1 rounded-full"
+                        onClick={() => {
+                          setOpenMenu(null);
+                          clearSort();
+                        }}
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm flex-1 rounded-full border-0 bg-emerald-500 hover:bg-emerald-600"
+                        onClick={() => {
+                          setOpenMenu(null);
+                          apply();
+                        }}
+                      >
+                        Apply
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
+              <div className="relative">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white px-4 py-2 text-sm font-medium text-[#122B49] shadow-sm hover:bg-slate-50"
+                  onClick={() => setOpenMenu((m) => (m === "filters" ? null : "filters"))}
+                  aria-expanded={openMenu === "filters"}
+                >
+                  <FilterIcon className="h-4 w-4" />
+                  Filters
+                </button>
+                {openMenu === "filters" ? (
+                  <div className="absolute right-0 top-full z-30 mt-2 w-[min(100vw-2rem,22rem)] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+                    <div className="flex max-h-[min(70vh,28rem)] flex-col gap-3 overflow-y-auto">{filtersPanelInner}</div>
+                    <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3">
+                      <button type="button" className="btn btn-ghost btn-sm flex-1 rounded-full" onClick={clearFilters}>
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm flex-1 rounded-full border-0 bg-emerald-500 hover:bg-emerald-600"
+                        onClick={() => {
+                          setOpenMenu(null);
+                          apply();
+                        }}
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
@@ -1596,6 +1793,7 @@ export function ExploreHeaderChrome() {
 
       {mobileSearchOpen ? createPortal(searchModal, document.body) : null}
       {mobileFiltersOpen ? createPortal(filtersModal, document.body) : null}
+      {mobileSortOpen ? createPortal(sortModal, document.body) : null}
     </>
   );
 }
@@ -1650,6 +1848,20 @@ function FilterIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M22 3H2l8 9.46V19l4 2v-8.54L22 3Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SortIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M7 4v16M7 4l3 3M7 4 4 7M17 20V4m0 16-3-3m3 3 3-3"
         stroke="currentColor"
         strokeWidth="1.75"
         strokeLinecap="round"
