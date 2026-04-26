@@ -88,6 +88,19 @@ export type DiscoverParams = {
   sort?: DiscoverSortMode;
 };
 
+/**
+ * Deterministic hash for stable pseudo-random ordering.
+ * This keeps pagination offsets consistent across API requests.
+ */
+function hashString(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
 function listingModeFilter(
   fulfilment: "POST" | "MEET",
 ): Prisma.InventoryItemWhereInput {
@@ -308,6 +321,15 @@ async function computeSortedDiscoverRows(params: DiscoverParams): Promise<Discov
   });
 
   const sortMode = params.sort;
+  const defaultRandomizedOrder =
+    params.ownerUserId == null
+      ? (a: DiscoverRow, b: DiscoverRow) => {
+          const ar = hashString(`${params.exchangeId}:${a.listingId}`);
+          const br = hashString(`${params.exchangeId}:${b.listingId}`);
+          if (ar !== br) return ar - br;
+          return a.listingId.localeCompare(b.listingId);
+        }
+      : null;
 
   const defaultIntentThenRecency = (a: DiscoverRow, b: DiscoverRow) => {
     const tieListing = a.listingId.localeCompare(b.listingId);
@@ -347,6 +369,9 @@ async function computeSortedDiscoverRows(params: DiscoverParams): Promise<Discov
       return tieListing;
     }
 
+    if (defaultRandomizedOrder) {
+      return defaultRandomizedOrder(a, b);
+    }
     return defaultIntentThenRecency(a, b);
   });
 
