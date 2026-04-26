@@ -76,10 +76,6 @@ function CandidateImageThumb({ imageUrl, kind }: { imageUrl: string | null; kind
   const showRemote = Boolean(trimmedUrl && failedUrl !== trimmedUrl);
   const fallback = fallbackVisual(kind);
 
-  useEffect(() => {
-    setFailedUrl(null);
-  }, [trimmedUrl]);
-
   if (!showRemote) {
     return (
       <span
