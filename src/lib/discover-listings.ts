@@ -21,6 +21,8 @@ import {
   parseEquipmentConditionFromForm,
 } from "@/lib/equipment-options";
 
+export { EXPLORE_LISTINGS_PAGE_SIZE } from "@/lib/discover-listings-constants";
+
 export type DiscoverItemTab = "coral" | "fish" | "equipment";
 
 /** URL `sort=` values for explore listing order (see explore-search-href). */
@@ -149,7 +151,7 @@ function tabToKind(tab: DiscoverItemTab): InventoryKind {
   return InventoryKind.CORAL;
 }
 
-export async function discoverExchangeListings(params: DiscoverParams): Promise<DiscoverRow[]> {
+async function computeSortedDiscoverRows(params: DiscoverParams): Promise<DiscoverRow[]> {
   const now = new Date();
   const q = params.q?.trim();
   const typesIn = parseStoredTypes(params.coralTypes);
@@ -354,6 +356,19 @@ export async function discoverExchangeListings(params: DiscoverParams): Promise<
   }
 
   return saleEligibleRows;
+}
+
+export async function discoverExchangeListings(params: DiscoverParams): Promise<DiscoverRow[]> {
+  return computeSortedDiscoverRows(params);
+}
+
+export async function discoverExchangeListingsSlice(
+  params: DiscoverParams,
+  offset: number,
+  limit: number,
+): Promise<{ total: number; rows: DiscoverRow[] }> {
+  const all = await computeSortedDiscoverRows(params);
+  return { total: all.length, rows: all.slice(offset, offset + limit) };
 }
 
 export const DISCOVER_CORAL_TYPES = CORAL_TYPES;
