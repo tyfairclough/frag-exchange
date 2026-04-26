@@ -4,6 +4,7 @@ import { consumeMagicLink, createSession } from "@/lib/auth";
 import { ensureDatabaseReadyUncached } from "@/lib/db-warm";
 import { setOnboardingNextCookie } from "@/lib/onboarding-next-cookie";
 import { getRequestOrigin } from "@/lib/request-origin";
+import { hasCompletedRequiredOnboarding } from "@/lib/onboarding-status";
 
 export async function GET(request: Request) {
   const base = await getRequestOrigin();
@@ -24,13 +25,14 @@ export async function GET(request: Request) {
   }
 
   const nextPath = await consumeAuthNextCookie();
-  if (nextPath && !user.onboardingCompletedAt) {
+  const hasCompletedOnboarding = hasCompletedRequiredOnboarding(user);
+  if (nextPath && !hasCompletedOnboarding) {
     await setOnboardingNextCookie(nextPath);
   }
   const destination =
-    nextPath && user.onboardingCompletedAt
+    nextPath && hasCompletedOnboarding
       ? nextPath
-      : user.onboardingCompletedAt
+      : hasCompletedOnboarding
         ? "/"
         : "/onboarding";
   const redirectRes = NextResponse.redirect(new URL(destination, base));

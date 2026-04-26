@@ -4,6 +4,7 @@ import { PublicHomepage } from "@/components/marketing/public-homepage";
 import { getCurrentUser } from "@/lib/auth";
 import { ensureDatabaseReady } from "@/lib/db-warm";
 import { getRecentPublicExchangeListings } from "@/lib/marketing-listings";
+import { hasCompletedRequiredOnboarding } from "@/lib/onboarding-status";
 
 export const metadata: Metadata = {
   title: "Swap corals with local reefers",
@@ -17,7 +18,7 @@ export default async function RootHomePage() {
   await ensureDatabaseReady();
   const user = await getCurrentUser();
   if (user) {
-    if (!user.onboardingCompletedAt) {
+    if (!hasCompletedRequiredOnboarding(user)) {
       redirect("/onboarding");
     }
     redirect("/exchanges");

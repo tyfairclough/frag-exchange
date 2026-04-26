@@ -10,6 +10,7 @@ import {
 } from "@/lib/suggested-alias";
 import { MARKETING_CTA_GREEN, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 import { IdealPostcodesAddressLookup } from "./ideal-postcodes-address-lookup";
+import { hasCompletedRequiredOnboarding } from "@/lib/onboarding-status";
 
 export default async function OnboardingPage({
   searchParams,
@@ -24,7 +25,7 @@ export default async function OnboardingPage({
   const params = await searchParams;
   const mode = params.mode === "address" ? "address" : "wizard";
 
-  if (mode !== "address" && user.onboardingCompletedAt) {
+  if (mode !== "address" && hasCompletedRequiredOnboarding(user)) {
     redirect("/");
   }
   const addr = user.address;

@@ -6,13 +6,14 @@ import { ensureDatabaseReady } from "@/lib/db-warm";
 import { getPrisma } from "@/lib/db";
 import { isSuperAdmin } from "@/lib/super-admin";
 import { redirect } from "next/navigation";
+import { hasCompletedRequiredOnboarding } from "@/lib/onboarding-status";
 
 export const dynamic = "force-dynamic";
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   await ensureDatabaseReady();
   const user = await requireUser();
-  if (!user.onboardingCompletedAt) {
+  if (!hasCompletedRequiredOnboarding(user)) {
     redirect("/onboarding");
   }
 

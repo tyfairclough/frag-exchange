@@ -12,6 +12,7 @@ import { verifyPassword } from "@/lib/password";
 import { isDevMagicLinkViaEmail } from "@/lib/dev-magic-link-mode";
 import { sendMagicLinkEmail } from "@/lib/send-magic-link-email";
 import { consumeRateLimitToken, getRequestIp } from "@/lib/rate-limit";
+import { hasCompletedRequiredOnboarding } from "@/lib/onboarding-status";
 
 export async function requestMagicLinkAction(formData: FormData) {
   const ip = await getRequestIp();
@@ -82,7 +83,13 @@ export async function signInWithPasswordAction(formData: FormData) {
   try {
     const user = await getPrisma().user.findUnique({
       where: { email },
-      select: { id: true, passwordHash: true, onboardingCompletedAt: true },
+      select: {
+        id: true,
+        passwordHash: true,
+        onboardingCompletedAt: true,
+        tosAcceptedAt: true,
+        privacyAcceptedAt: true,
+      },
     });
 
     if (!user?.passwordHash) {
@@ -97,11 +104,12 @@ export async function signInWithPasswordAction(formData: FormData) {
     await createSession(user.id);
 
     const nextPath = await consumeAuthNextCookie();
-    if (nextPath && !user.onboardingCompletedAt) {
+    const hasCompletedOnboarding = hasCompletedRequiredOnboarding(user);
+    if (nextPath && !hasCompletedOnboarding) {
       await setOnboardingNextCookie(nextPath);
     }
     const destination =
-      nextPath && user.onboardingCompletedAt ? nextPath : user.onboardingCompletedAt ? "/" : "/onboarding";
+      nextPath && hasCompletedOnboarding ? nextPath : hasCompletedOnboarding ? "/" : "/onboarding";
     redirect(destination);
   } catch (e) {
     if (isRedirectError(e)) throw e;

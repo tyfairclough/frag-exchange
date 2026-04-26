@@ -34,6 +34,11 @@ function memberTierLabel(role: UserPostingRole | null) {
 
 const userErrors: Record<string, string> = {
   invalid: "That request was not valid.",
+  "invalid-email": "Enter a valid email address.",
+  "alias-taken": "That username is already taken.",
+  "alias-length": "Username must be 80 characters or fewer.",
+  "alias-words": "Could not auto-generate a username. Please enter one manually.",
+  "exchange-invalid": "One or more selected exchanges no longer exist.",
   "not-found": "User not found.",
   "last-admin": "You cannot remove the last super admin account.",
   "delete-self": "You cannot delete your own account.",
@@ -43,7 +48,14 @@ const userErrors: Record<string, string> = {
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; error?: string; updated?: string; deleted?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    error?: string;
+    updated?: string;
+    deleted?: string;
+    created?: string;
+    invite?: string;
+  }>;
 }) {
   const params = await searchParams;
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
@@ -90,19 +102,36 @@ export default async function AdminUsersPage({
         >
           Back to dashboard
         </BackLink>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: MARKETING_NAVY }}>
-            Users
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {total} user{total === 1 ? "" : "s"} · page {page} of {totalPages}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: MARKETING_NAVY }}>
+              Users
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              {total} user{total === 1 ? "" : "s"} · page {page} of {totalPages}
+            </p>
+          </div>
+          <Link
+            href="/admin/users/new"
+            className="rounded-full px-5 py-2 text-sm font-semibold text-white no-underline"
+            style={{ backgroundColor: MARKETING_LINK_BLUE }}
+          >
+            Add Reefer
+          </Link>
         </div>
       </div>
 
       {params.updated ? (
         <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           User updated.
+        </div>
+      ) : null}
+
+      {params.created ? (
+        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          User created and invite sent.
+          {params.invite === "failed" ? " Invite email failed to send; retry by asking the user to request a magic link." : null}
+          {params.invite === "skipped" ? " Invite email was skipped because email provider config is missing." : null}
         </div>
       ) : null}
 

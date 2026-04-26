@@ -90,15 +90,17 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
           </div>
         </div>
         <div className="relative mx-auto flex w-full max-w-md flex-col justify-end lg:max-w-none">
-          {/* eslint-disable-next-line @next/next/no-img-element -- static marketing SVG from /public */}
-          <img
-            src="/marketing/coral_illustration_001.svg"
-            alt=""
+          <video
+            src="https://uploads.reefx.net/videos/coral_composition_640.mp4"
             width={640}
             height={335}
             className="block h-auto w-full object-contain"
-            decoding="async"
-            fetchPriority="high"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="none"
+            aria-hidden
           />
         </div>
       </section>
