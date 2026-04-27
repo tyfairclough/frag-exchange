@@ -32,6 +32,11 @@
   line-height: 1.05;
 }
 
+[data-plain="true"] .title {
+  background-color: unset;
+  background: unset;
+}
+
 .aurora {
   position: absolute;
   inset: 0;
@@ -39,6 +44,10 @@
   /* Inverse of the pen’s `darken` so coloured blobs read on white + dark text */
   mix-blend-mode: lighten;
   pointer-events: none;
+}
+
+[data-plain="true"] .aurora {
+  display: none;
 }
 
 .item {

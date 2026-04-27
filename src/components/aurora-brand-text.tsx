@@ -9,6 +9,8 @@ type AuroraBrandTextProps = {
   background?: string;
   /** Text / letter colour under the aurora layer */
   textColor?: string;
+  /** Render as plain text (no aurora overlay / white background fill). */
+  plain?: boolean;
   size?: AuroraBrandTextSize;
   title?: string;
 };
@@ -17,6 +19,7 @@ export function AuroraBrandText({
   className,
   background = "#ffffff",
   textColor = "#0b1e3b",
+  plain = false,
   size = "md",
   title,
 }: AuroraBrandTextProps) {
@@ -29,6 +32,7 @@ export function AuroraBrandText({
     <span
       className={[styles.root, className].filter(Boolean).join(" ")}
       data-size={size}
+      data-plain={plain ? "true" : "false"}
       style={cssVars}
       title={title}
     >

@@ -64,6 +64,7 @@ function ShellTitleLabel({ title, showSwitchIcon = true }: { title: string; show
 
 function ShellTitleInner() {
   const pathname = usePathname();
+  const [isExploreBrandPlain, setIsExploreBrandPlain] = useState(false);
 
   const exchangeId = useMemo(() => {
     if (pathname === "/explore") {
@@ -73,6 +74,23 @@ function ShellTitleInner() {
   }, [pathname]);
 
   const [exchangeTitle, setExchangeTitle] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (pathname !== "/explore") {
+      setIsExploreBrandPlain(false);
+      return;
+    }
+
+    const syncBrandMode = () => {
+      setIsExploreBrandPlain(window.scrollY > 0);
+    };
+
+    syncBrandMode();
+    window.addEventListener("scroll", syncBrandMode, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", syncBrandMode);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (!exchangeId) {
@@ -111,6 +129,7 @@ function ShellTitleInner() {
       <AuroraBrandText
         className="min-w-0 font-semibold tracking-tight sm:max-w-[12rem]"
         textColor="#122B49"
+        plain={isExploreBrandPlain}
         title="REEFxCHANGE"
       />
     );
