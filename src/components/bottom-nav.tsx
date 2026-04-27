@@ -96,6 +96,7 @@ function NavLinks({
   profile: BottomNavProfile;
 }) {
   const pathname = usePathname();
+  const aboutExchangeId = pathname === "/explore" ? (exploreExchangeIdParam?.trim() || null) : null;
   const avatarImageUrl = useMemo(
     () =>
       userAvatarUrlForUi({
@@ -117,6 +118,15 @@ function NavLinks({
       },
       { key: "add-item", href: "/my-items/new", label: "Add item", kind: "icon", icon: AddCoralIcon },
     ];
+    if (aboutExchangeId) {
+      items.splice(2, 0, {
+        key: "about-exchange",
+        href: `/exchanges/${encodeURIComponent(aboutExchangeId)}?view=about`,
+        label: "About exchange",
+        kind: "icon",
+        icon: ExchangeInfoIcon,
+      });
+    }
     let next = items;
     if (pathname === "/exchanges") {
       next = items.map((i) =>
@@ -144,16 +154,14 @@ function NavLinks({
       return next.filter((i) => i.key !== "explore");
     }
     return next;
-  }, [avatarImageUrl, pathname, exploreExchangeIdParam, profile.avatarEmoji]);
+  }, [aboutExchangeId, avatarImageUrl, pathname, exploreExchangeIdParam, profile.avatarEmoji]);
 
   return (
     <ul className="mx-auto flex max-w-2xl items-stretch justify-around gap-1 px-2 pt-1">
       {nav.map((item) => {
         const { key, href, label } = item;
         const isExplore = key === "explore";
-        const active = isExplore
-          ? pathname === "/explore"
-          : pathname === href || pathname.startsWith(`${href}/`);
+        const active = isExplore ? pathname === "/explore" : pathname === href || pathname.startsWith(`${href}/`);
         const Icon = item.kind === "icon" ? item.icon : null;
         const glyph =
           item.kind === "avatar" ? (
@@ -306,6 +314,20 @@ function AddCoralIcon() {
         stroke="currentColor"
         strokeWidth="1.75"
         strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ExchangeInfoIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
+      <path
+        d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-10v5m0-8h.01"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

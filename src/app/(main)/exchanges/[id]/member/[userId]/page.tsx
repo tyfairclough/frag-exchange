@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BusinessAccountOwnership, ExchangeKind, UserPostingRole } from "@/generated/prisma/enums";
+import { BusinessAccountOwnership, ExchangeKind, ListingIntent, UserPostingRole } from "@/generated/prisma/enums";
 import { hasRecentBusinessClaim } from "@/lib/business-claim";
 import { getPrisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -9,13 +9,38 @@ import { CoralListingCard } from "@/components/coral-listing-card";
 import { discoverExchangeListings } from "@/lib/discover-listings";
 import { BackLink } from "@/components/back-link";
 
+type MemberIntentTabId = "swap" | "free" | "sale";
+
+function parseRequestedIntentTab(raw: string | undefined): MemberIntentTabId | null {
+  if (raw === "swap" || raw === "free" || raw === "sale") {
+    return raw;
+  }
+  return null;
+}
+
+function pickInitialIntentTab(
+  requested: MemberIntentTabId | null,
+  counts: Record<MemberIntentTabId, number>,
+): MemberIntentTabId {
+  if (requested && counts[requested] > 0) {
+    return requested;
+  }
+  if (counts.swap > 0) return "swap";
+  if (counts.free > 0) return "free";
+  if (counts.sale > 0) return "sale";
+  return "swap";
+}
+
 export default async function ExchangeMemberListingsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; userId: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const viewer = await requireUser();
   const { id: exchangeId, userId: ownerUserId } = await params;
+  const sp = await searchParams;
 
   const exchange = await getPrisma().exchange.findUnique({
     where: { id: exchangeId },
@@ -65,6 +90,19 @@ export default async function ExchangeMemberListingsPage({
   });
 
   const isSelf = ownerUserId === viewer.id;
+  const swapRows = rows.filter((row) => row.listingIntent === ListingIntent.SWAP);
+  const freeRows = rows.filter((row) => row.listingIntent === ListingIntent.FREE);
+  const saleRows = rows.filter((row) => row.listingIntent === ListingIntent.FOR_SALE);
+  const tabCounts: Record<MemberIntentTabId, number> = {
+    swap: swapRows.length,
+    free: freeRows.length,
+    sale: saleRows.length,
+  };
+  const requestedTab = parseRequestedIntentTab(sp.tab);
+  const activeTab = pickInitialIntentTab(requestedTab, tabCounts);
+  const activeRows = activeTab === "swap" ? swapRows : activeTab === "free" ? freeRows : saleRows;
+  const tabHref = (tab: MemberIntentTabId) =>
+    `/exchanges/${encodeURIComponent(exchangeId)}/member/${encodeURIComponent(ownerUserId)}?tab=${tab}`;
 
   const isCommercialTier =
     owner.postingRole === UserPostingRole.LFS || owner.postingRole === UserPostingRole.ONLINE_RETAILER;
@@ -81,25 +119,23 @@ export default async function ExchangeMemberListingsPage({
       </BackLink>
 
       <header className="space-y-2">
-        <h1 className="text-xl font-semibold text-base-content">
-          {owner.avatarEmoji ? `${owner.avatarEmoji} ` : ""}
-          {owner.alias ?? "Member"}
-          {isSelf ? " (you)" : ""}
-        </h1>
+        <div className="flex items-center gap-3">
+          <span
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800 text-lg leading-none text-white"
+            aria-hidden
+          >
+            {owner.avatarEmoji ?? "🐠"}
+          </span>
+          <h1 className="text-xl font-semibold text-base-content">
+            {owner.alias ?? "Member"}
+            {isSelf ? " (you)" : ""}
+          </h1>
+        </div>
         <p className="text-sm text-base-content/70">
           Active listings on <span className="font-medium text-base-content">{exchange.name}</span>
           {exchange.kind === ExchangeKind.GROUP ? " · Distances are town-centre estimates." : ""}
         </p>
       </header>
-
-      {!isSelf ? (
-        <Link
-          href={`/exchanges/${encodeURIComponent(exchangeId)}/trade?with=${encodeURIComponent(ownerUserId)}`}
-          className="btn btn-primary btn-sm min-h-10 w-fit rounded-xl"
-        >
-          Start trade
-        </Link>
-      ) : null}
 
       {showClaimBusinessCta ? (
         <Link
@@ -113,19 +149,65 @@ export default async function ExchangeMemberListingsPage({
       {rows.length === 0 ? (
         <p className="text-sm text-base-content/70">No active listings from this member on this exchange.</p>
       ) : (
-        <ul className="grid grid-cols-1 gap-5">
-          {rows.map((row) => (
-            <li key={row.listingId}>
-              <CoralListingCard
-                row={row}
-                exchangeId={exchangeId}
-                idPrefix="member"
-                tradeEnabled={!isSelf}
-                sellerLinkEnabled={!isSelf}
-              />
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-4">
+          <div
+            role="tablist"
+            aria-label="Member listing intents"
+            className="tabs tabs-border tabs-md min-w-0 flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {(
+              [
+                { id: "swap", label: "Swap" },
+                { id: "free", label: "Free to good home" },
+                { id: "sale", label: "For sale" },
+              ] as const
+            ).map((tab) => {
+              const count = tabCounts[tab.id];
+              const disabled = count === 0;
+              const isActive = activeTab === tab.id;
+              return (
+                <Link
+                  key={tab.id}
+                  href={disabled ? "#" : tabHref(tab.id)}
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-disabled={disabled}
+                  tabIndex={disabled ? -1 : isActive ? 0 : -1}
+                  className={`tab shrink-0 whitespace-nowrap font-semibold${isActive ? " tab-active" : ""}${disabled ? " pointer-events-none opacity-45" : ""}`}
+                >
+                  {tab.label}
+                  <span className="ml-1.5 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700 tabular-nums">
+                    {count}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          {activeRows.length === 0 ? (
+            <p className="text-sm text-base-content/70">
+              {activeTab === "swap"
+                ? "No swap listings from this member on this exchange."
+                : activeTab === "free"
+                  ? "No free-to-good-home listings from this member on this exchange."
+                  : "No for-sale listings from this member on this exchange."}
+            </p>
+          ) : (
+            <ul className="grid grid-cols-1 gap-5">
+              {activeRows.map((row) => (
+                <li key={row.listingId}>
+                  <CoralListingCard
+                    row={row}
+                    exchangeId={exchangeId}
+                    idPrefix="member"
+                    tradeEnabled={!isSelf}
+                    sellerLinkEnabled={!isSelf}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );

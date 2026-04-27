@@ -48,6 +48,7 @@ export default async function ExchangeDetailPage({
     listed?: string;
     unlisted?: string;
     item?: string;
+    view?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -78,6 +79,7 @@ export default async function ExchangeDetailPage({
   const errorMessage = sp.error ? detailErrors[sp.error] ?? "Something went wrong." : null;
 
   const now = new Date();
+  const exploreHref = `/explore?exchangeId=${encodeURIComponent(exchange.id)}`;
 
   if (membership && canView && (sp.listed === "1" || sp.unlisted === "1")) {
     const q = new URLSearchParams();
@@ -86,6 +88,18 @@ export default async function ExchangeDetailPage({
     const itemTrim = sp.item?.trim();
     if (itemTrim) q.set("item", itemTrim);
     redirect(`/exchanges/${encodeURIComponent(id)}/listings?${q.toString()}`);
+  }
+
+  if (sp.view !== "about") {
+    const q = new URLSearchParams();
+    if (sp.joined) q.set("joined", sp.joined);
+    if (sp.updated) q.set("updated", sp.updated);
+    if (sp.error) q.set("error", sp.error);
+    if (sp.listed) q.set("listed", sp.listed);
+    if (sp.unlisted) q.set("unlisted", sp.unlisted);
+    if (sp.item) q.set("item", sp.item);
+    const query = q.toString();
+    redirect(query ? `${exploreHref}&${query}` : exploreHref);
   }
 
   let exchangeWideActiveListingCount = 0;
@@ -148,7 +162,6 @@ export default async function ExchangeDetailPage({
     );
   }
 
-  const exploreHref = `/explore?exchangeId=${encodeURIComponent(exchange.id)}`;
   const tradesHref = `/exchanges/${encodeURIComponent(exchange.id)}/trades`;
   const listingsHref = `/exchanges/${encodeURIComponent(exchange.id)}/listings`;
   const headerLogoUrl = exchangeLogoUrlForListThumbnail(exchange);
