@@ -77,7 +77,6 @@ function ShellTitleInner() {
 
   useEffect(() => {
     if (pathname !== "/explore") {
-      setIsExploreBrandPlain(false);
       return;
     }
 
@@ -85,9 +84,10 @@ function ShellTitleInner() {
       setIsExploreBrandPlain(window.scrollY > 0);
     };
 
-    syncBrandMode();
+    const initId = window.requestAnimationFrame(syncBrandMode);
     window.addEventListener("scroll", syncBrandMode, { passive: true });
     return () => {
+      window.cancelAnimationFrame(initId);
       window.removeEventListener("scroll", syncBrandMode);
     };
   }, [pathname]);
