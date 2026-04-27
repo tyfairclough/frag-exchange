@@ -30,6 +30,7 @@ Typical Hostinger Next.js preset expectations:
 - **Install:** `npm install` (or `npm ci` if you deploy `package-lock.json`).
 - **Build:** `npm run build` — runs **`prisma migrate deploy`**, then `prisma generate`, then `next build`. Pending migrations apply automatically on every deploy that runs this script.
 - **Start:** `npm run start` — runs `next start` (ensure the panel’s **application port** matches what Next uses, usually `3000`, per Hostinger’s preset).
+- **Health check path (important):** set Hostinger’s process health/restart probe to **`/api/live`** (liveness). Do **not** use DB-backed routes for process restart checks.
 
 **Environment at build time:** `DATABASE_URL` and **`DIRECT_URL`** must be available when the panel runs **`npm run build`**, not only at runtime. Shared Hostinger Node.js presets usually inject the same variables for install/build/start — if `migrate deploy` fails during build with a connection error, confirm with support that build jobs see your env, or use the fallbacks in section 4.
 
@@ -57,6 +58,14 @@ REEFxCHANGE user uploads are runtime-generated files and must not be written int
 ## 5. Database source
 
 Use **Neon Postgres** as the primary database. Prisma schema provider is **`postgresql`** and runtime uses Prisma's native Postgres engine with `DATABASE_URL` (pooled) + `DIRECT_URL` (direct).
+
+## 5b. Probe strategy (liveness vs readiness)
+
+To avoid restart loops during transient DB outages:
+
+- **Liveness (`/api/live`)**: process-only check; should return `200` whenever Next.js is up.
+- **Readiness (`/api/health`)**: dependency check; returns `200` when DB responds and `503` when DB is unavailable.
+- Configure Hostinger restart/health probes to use **`/api/live`** so DB blips do not recycle the app process.
 
 ## 6. Scheduled housekeeping (Chunk 10)
 
@@ -91,7 +100,9 @@ Response JSON includes `bulkImportJobsEnqueued` and `importJobsProcessed`.
 - [ ] `UPLOADS_PUBLIC_BASE_URL` is set to `https://uploads.reefx.net` and correctly serves uploaded files  
 - [ ] `npm run build` succeeds on the server — build logs should show Prisma applying migrations (or “already in sync”) before `next build`  
 - [ ] `npm run start` matches panel port / proxy settings  
+- [ ] Hostinger health/restart probe path points to `/api/live` (liveness only)  
 - [ ] `/api/health` returns `{ "ok": true, "database": "up" }` when DB is reachable  
+- [ ] `/api/live` returns `{ "ok": true, "probe": "liveness", ... }` with status `200`  
 - [ ] Optional: `CRON_SECRET` + cron hitting `/api/cron/housekeeping` for listing/trade expiry  
 - [ ] Optional: weekly `CRON_SECRET` + cron hitting `/api/cron/bulk-import-refresh` for bulk import auto-refresh  
 

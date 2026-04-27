@@ -64,7 +64,8 @@ UI is built with **Tailwind CSS + daisyUI** (`daisyui` plugin in `globals.css`) 
    ```
 
    - App: [http://localhost:3111](http://localhost:3111) (port **3111** to avoid clashing with 3000 and 3001–3010)
-   - Health (includes DB ping): [http://localhost:3111/api/health](http://localhost:3111/api/health)
+   - Liveness (process only): [http://localhost:3111/api/live](http://localhost:3111/api/live)
+   - Readiness (includes DB ping): [http://localhost:3111/api/health](http://localhost:3111/api/health)
 
 ## Scripts
 
@@ -107,5 +108,6 @@ See **[docs/deploy-hostinger.md](./docs/deploy-hostinger.md)** for panel setting
 ## Project layout (Chunk 1)
 
 - `src/app/(main)/` — routed UI inside the app shell (home, explore, me placeholders)
-- `src/app/api/health` — JSON health check with database connectivity
+- `src/app/api/live` — JSON liveness check (process-only, no DB dependency)
+- `src/app/api/health` — JSON readiness check with database connectivity
 - `prisma/` — schema and migrations (`users` baseline table)
