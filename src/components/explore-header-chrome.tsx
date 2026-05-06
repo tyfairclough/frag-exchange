@@ -172,7 +172,9 @@ export function ExploreHeaderChrome() {
   useEffect(() => {
     const sp = new URLSearchParams(searchParams.toString());
     const next = parseExploreFiltersFromSearchParams(sp);
-    setDraft(next);
+    queueMicrotask(() => {
+      setDraft(next);
+    });
   }, [searchParams]);
 
   useEffect(() => {
@@ -180,7 +182,9 @@ export function ExploreHeaderChrome() {
     if (!id) {
       return;
     }
-    setDraftExchangeId(id);
+    queueMicrotask(() => {
+      setDraftExchangeId(id);
+    });
   }, [model?.exchangeId]);
 
   useEffect(() => {
