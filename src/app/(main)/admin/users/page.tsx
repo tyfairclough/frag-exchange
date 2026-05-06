@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   BusinessAccountOwnership,
   ExchangeMembershipRole,
@@ -17,6 +18,16 @@ import { requireSuperAdmin } from "@/lib/require-super-admin";
 import { BackLink } from "@/components/back-link";
 
 const PAGE_SIZE = 25;
+const FALLBACK_AVATAR = "🐠";
+type LoginFilter = "all" | "never" | "has";
+type UserSort =
+  | "joined-desc"
+  | "joined-asc"
+  | "last-login-desc"
+  | "last-login-asc"
+  | "listings-desc"
+  | "items-desc"
+  | "trades-desc";
 
 function platformRoleLabel(role: UserGlobalRole) {
   return role === UserGlobalRole.SUPER_ADMIN ? "Super admin" : "Member";
@@ -30,6 +41,32 @@ function memberTierLabel(role: UserPostingRole | null) {
     return "Online retailer";
   }
   return "None";
+}
+
+function formatDateTime(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function parseLoginFilter(raw: string | undefined): LoginFilter {
+  if (raw === "never" || raw === "has") {
+    return raw;
+  }
+  return "all";
+}
+
+function parseUserSort(raw: string | undefined): UserSort {
+  if (
+    raw === "joined-desc" ||
+    raw === "joined-asc" ||
+    raw === "last-login-desc" ||
+    raw === "last-login-asc" ||
+    raw === "listings-desc" ||
+    raw === "items-desc" ||
+    raw === "trades-desc"
+  ) {
+    return raw;
+  }
+  return "joined-desc";
 }
 
 const userErrors: Record<string, string> = {
@@ -50,6 +87,8 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<{
     page?: string;
+    login?: string;
+    sort?: string;
     error?: string;
     updated?: string;
     deleted?: string;
@@ -58,16 +97,15 @@ export default async function AdminUsersPage({
   }>;
 }) {
   const params = await searchParams;
+  const loginFilter = parseLoginFilter(params.login);
+  const sortBy = parseUserSort(params.sort);
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
-  const skip = (page - 1) * PAGE_SIZE;
 
   const actor = await requireSuperAdmin();
   const db = getPrisma();
-  const [users, total, superAdminCount] = await Promise.all([
+  const [users, totalUsers, superAdminCount] = await Promise.all([
     db.user.findMany({
       orderBy: { createdAt: "desc" },
-      skip,
-      take: PAGE_SIZE,
       select: {
         id: true,
         email: true,
@@ -76,6 +114,22 @@ export default async function AdminUsersPage({
         postingRole: true,
         businessAccountOwnership: true,
         createdAt: true,
+        avatarEmoji: true,
+        avatar40Url: true,
+        avatar80Url: true,
+        avatar256Url: true,
+        _count: {
+          select: {
+            inventoryItems: true,
+            tradesInitiated: true,
+            tradesAsPeer: true,
+          },
+        },
+        sessions: {
+          select: { createdAt: true },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
         exchangeMemberships: {
           where: { role: ExchangeMembershipRole.EVENT_MANAGER },
           select: {
@@ -88,9 +142,87 @@ export default async function AdminUsersPage({
     db.user.count(),
     db.user.count({ where: { globalRole: UserGlobalRole.SUPER_ADMIN } }),
   ]);
+  const listingCounts = await Promise.all(
+    users.map((u) =>
+      db.exchangeListing.count({
+        where: { inventoryItem: { is: { userId: u.id } } },
+      }),
+    ),
+  );
+  const listingCountByUserId = new Map(users.map((u, index) => [u.id, listingCounts[index] ?? 0]));
 
+  const usersWithEngagement = users.map((u) => {
+    const lastLoginAt = u.sessions[0]?.createdAt ?? null;
+    return {
+      ...u,
+      lastLoginAt,
+      listingCount: listingCountByUserId.get(u.id) ?? 0,
+      itemsCount: u._count.inventoryItems,
+      tradesCount: u._count.tradesInitiated + u._count.tradesAsPeer,
+    };
+  });
+
+  const filteredUsers = usersWithEngagement.filter((u) => {
+    if (loginFilter === "never") {
+      return u.lastLoginAt === null;
+    }
+    if (loginFilter === "has") {
+      return u.lastLoginAt !== null;
+    }
+    return true;
+  });
+
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    if (sortBy === "last-login-desc") {
+      return (b.lastLoginAt?.getTime() ?? -1) - (a.lastLoginAt?.getTime() ?? -1);
+    }
+    if (sortBy === "last-login-asc") {
+      return (a.lastLoginAt?.getTime() ?? Number.MAX_SAFE_INTEGER) - (b.lastLoginAt?.getTime() ?? Number.MAX_SAFE_INTEGER);
+    }
+    if (sortBy === "listings-desc") {
+      return b.listingCount - a.listingCount;
+    }
+    if (sortBy === "items-desc") {
+      return b.itemsCount - a.itemsCount;
+    }
+    if (sortBy === "trades-desc") {
+      return b.tradesCount - a.tradesCount;
+    }
+    if (sortBy === "joined-asc") {
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    }
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  });
+
+  const total = sortedUsers.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const skip = (currentPage - 1) * PAGE_SIZE;
+  const pagedUsers = sortedUsers.slice(skip, skip + PAGE_SIZE);
+
   const errorMessage = params.error ? userErrors[params.error] ?? "Something went wrong." : null;
+  const usersHref = (nextPage: number) => {
+    const qp = new URLSearchParams();
+    qp.set("page", String(nextPage));
+    if (loginFilter !== "all") {
+      qp.set("login", loginFilter);
+    }
+    if (sortBy !== "joined-desc") {
+      qp.set("sort", sortBy);
+    }
+    return `/admin/users?${qp.toString()}`;
+  };
+  const usersSortHref = (nextSort: UserSort) => {
+    const qp = new URLSearchParams();
+    qp.set("page", "1");
+    if (loginFilter !== "all") {
+      qp.set("login", loginFilter);
+    }
+    if (nextSort !== "joined-desc") {
+      qp.set("sort", nextSort);
+    }
+    return `/admin/users?${qp.toString()}`;
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -108,7 +240,9 @@ export default async function AdminUsersPage({
               Users
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              {total} user{total === 1 ? "" : "s"} · page {page} of {totalPages}
+              {total} user{total === 1 ? "" : "s"}
+              {total !== totalUsers ? ` (filtered from ${totalUsers})` : ""}
+              {" · "}page {currentPage} of {totalPages}
             </p>
           </div>
           <Link
@@ -147,25 +281,119 @@ export default async function AdminUsersPage({
         </div>
       ) : null}
 
+      <form method="get" className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="login-filter" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Login status
+          </label>
+          <select
+            id="login-filter"
+            name="login"
+            defaultValue={loginFilter}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+          >
+            <option value="all">All users</option>
+            <option value="never">Never logged in</option>
+            <option value="has">Has logged in</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="sort-by" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Sort by
+          </label>
+          <select
+            id="sort-by"
+            name="sort"
+            defaultValue={sortBy}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+          >
+            <option value="joined-desc">Joined (newest first)</option>
+            <option value="joined-asc">Joined (oldest first)</option>
+            <option value="last-login-desc">Last login (recent first)</option>
+            <option value="last-login-asc">Last login (oldest first)</option>
+            <option value="listings-desc">Listings (high to low)</option>
+            <option value="items-desc">Items (high to low)</option>
+            <option value="trades-desc">Trades (high to low)</option>
+          </select>
+        </div>
+        <button
+          type="submit"
+          className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          Apply
+        </button>
+        <Link
+          href="/admin/users"
+          className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+        >
+          Reset
+        </Link>
+      </form>
+
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full min-w-[40rem] text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3 normal-case">Email / Alias</th>
+              <th className="px-4 py-3 normal-case">User</th>
               <th className="px-4 py-3 normal-case">Role / Member tier</th>
+              <th className="px-4 py-3 normal-case">
+                <Link
+                  href={usersSortHref(sortBy === "last-login-desc" ? "last-login-asc" : "last-login-desc")}
+                  className="inline-flex items-center gap-1 hover:underline"
+                  style={{ color: MARKETING_LINK_BLUE }}
+                >
+                  Last login
+                  {sortBy === "last-login-desc" ? "↓" : null}
+                  {sortBy === "last-login-asc" ? "↑" : null}
+                </Link>
+              </th>
+              <th className="px-4 py-3 normal-case">Engagement</th>
               <th className="px-4 py-3">Event manager</th>
-              <th className="px-4 py-3">Joined</th>
+              <th className="px-4 py-3 normal-case">
+                <Link
+                  href={usersSortHref(sortBy === "joined-desc" ? "joined-asc" : "joined-desc")}
+                  className="inline-flex items-center gap-1 hover:underline"
+                  style={{ color: MARKETING_LINK_BLUE }}
+                >
+                  Joined
+                  {sortBy === "joined-desc" ? "↓" : null}
+                  {sortBy === "joined-asc" ? "↑" : null}
+                </Link>
+              </th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {users.map((u) => (
-              <tr key={u.id} className="align-top">
+            {pagedUsers.map((u) => {
+              const avatarUrl = u.avatar80Url || u.avatar40Url || u.avatar256Url;
+              const lastLoginAt = u.lastLoginAt;
+              const listingCount = u.listingCount;
+              const itemsCount = u.itemsCount;
+              const tradesCount = u.tradesCount;
+              return (
+                <tr key={u.id} className="align-top">
                 <td className="px-4 py-3">
-                  <div className="font-bold text-slate-900">{u.email}</div>
-                  {u.alias ? (
-                    <div className="mt-0.5 font-normal text-slate-600">{u.alias}</div>
-                  ) : null}
+                  <div className="flex items-start gap-3">
+                    {avatarUrl ? (
+                      <Image
+                        src={avatarUrl}
+                        alt={`${u.email} avatar`}
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded-full border border-slate-200 object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-lg">
+                        {u.avatarEmoji || FALLBACK_AVATAR}
+                      </div>
+                    )}
+                    <div>
+                      <div className="font-bold text-slate-900">{u.email}</div>
+                      {u.alias ? (
+                        <div className="mt-0.5 font-normal text-slate-600">{u.alias}</div>
+                      ) : null}
+                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="font-bold text-slate-900">{platformRoleLabel(u.globalRole)}</div>
@@ -176,6 +404,24 @@ export default async function AdminUsersPage({
                       {u.businessAccountOwnership === BusinessAccountOwnership.UNCLAIMED ? "Unclaimed" : "Claimed"}
                     </div>
                   ) : null}
+                </td>
+                <td className="px-4 py-3 text-slate-700">
+                  <span className="font-medium text-slate-900">
+                    {lastLoginAt ? formatDateTime(lastLoginAt) : "Never logged in"}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-700">
+                  <div className="space-y-0.5">
+                    <div>
+                      Listings: <span className="font-medium text-slate-900">{listingCount}</span>
+                    </div>
+                    <div>
+                      Items: <span className="font-medium text-slate-900">{itemsCount}</span>
+                    </div>
+                    <div>
+                      Trades: <span className="font-medium text-slate-900">{tradesCount}</span>
+                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-slate-700">
                   {u.exchangeMemberships.length === 0 ? (
@@ -197,7 +443,7 @@ export default async function AdminUsersPage({
                   )}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-slate-600">
-                  {u.createdAt.toISOString().slice(0, 10)}
+                  {formatDateTime(u.createdAt)}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <details className="group relative inline-block text-left">
@@ -279,25 +525,26 @@ export default async function AdminUsersPage({
                   </details>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {totalPages > 1 ? (
         <nav className="flex flex-wrap items-center justify-center gap-2 text-sm" aria-label="Pagination">
-          {page > 1 ? (
+          {currentPage > 1 ? (
             <Link
-              href={`/admin/users?page=${page - 1}`}
+              href={usersHref(currentPage - 1)}
               className="rounded-full border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-50"
               style={{ color: MARKETING_LINK_BLUE }}
             >
               Previous
             </Link>
           ) : null}
-          {page < totalPages ? (
+          {currentPage < totalPages ? (
             <Link
-              href={`/admin/users?page=${page + 1}`}
+              href={usersHref(currentPage + 1)}
               className="rounded-full border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-50"
               style={{ color: MARKETING_LINK_BLUE }}
             >

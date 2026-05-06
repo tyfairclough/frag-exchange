@@ -164,6 +164,83 @@ function tabToKind(tab: DiscoverItemTab): InventoryKind {
   return InventoryKind.CORAL;
 }
 
+function normalizeTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function inferCoralTaxonomy(coralType: string | null, name: string, description: string): string | null {
+  const parseCanonical = (raw: string | null | undefined): string | null => {
+    if (!raw) return null;
+    const parsed = parseCoralTypeFromForm(raw);
+    return parsed ?? null;
+  };
+  const canonical = parseCanonical(coralType);
+  if (canonical) {
+    return canonical;
+  }
+  const text = `${coralType ?? ""} ${name} ${description}`.toLowerCase();
+  const hasAny = (keywords: readonly string[]) => keywords.some((keyword) => text.includes(keyword));
+  if (
+    hasAny([
+      "acropora",
+      "montipora",
+      "birdsnest",
+      "stylophora",
+      "pocillopora",
+      "seriatopora",
+      "sps",
+    ])
+  ) {
+    return "SPS";
+  }
+  if (
+    hasAny([
+      "torch",
+      "hammer",
+      "frogspawn",
+      "acan",
+      "acanthastrea",
+      "euphyllia",
+      "duncan",
+      "chalice",
+      "favia",
+      "blastomussa",
+      "candy cane",
+      "lps",
+    ])
+  ) {
+    return "LPS";
+  }
+  if (
+    hasAny([
+      "zoa",
+      "zoanthid",
+      "mushroom",
+      "ricordea",
+      "xenia",
+      "kenya tree",
+      "gsp",
+      "green star polyp",
+      "leather",
+      "soft coral",
+      "soft",
+    ])
+  ) {
+    return "Soft";
+  }
+  return null;
+}
+
+function matchesAnyColourCaseInsensitive(rowColours: readonly string[], selectedColours: readonly string[]): boolean {
+  if (selectedColours.length < 1) return true;
+  const selected = new Set(selectedColours.map((c) => c.toLowerCase()));
+  return rowColours.some((colour) => selected.has(colour.toLowerCase()));
+}
+
 async function computeSortedDiscoverRows(params: DiscoverParams): Promise<DiscoverRow[]> {
   const now = new Date();
   const q = params.q?.trim();
@@ -216,10 +293,9 @@ async function computeSortedDiscoverRows(params: DiscoverParams): Promise<Discov
 
   if (searchActive) {
     if (kindScope === InventoryKind.CORAL) {
-      if (typesIn.length) itemParts.push({ coralType: { in: typesIn } });
-      if (coloursIn.length) itemParts.push({ colours: { hasSome: coloursIn } });
+      // coral taxonomy / colour can be stored in mixed legacy formats; filter after fetch.
     } else if (kindScope === InventoryKind.FISH) {
-      if (coloursIn.length) itemParts.push({ colours: { hasSome: coloursIn } });
+      // fish colour can be stored with inconsistent casing; filter after fetch.
       if (params.reefSafeOnly) itemParts.push({ reefSafe: true });
       if (speciesTrim) itemParts.push({ species: { contains: speciesTrim } });
     } else if (kindScope === InventoryKind.EQUIPMENT) {
@@ -228,9 +304,16 @@ async function computeSortedDiscoverRows(params: DiscoverParams): Promise<Discov
     }
   }
 
-  if (q) {
+  const qTokens = q ? normalizeTokens(q) : [];
+  if (qTokens.length > 0) {
     itemParts.push({
-      OR: [{ name: { contains: q } }, { description: { contains: q } }],
+      AND: qTokens.map((token) => ({
+        OR: [
+          { name: { contains: token, mode: "insensitive" as const } },
+          { description: { contains: token, mode: "insensitive" as const } },
+          { coralType: { contains: token, mode: "insensitive" as const } },
+        ],
+      })),
     });
   }
 
@@ -264,7 +347,7 @@ async function computeSortedDiscoverRows(params: DiscoverParams): Promise<Discov
     orderBy: [{ listedAt: "desc" }],
   });
 
-  const rows: DiscoverRow[] = raw.map((row) => {
+  const rowsBeforeSearchRefinement: DiscoverRow[] = raw.map((row) => {
     const item = row.inventoryItem;
     const owner = item.user;
     const lat = owner.address?.townLatitude ?? null;
@@ -308,6 +391,26 @@ async function computeSortedDiscoverRows(params: DiscoverParams): Promise<Discov
       },
       distanceKm,
     };
+  });
+
+  const rows = rowsBeforeSearchRefinement.filter((row) => {
+    if (!searchActive) {
+      return true;
+    }
+    if (kindScope === InventoryKind.CORAL) {
+      const taxonomy = inferCoralTaxonomy(row.coralType, row.name, row.description);
+      if (typesIn.length > 0 && (!taxonomy || !typesIn.includes(taxonomy))) {
+        return false;
+      }
+      if (!matchesAnyColourCaseInsensitive(row.colours, coloursIn)) {
+        return false;
+      }
+      return true;
+    }
+    if (kindScope === InventoryKind.FISH) {
+      return matchesAnyColourCaseInsensitive(row.colours, coloursIn);
+    }
+    return true;
   });
 
   const saleEligibleRows = rows.filter((row) => {
@@ -377,7 +480,8 @@ async function computeSortedDiscoverRows(params: DiscoverParams): Promise<Discov
 
   const maxKm = params.maxKm;
   if (params.exchangeKind === ExchangeKind.GROUP && maxKm != null && Number.isFinite(maxKm) && maxKm > 0) {
-    return saleEligibleRows.filter((r) => r.distanceKm != null && r.distanceKm <= maxKm);
+    const filtered = saleEligibleRows.filter((r) => r.distanceKm != null && r.distanceKm <= maxKm);
+    return filtered;
   }
 
   return saleEligibleRows;

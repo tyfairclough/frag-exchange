@@ -172,9 +172,7 @@ export function ExploreHeaderChrome() {
   useEffect(() => {
     const sp = new URLSearchParams(searchParams.toString());
     const next = parseExploreFiltersFromSearchParams(sp);
-    queueMicrotask(() => {
-      setDraft(next);
-    });
+    setDraft(next);
   }, [searchParams]);
 
   useEffect(() => {
@@ -182,9 +180,7 @@ export function ExploreHeaderChrome() {
     if (!id) {
       return;
     }
-    queueMicrotask(() => {
-      setDraftExchangeId(id);
-    });
+    setDraftExchangeId(id);
   }, [model?.exchangeId]);
 
   useEffect(() => {
@@ -198,31 +194,24 @@ export function ExploreHeaderChrome() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  const pushModalHistory = useCallback(() => {
-    window.history.pushState({ exploreUi: true }, "", window.location.href);
-    modalHistoryRef.current += 1;
-  }, []);
+  const pushModalHistory = useCallback(() => {}, []);
 
   const dismissModalOverlay = useCallback(() => {
-    if (modalHistoryRef.current > 0) {
-      window.history.back();
-    } else {
-      setMobileSearchOpen(false);
-      setMobileFiltersOpen(false);
-      setMobileSortOpen(false);
-    }
-    setTimeout(() => lastTriggerRef.current?.focus(), 0);
+    setMobileSearchOpen(false);
+    setMobileFiltersOpen(false);
+    setMobileSortOpen(false);
+    modalHistoryRef.current = 0;
+    queueMicrotask(() => lastTriggerRef.current?.focus());
   }, []);
 
   const navigateAfterClosingOverlay = useCallback(
     (href: string) => {
       setOpenMenu(null);
-      if (modalHistoryRef.current > 0) {
-        window.history.back();
-        queueMicrotask(() => router.push(href));
-      } else {
-        router.push(href);
-      }
+      setMobileSearchOpen(false);
+      setMobileFiltersOpen(false);
+      setMobileSortOpen(false);
+      modalHistoryRef.current = 0;
+      router.push(href);
     },
     [router],
   );
