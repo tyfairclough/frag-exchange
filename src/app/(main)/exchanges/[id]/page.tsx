@@ -7,7 +7,7 @@ import {
   ExchangeVisibility,
 } from "@/generated/prisma/enums";
 import { getPrisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { EventDateHighlight } from "@/app/(main)/exchanges/components/event-datetime-highlight";
 import { canManageEventDesk, canViewExchangeDirectory, isSuperAdmin } from "@/lib/super-admin";
 import { joinPublicExchangeFormAction } from "@/app/(main)/exchanges/actions";
@@ -51,7 +51,7 @@ export default async function ExchangeDetailPage({
     view?: string;
   }>;
 }) {
-  const user = await requireUser();
+  const user = await getCurrentUser();
   const { id } = await params;
   const sp = await searchParams;
 
@@ -69,12 +69,12 @@ export default async function ExchangeDetailPage({
     notFound();
   }
 
-  const membership = exchange.memberships.find((m) => m.userId === user.id) ?? null;
-  const canView = canViewExchangeDirectory(exchange, membership, user);
-  const superUser = isSuperAdmin(user);
+  const membership = user ? (exchange.memberships.find((m) => m.userId === user.id) ?? null) : null;
+  const canView = user ? canViewExchangeDirectory(exchange, membership, user) : exchange.visibility === ExchangeVisibility.PUBLIC;
+  const superUser = user ? isSuperAdmin(user) : false;
   const showManageExchange =
-    canView && (superUser || membership?.role === ExchangeMembershipRole.EVENT_MANAGER);
-  const eventDesk = canManageEventDesk(exchange, membership, user);
+    !!user && canView && (superUser || membership?.role === ExchangeMembershipRole.EVENT_MANAGER);
+  const eventDesk = !!user && canManageEventDesk(exchange, membership, user);
 
   const errorMessage = sp.error ? detailErrors[sp.error] ?? "Something went wrong." : null;
 
@@ -126,7 +126,7 @@ export default async function ExchangeDetailPage({
           exchangeId: exchange.id,
           expiresAt: { gt: now },
           inventoryItem: {
-            userId: user.id,
+            userId: user!.id,
             profileStatus: CoralProfileStatus.UNLISTED,
             remainingQuantity: { gt: 0 },
           },
@@ -136,7 +136,7 @@ export default async function ExchangeDetailPage({
         by: ["status"],
         where: {
           exchangeId: exchange.id,
-          OR: [{ initiatorUserId: user.id }, { peerUserId: user.id }],
+          OR: [{ initiatorUserId: user!.id }, { peerUserId: user!.id }],
         },
         _count: { _all: true },
       }),
@@ -166,7 +166,8 @@ export default async function ExchangeDetailPage({
   const listingsHref = `/exchanges/${encodeURIComponent(exchange.id)}/listings`;
   const headerLogoUrl = exchangeLogoUrlForListThumbnail(exchange);
   const headerLogoSrcSet = exchangeLogoSrcSetForListThumbnail(exchange);
-  const tierCanJoin = canPostingRoleJoinExchange(user, exchange);
+  const tierCanJoin = user ? canPostingRoleJoinExchange(user, exchange) : true;
+  const loginHref = `/auth/login?next=${encodeURIComponent(`/exchanges/${encodeURIComponent(exchange.id)}?view=about`)}`;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -277,16 +278,26 @@ export default async function ExchangeDetailPage({
                 : "This public exchange currently does not allow your member tier to join."}
             </p>
             {tierCanJoin ? (
-              <form action={joinPublicExchangeFormAction}>
-                <input type="hidden" name="exchangeId" value={exchange.id} />
-                <button
-                  type="submit"
+              user ? (
+                <form action={joinPublicExchangeFormAction}>
+                  <input type="hidden" name="exchangeId" value={exchange.id} />
+                  <button
+                    type="submit"
+                    className="inline-flex min-h-10 items-center rounded-full px-5 text-sm font-semibold text-white transition hover:opacity-95"
+                    style={{ backgroundColor: MARKETING_CTA_GREEN }}
+                  >
+                    Join
+                  </button>
+                </form>
+              ) : (
+                <Link
+                  href={loginHref}
                   className="inline-flex min-h-10 items-center rounded-full px-5 text-sm font-semibold text-white transition hover:opacity-95"
-                  style={{ backgroundColor: MARKETING_CTA_GREEN }}
+                  style={{ backgroundColor: MARKETING_LINK_BLUE }}
                 >
-                  Join
-                </button>
-              </form>
+                  Sign in to join
+                </Link>
+              )
             ) : (
               <span className="inline-flex min-h-10 items-center rounded-full border border-slate-200 bg-slate-100 px-5 text-sm font-semibold text-slate-500">
                 Join unavailable
@@ -302,7 +313,7 @@ export default async function ExchangeDetailPage({
         </p>
       ) : null}
 
-      {membership ? (
+      {canView ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="exchange-dashboard-heading">
           <h2 id="exchange-dashboard-heading" className="text-sm font-semibold" style={{ color: MARKETING_NAVY }}>
             At a glance
@@ -325,38 +336,68 @@ export default async function ExchangeDetailPage({
             <div className="flex min-h-0 min-w-0 flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
               <div className="flex flex-col">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your trades</p>
-                <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                  <li>
-                    <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.complete}</span> complete
-                  </li>
-                  <li>
-                    <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.pending}</span> pending
-                  </li>
-                  <li>
-                    <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.cancelled}</span> cancelled
-                  </li>
-                </ul>
+                {membership ? (
+                  <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                    <li>
+                      <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.complete}</span> complete
+                    </li>
+                    <li>
+                      <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.pending}</span> pending
+                    </li>
+                    <li>
+                      <span className="font-semibold tabular-nums text-slate-900">{tradeBuckets.cancelled}</span> cancelled
+                    </li>
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-600">Sign in to track your trade requests and replies here.</p>
+                )}
               </div>
-              <Link
-                href={tradesHref}
-                className="inline-flex min-h-9 w-fit shrink-0 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-              >
-                View trades
-              </Link>
+              {membership ? (
+                <Link
+                  href={tradesHref}
+                  className="inline-flex min-h-9 w-fit shrink-0 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                >
+                  View trades
+                </Link>
+              ) : (
+                <Link
+                  href={loginHref}
+                  className="inline-flex min-h-9 w-fit shrink-0 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                >
+                  Sign in to trade
+                </Link>
+              )}
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
               <div className="flex flex-col">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your listings here</p>
-                <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{myActiveListingCount}</p>
-                <p className="mt-1 text-xs text-slate-600">Items you have listed on this exchange.</p>
+                {membership ? (
+                  <>
+                    <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{myActiveListingCount}</p>
+                    <p className="mt-1 text-xs text-slate-600">Items you have listed on this exchange.</p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-600">
+                    Sign in to add your items and manage your listings in this exchange.
+                  </p>
+                )}
               </div>
-              <Link
-                href={listingsHref}
-                className="inline-flex min-h-9 w-fit shrink-0 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-              >
-                Manage listings
-              </Link>
+              {membership ? (
+                <Link
+                  href={listingsHref}
+                  className="inline-flex min-h-9 w-fit shrink-0 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                >
+                  Manage listings
+                </Link>
+              ) : (
+                <Link
+                  href={loginHref}
+                  className="inline-flex min-h-9 w-fit shrink-0 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                >
+                  Sign in to list items
+                </Link>
+              )}
             </div>
           </div>
         </section>

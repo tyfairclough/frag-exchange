@@ -3,7 +3,7 @@
 import { AppLink } from "@/components/app-link";
 import { AuroraBrandText } from "@/components/aurora-brand-text";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
 import { InventoryEditBottomNavProvider } from "@/components/inventory-edit-bottom-nav-context";
 import { ExploreHeaderChrome } from "@/components/explore-header-chrome";
@@ -383,15 +383,20 @@ export function AppShell({
   profile,
   showSuperAdminMenu = false,
   operatorManagedExchanges = [],
+  isGuest = false,
 }: {
   children: React.ReactNode;
   profile: AppShellProfile;
   showSuperAdminMenu?: boolean;
   operatorManagedExchanges?: OperatorManagedExchange[];
+  isGuest?: boolean;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isExplore = pathname === "/explore";
-  const hideBottomNav = pathname === "/my-items/new" || pathname === "/my-corals/new";
+  const hideBottomNav = isGuest || pathname === "/my-items/new" || pathname === "/my-corals/new";
+  const nextPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+  const guestSignInHref = `/auth/login?next=${encodeURIComponent(nextPath)}`;
 
   return (
     <InventoryEditBottomNavProvider>
@@ -409,33 +414,60 @@ export function AppShell({
                 <div className="flex flex-col gap-2 md:hidden">
                   <div className="flex items-center justify-between gap-3">
                     <ShellBrandLink />
-                    <ShellProfileArea
-                      profile={profile}
-                      showSuperAdminMenu={showSuperAdminMenu}
-                      operatorManagedExchanges={operatorManagedExchanges}
-                    />
+                    {isGuest ? (
+                      <AppLink
+                        href={guestSignInHref}
+                        className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+                      >
+                        Sign in
+                      </AppLink>
+                    ) : (
+                      <ShellProfileArea
+                        profile={profile}
+                        showSuperAdminMenu={showSuperAdminMenu}
+                        operatorManagedExchanges={operatorManagedExchanges}
+                      />
+                    )}
                   </div>
                   <HeaderExploreChrome />
                 </div>
                 <div className="hidden items-center justify-between gap-3 md:flex">
                   <ShellBrandLink />
                   <HeaderExploreChrome />
-                  <ShellProfileArea
-                    profile={profile}
-                    showSuperAdminMenu={showSuperAdminMenu}
-                    operatorManagedExchanges={operatorManagedExchanges}
-                  />
+                  {isGuest ? (
+                    <AppLink
+                      href={guestSignInHref}
+                      className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+                    >
+                      Sign in
+                    </AppLink>
+                  ) : (
+                    <ShellProfileArea
+                      profile={profile}
+                      showSuperAdminMenu={showSuperAdminMenu}
+                      operatorManagedExchanges={operatorManagedExchanges}
+                    />
+                  )}
                 </div>
               </>
             ) : (
               <div className="flex items-center justify-between gap-3">
                 <ShellBrandLink />
                 <HeaderExploreChrome />
-                <ShellProfileArea
-                  profile={profile}
-                  showSuperAdminMenu={showSuperAdminMenu}
-                  operatorManagedExchanges={operatorManagedExchanges}
-                />
+                {isGuest ? (
+                  <AppLink
+                    href={guestSignInHref}
+                    className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+                  >
+                    Sign in
+                  </AppLink>
+                ) : (
+                  <ShellProfileArea
+                    profile={profile}
+                    showSuperAdminMenu={showSuperAdminMenu}
+                    operatorManagedExchanges={operatorManagedExchanges}
+                  />
+                )}
               </div>
             )}
           </div>

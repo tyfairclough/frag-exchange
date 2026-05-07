@@ -13,6 +13,7 @@ import {
   MarketingSiteHeader,
 } from "@/components/marketing/marketing-chrome";
 import type { PublicMarketingListingRow } from "@/lib/marketing-listings";
+import { buildSharedItemPath } from "@/lib/item-share";
 
 type ListingRow = PublicMarketingListingRow;
 type HowItWorksStep = {
@@ -45,7 +46,7 @@ const HOW_IT_WORKS_TABS: HowItWorksTab[] = [
       {
         title: "Join an exchange.",
         body: "Not attending an event? No problem, join an open exchange instead.",
-        link: { href: "/exchanges/browse?tab=groups", label: "Join an exchange" },
+        link: { href: "/exchanges/browse?tab=groups", label: "View exchanges" },
       },
       {
         title: "List your corals.",
@@ -155,11 +156,11 @@ function ListingCard({ row }: { row: ListingRow }) {
         </span>
         <p className="line-clamp-2 text-[0.65rem] leading-snug text-slate-500">{exchange.name}</p>
         <AppLink
-          href="/auth/login"
+          href={buildSharedItemPath(exchange.id, item.id)}
           className="mt-1 text-xs font-semibold hover:underline"
           style={{ color: MARKETING_LINK_BLUE }}
         >
-          Sign in to view
+          View item
         </AppLink>
       </div>
     </article>
@@ -194,7 +195,7 @@ export function PublicHomepage({ listings }: { listings: ListingRow[] }) {
               className="inline-flex min-h-12 items-center justify-center rounded-full px-8 text-center text-sm font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.99]"
               style={{ backgroundColor: MARKETING_CTA_GREEN }}
             >
-              Join an exchange
+              View exchanges
             </AppLink>
             <AppLink
               href="/auth/login"

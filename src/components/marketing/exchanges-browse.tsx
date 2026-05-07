@@ -1,5 +1,4 @@
 import { AppLink } from "@/components/app-link";
-import { joinPublicExchangeFormAction } from "@/app/(main)/exchanges/actions";
 import type { PublicBrowseEventRow, PublicBrowseGroupRow } from "@/lib/public-exchange-browse";
 import { MARKETING_LINK_BLUE, MARKETING_NAVY } from "@/components/marketing/marketing-chrome";
 
@@ -88,50 +87,14 @@ function GroupExchangeCell({ row }: { row: PublicBrowseGroupRow }) {
   );
 }
 
-function JoinExchangeControl({
-  exchangeId,
-  isLoggedIn,
-  isMember,
-}: {
-  exchangeId: string;
-  isLoggedIn: boolean;
-  isMember: boolean;
-}) {
-  if (isMember) {
-    return (
-      <AppLink
-        href={`/exchanges/${exchangeId}`}
-        className="inline-flex items-center gap-1 text-sm font-semibold hover:underline"
-        style={{ color: MARKETING_LINK_BLUE }}
-      >
-        Open
-        <span aria-hidden>→</span>
-      </AppLink>
-    );
-  }
-  if (isLoggedIn) {
-    return (
-      <form action={joinPublicExchangeFormAction}>
-        <input type="hidden" name="exchangeId" value={exchangeId} />
-        <button
-          type="submit"
-          className="inline-flex items-center gap-1 text-sm font-semibold hover:underline"
-          style={{ color: MARKETING_LINK_BLUE }}
-        >
-          Join exchange
-          <span aria-hidden>→</span>
-        </button>
-      </form>
-    );
-  }
-  const loginHref = `/auth/login?next=${encodeURIComponent(`/exchanges/${exchangeId}`)}`;
+function JoinExchangeControl({ exchangeId }: { exchangeId: string }) {
   return (
     <AppLink
-      href={loginHref}
+      href={`/explore?exchangeId=${encodeURIComponent(exchangeId)}`}
       className="inline-flex items-center gap-1 text-sm font-semibold hover:underline"
       style={{ color: MARKETING_LINK_BLUE }}
     >
-      Join exchange
+      View exchange
       <span aria-hidden>→</span>
     </AppLink>
   );
@@ -141,14 +104,10 @@ export function ExchangesBrowseView({
   tab,
   events,
   groups,
-  joinedIds,
-  isLoggedIn,
 }: {
   tab: "events" | "groups";
   events: PublicBrowseEventRow[];
   groups: PublicBrowseGroupRow[];
-  joinedIds: Set<string>;
-  isLoggedIn: boolean;
 }) {
   return (
     <div className="bg-slate-100/80 pb-16 pt-6 sm:pb-20 sm:pt-8">
@@ -162,13 +121,13 @@ export function ExchangesBrowseView({
 
           <nav className="mt-6 flex gap-8 border-b border-slate-200" aria-label="Exchange type">
             <TabLink href="/exchanges/browse?tab=events" label="Events" active={tab === "events"} />
-            <TabLink href="/exchanges/browse?tab=groups" label="Groups" active={tab === "groups"} />
+            <TabLink href="/exchanges/browse?tab=groups" label="Public Exchange" active={tab === "groups"} />
           </nav>
 
           {tab === "events" ? (
             <EventsTables events={events} />
           ) : (
-            <GroupsTables groups={groups} joinedIds={joinedIds} isLoggedIn={isLoggedIn} />
+            <GroupsTables groups={groups} />
           )}
         </div>
       </div>
@@ -226,15 +185,7 @@ function EventsTables({ events }: { events: PublicBrowseEventRow[] }) {
   );
 }
 
-function GroupsTables({
-  groups,
-  joinedIds,
-  isLoggedIn,
-}: {
-  groups: PublicBrowseGroupRow[];
-  joinedIds: Set<string>;
-  isLoggedIn: boolean;
-}) {
+function GroupsTables({ groups }: { groups: PublicBrowseGroupRow[] }) {
   if (groups.length === 0) {
     return <p className="mt-8 text-sm text-slate-600">No public groups listed yet.</p>;
   }
@@ -266,8 +217,6 @@ function GroupsTables({
                 <td className="py-3.5 text-right">
                   <JoinExchangeControl
                     exchangeId={row.id}
-                    isLoggedIn={isLoggedIn}
-                    isMember={joinedIds.has(row.id)}
                   />
                 </td>
               </tr>
@@ -293,8 +242,6 @@ function GroupsTables({
             <div className="mt-3">
               <JoinExchangeControl
                 exchangeId={row.id}
-                isLoggedIn={isLoggedIn}
-                isMember={joinedIds.has(row.id)}
               />
             </div>
           </li>

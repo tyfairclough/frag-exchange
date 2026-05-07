@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ExchangeMembershipRole, ExchangeVisibility } from "@/generated/prisma/enums";
-import { requireUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
+import { canPostingRoleJoinExchange } from "@/lib/exchange-join-eligibility";
 
 function str(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -18,12 +19,25 @@ export async function joinExchangeAndStartTradeAction(formData: FormData) {
     redirect("/exchanges?error=join-not-found");
   }
 
-  const user = await requireUser();
+  const user = await getCurrentUser();
+  if (!user) {
+    const next = `/shared/exchanges/${encodeURIComponent(exchangeId)}/items/${encodeURIComponent(itemId)}`;
+    redirect(`/auth/login?next=${encodeURIComponent(next)}`);
+  }
   const exchange = await getPrisma().exchange.findFirst({
     where: { id: exchangeId, visibility: ExchangeVisibility.PUBLIC },
+    select: {
+      id: true,
+      allowNormalMembersToJoin: true,
+      allowOnlineRetailersToJoin: true,
+      allowLocalFishStoresToJoin: true,
+    },
   });
   if (!exchange) {
     redirect(`/shared/exchanges/${encodeURIComponent(exchangeId)}/items/${encodeURIComponent(itemId)}`);
+  }
+  if (!canPostingRoleJoinExchange(user, exchange)) {
+    redirect(`/shared/exchanges/${encodeURIComponent(exchangeId)}/items/${encodeURIComponent(itemId)}?error=join-tier-blocked`);
   }
 
   await getPrisma().exchangeMembership.upsert({

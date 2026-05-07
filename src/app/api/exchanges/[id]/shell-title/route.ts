@@ -15,9 +15,6 @@ export async function GET(
 ) {
   await ensureDatabaseReadyUncached();
   const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
 
   const { id } = await context.params;
   const exchange = await getPrisma().exchange.findUnique({
@@ -36,13 +33,16 @@ export async function GET(
     return NextResponse.json({ error: "not-found" }, { status: 404 });
   }
 
+  const memberRow = user
+    ? await getPrisma().exchangeMembership.findFirst({
+        where: { exchangeId: exchange.id, userId: user.id },
+        select: { id: true },
+      })
+    : null;
   const canSee =
     exchange.visibility === ExchangeVisibility.PUBLIC ||
-    isSuperAdmin(user) ||
-    !!(await getPrisma().exchangeMembership.findFirst({
-      where: { exchangeId: exchange.id, userId: user.id },
-      select: { id: true },
-    }));
+    (!!user && isSuperAdmin(user)) ||
+    !!memberRow;
 
   if (!canSee) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });

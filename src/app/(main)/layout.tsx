@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { ExploreShellProvider } from "@/components/explore-shell-context";
 import { ExchangeMembershipRole } from "@/generated/prisma/enums";
-import { requireUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { ensureDatabaseReady } from "@/lib/db-warm";
 import { getPrisma } from "@/lib/db";
 import { isSuperAdmin } from "@/lib/super-admin";
@@ -12,7 +12,25 @@ export const dynamic = "force-dynamic";
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   await ensureDatabaseReady();
-  const user = await requireUser();
+  const user = await getCurrentUser();
+  if (!user) {
+    return (
+      <ExploreShellProvider>
+        <AppShell
+          profile={{
+            aliasLabel: "Guest",
+            avatarEmoji: "🐠",
+            avatar40Url: null,
+            avatar80Url: null,
+            avatar256Url: null,
+          }}
+          isGuest
+        >
+          {children}
+        </AppShell>
+      </ExploreShellProvider>
+    );
+  }
   if (!hasCompletedRequiredOnboarding(user)) {
     redirect("/onboarding");
   }

@@ -10,7 +10,7 @@ import {
   UserPostingRole,
 } from "@/generated/prisma/enums";
 import { assertDatabaseReachable, getPrisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { requireSuperAdmin } from "@/lib/require-super-admin";
 import { getRequestOrigin } from "@/lib/request-origin";
 import {
@@ -508,7 +508,10 @@ export async function joinPublicExchangeFormAction(formData: FormData) {
     redirect("/exchanges?error=join-not-found");
   }
 
-  const user = await requireUser();
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect(`/auth/login?next=${encodeURIComponent(`/exchanges/${encodeURIComponent(exchangeId)}?view=about`)}`);
+  }
 
   const exchange = await getPrisma().exchange.findFirst({
     where: { id: exchangeId, visibility: ExchangeVisibility.PUBLIC },

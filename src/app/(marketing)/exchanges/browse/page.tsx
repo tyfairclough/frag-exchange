@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { ExchangesBrowseView } from "@/components/marketing/exchanges-browse";
 import { MarketingSiteFooter, MarketingSiteHeader } from "@/components/marketing/marketing-chrome";
-import { getCurrentUser } from "@/lib/auth";
 import { ensureDatabaseReady } from "@/lib/db-warm";
-import { getPrisma } from "@/lib/db";
 import { getPublicBrowseEvents, getPublicBrowseGroups } from "@/lib/public-exchange-browse";
 
 export const metadata: Metadata = {
@@ -23,34 +21,12 @@ export default async function PublicExchangesBrowsePage({
 
   await ensureDatabaseReady();
 
-  const [user, events, groups] = await Promise.all([
-    getCurrentUser(),
-    getPublicBrowseEvents(),
-    getPublicBrowseGroups(),
-  ]);
-
-  let joinedIds = new Set<string>();
-  if (user && groups.length > 0) {
-    const memberships = await getPrisma().exchangeMembership.findMany({
-      where: {
-        userId: user.id,
-        exchangeId: { in: groups.map((g) => g.id) },
-      },
-      select: { exchangeId: true },
-    });
-    joinedIds = new Set(memberships.map((m) => m.exchangeId));
-  }
+  const [events, groups] = await Promise.all([getPublicBrowseEvents(), getPublicBrowseGroups()]);
 
   return (
     <div className="min-h-dvh bg-white text-slate-600">
       <MarketingSiteHeader />
-      <ExchangesBrowseView
-        tab={tab}
-        events={events}
-        groups={groups}
-        joinedIds={joinedIds}
-        isLoggedIn={!!user}
-      />
+      <ExchangesBrowseView tab={tab} events={events} groups={groups} />
       <MarketingSiteFooter />
     </div>
   );

@@ -1,6 +1,12 @@
 import { AddItemWizard } from "@/components/add-item-wizard";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function NewItemPage() {
+export default async function NewItemPage() {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect(`/auth/login?next=${encodeURIComponent("/my-items/new")}`);
+  }
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-6">
       <h1 className="text-xl font-semibold text-base-content">Add item</h1>
